@@ -5,5 +5,4 @@ Tasty, An Application for Hidden Local Gem Pioneers. 테이스티, 로컬 맛집
          
           <img src="https://img.shields.io/badge/Firebase-FFCA28?style=plastic&logo=Firebase&logoColor=white">
       
-      
-          <br/></div>
+      </div>
