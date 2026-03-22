@@ -2,7 +2,7 @@
 > **로컬 맛집 개척자들을 위한 SNS 플랫폼** > *Discover hidden gems, pioneer your own taste.*
 
 <div align="center">
-  <img src="https://capsule-render.vercel.app/render?type=waving&color=auto&height=200&section=header&text=Tasty%20App&fontSize=90" />
+  <img src="https://imgur.com/a/oQosU42" />
 </div>
 
 ## 🧑‍💻 Tech Stacks
@@ -14,20 +14,23 @@
   <img src="https://img.shields.io/badge/Android%20Studio-3DDC84?style=for-the-badge&logo=AndroidStudio&logoColor=white">
 </p>
 
-### 🎨 UI & Logic
+### 🎨 UI & Jetpack
 <p>
   <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=JetpackCompose&logoColor=white">
   <img src="https://img.shields.io/badge/Navigation-gray?style=for-the-badge&logo=JetpackCompose">
   <img src="https://img.shields.io/badge/ViewModel-gray?style=for-the-badge&logo=JetpackCompose">
 </p>
 
-### 🌐 Infrastructure & API
+### 🌐 Infrastructure & Library
 <p>
   <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=Firebase&logoColor=white">
   <img src="https://img.shields.io/badge/Google%20Maps-4285F4?style=for-the-badge&logo=GoogleMaps&logoColor=white">
 </p>
 
----
+### ⚙️ Architecture 
+<p>
+  <img src="https://img.shields.io/badge/MVVM-Feature Based-white?style=for-the-badge">
+</p>
 
 ## 🔖 Overview
 | 항목 | 내용 |
