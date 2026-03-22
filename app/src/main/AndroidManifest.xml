@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" >
+    <!--퍼미션 선언-->
+    <!--인터넷 권한: SDK를 통해 외부와 통신하기 위해 필요함다 / 예: Firebase, Google Maps SDK, Google Places SDK 등-->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!--위치 권한: 런타임 시 요청해야함다 (Level: Dangerous)-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!--갤러리(사진) 권한: 런타임 시 요청해야함다 (Level: Dangerous) -->
+    <!--안드로이드 12이하-->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!--13이상은 permission이 필요가 없고 Photo Picker를 이용해서 런타임 시 요청을 해야한다네요.-->
+    <!--<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>-->
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication" >
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MyApplication" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
