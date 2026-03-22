@@ -2,7 +2,7 @@
 > **로컬 맛집 개척자들을 위한 SNS 플랫폼** > *Discover hidden gems, pioneer your own taste.*
 
 <div align="center">
-  <img src="https://imgur.com/a/oQosU42" />
+  <img src="https://imgur.com/rPWKoIe" />
 </div>
 
 ## 🧑‍💻 Tech Stacks
