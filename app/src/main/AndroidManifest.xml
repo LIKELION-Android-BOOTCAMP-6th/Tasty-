@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" >
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.tasty.android">
     <!--퍼미션 선언-->
     <!--인터넷 권한: SDK를 통해 외부와 통신하기 위해 필요함다 / 예: Firebase, Google Maps SDK, Google Places SDK 등-->
     <uses-permission android:name="android.permission.INTERNET"/>
