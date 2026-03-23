@@ -1,4 +1,6 @@
 package com.example.myapplication.feature.mypage
 
-class MyPageViewmodel {
+import androidx.lifecycle.ViewModel
+
+class MyPageViewmodel: ViewModel() {
 }

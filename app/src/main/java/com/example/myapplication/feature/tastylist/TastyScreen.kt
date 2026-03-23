@@ -1,4 +1,4 @@
-package com.example.myapplication.feature.tasty
+package com.example.myapplication.feature.tastylist
 
 class TastyScreen {
 }

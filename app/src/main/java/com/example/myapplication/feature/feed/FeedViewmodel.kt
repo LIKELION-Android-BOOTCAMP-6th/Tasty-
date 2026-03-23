@@ -1,4 +1,6 @@
 package com.example.myapplication.feature.feed
 
-class FeedViewmodel {
+import androidx.lifecycle.ViewModel
+
+class FeedViewmodel: ViewModel() {
 }

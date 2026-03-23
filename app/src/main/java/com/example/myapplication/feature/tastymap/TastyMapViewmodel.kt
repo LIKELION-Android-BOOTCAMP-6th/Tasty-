@@ -1,4 +1,6 @@
 package com.example.myapplication.feature.tastymap
 
-class TastyMapViewmodel {
+import androidx.lifecycle.ViewModel
+
+class TastyMapViewmodel: ViewModel() {
 }
