@@ -48,6 +48,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     // Add Androidx Compose Navigation Dependency
     implementation("androidx.navigation:navigation-compose:2.8.9")
+    // Add Google Fonts Dependency
+    implementation(libs.androidx.compose.ui.text.google.fonts)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -65,4 +67,5 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     // Add the dependency for the Cloud Storage library
     implementation("com.google.firebase:firebase-storage")
+
 }
