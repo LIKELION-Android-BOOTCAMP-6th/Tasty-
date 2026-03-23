@@ -68,5 +68,7 @@ dependencies {
     // Add the dependency for the Coil Lib
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+    // Add the dependency for Google Dependency
+    implementation("androidx.compose.ui:ui-text-google-fonts:1.10.5")
 
 }
