@@ -70,5 +70,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
     // Add the dependency for Google Dependency
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.5")
+    // Add google Icons Dependency (아이콘 확장 라이브러리 추가)
+    implementation("androidx.compose.material:material-icons-extended")
 
 }
