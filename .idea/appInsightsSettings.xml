@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.tasty.android" />
+                  <option name="mobileSdkAppId" value="1:1057303627296:android:8e6110ac748c5746b9de45" />
+                  <option name="projectId" value="tasty-b37e0" />
+                  <option name="projectNumber" value="1057303627296" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
