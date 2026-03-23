@@ -65,4 +65,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     // Add the dependency for the Cloud Storage library
     implementation("com.google.firebase:firebase-storage")
+    // Add the dependency for the Coil Lib
+    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+
 }
