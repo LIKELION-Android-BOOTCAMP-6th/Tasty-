@@ -1,4 +1,4 @@
-package com.tasty.android.core.model
+package com.tasty.android.feature.feed.model
 
 data class AddressInfo(
     val latitude: Double = 0.0,
