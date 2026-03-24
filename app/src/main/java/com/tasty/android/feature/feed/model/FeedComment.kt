@@ -1,4 +1,4 @@
-package com.tasty.android.core.model
+package com.tasty.android.feature.feed.model
 
 data class FeedComment(
     val commentId: String = "",
