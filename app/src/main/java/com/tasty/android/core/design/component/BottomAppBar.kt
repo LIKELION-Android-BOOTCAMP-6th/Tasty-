@@ -21,20 +21,11 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.tasty.android.core.design.theme.PrimaryColor
+import com.tasty.android.core.navigation.ScreenState
 
-// 화면 상태 정의
-enum class ScreenState(
-    val label: String,
-    val activeIcon: ImageVector,
-    val inactiveIcon: ImageVector
-) {
-    FEED("피드", Icons.Filled.Home, inactiveIcon = Icons.Outlined.Home),
-    // 아래 아이콘은 추후 extended 아이콘 main에 Merge 후에 라이브러리 추가 후 변경
-    TASTY_LIST("테이스티 리스트", Icons.Filled.PlayArrow, Icons.Outlined.PlayArrow),
-    MAP("지도", Icons.Filled.LocationOn, Icons.Outlined.LocationOn),
-    MY_PAGE("마이페이지", Icons.Filled.AccountCircle, Icons.Outlined.AccountCircle)
-}
 
+// 바텀 앱 바 컴포저블
 @Composable
 fun CustomBottomAppBar(navController: NavController) {
     // 현재 네비게이션 백 스택 상태 추적
@@ -42,23 +33,28 @@ fun CustomBottomAppBar(navController: NavController) {
     // 화면 정보 정의
     val currentDestination = navBackStackEntry?.destination
 
-    NavigationBar {
+    NavigationBar(
+        containerColor = PrimaryColor
+    ) {
         ScreenState.entries.forEach{ screenState ->
             // 현재 화면 경로(루트) 확인
             val isSelected = currentDestination?.hierarchy?.any{navDestination ->
-                navDestination.route == screenState.name
+                navDestination.route == screenState.route
             } == true
             // 네비게이션 아이템 정의
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
                     // 해당 스크린으로 이동
-                    navController.navigate(screenState.name) {
-                        popUpTo(navController.graph.findStartDestination()) {
+                    navController.navigate(screenState.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true // 스크린 이전 상태 저장
                         }
+                        launchSingleTop = true // 중복 스택 방지
+                        restoreState = true // 스크린 이전 상태 복구
                     }
                 },
+
                 icon = { // 바텀 네비게이션바 아이콘
                     Icon(
                         imageVector = if (isSelected) screenState.activeIcon else screenState.inactiveIcon,
@@ -69,7 +65,7 @@ fun CustomBottomAppBar(navController: NavController) {
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Black,
                     unselectedIconColor = Color.Black,
-                    indicatorColor = Color.White
+                    indicatorColor = Color.White,
                 )
             )
         }
