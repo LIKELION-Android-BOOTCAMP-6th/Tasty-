@@ -69,6 +69,7 @@ fun CustomTopAppBar(
                 }
             }
         },
+        // 색상 정의
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = PrimaryColor,
             navigationIconContentColor = TextColor,
@@ -76,6 +77,7 @@ fun CustomTopAppBar(
             scrolledContainerColor = Color.Transparent,
             actionIconContentColor = TextColor
         ),
+        // 상단 액션 정의
         actions = {
             actions.forEach { action ->
                 IconButton(
