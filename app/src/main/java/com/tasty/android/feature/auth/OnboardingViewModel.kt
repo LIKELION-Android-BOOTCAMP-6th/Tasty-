@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 
 // 로그인 뷰 모델
-class AuthLandingViewModel: ViewModel() {
+class OnboardingViewModel: ViewModel() {
     fun onSignUpClick(){
         Log.d("test", "회원가입 버튼이 클릭되었습니다!")
     }

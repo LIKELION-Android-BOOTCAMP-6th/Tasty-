@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AuthLandingScreen (viewmodel: AuthLandingViewModel){
+fun OnboardingScreen (viewmodel: OnboardingViewModel){
     Column(
         modifier = Modifier
             .fillMaxSize()
