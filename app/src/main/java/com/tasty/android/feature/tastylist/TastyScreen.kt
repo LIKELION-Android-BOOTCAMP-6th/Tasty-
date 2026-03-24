@@ -1,4 +1,8 @@
 package com.tasty.android.feature.tastylist
 
-class TastyScreen {
+import androidx.compose.runtime.Composable
+
+@Composable
+fun TastyList() {
+
 }

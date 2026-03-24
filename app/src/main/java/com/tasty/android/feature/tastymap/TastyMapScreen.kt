@@ -1,4 +1,8 @@
 package com.tasty.android.feature.tastymap
 
-class TastyMapScreen {
+import androidx.compose.runtime.Composable
+
+@Composable
+fun TastyMapScreen() {
+
 }
