@@ -45,18 +45,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-/*import com.tasty.android.core.design.component.CustomTopAppBar
-import com.tasty.android.core.design.component.CustomBottomAppBar*/
+import androidx.navigation.NavController
+/*import com.tasty.android.core.design.component.CustomTopAppBar*/
+import com.tasty.android.core.design.component.CustomBottomAppBar
 
 @Composable // 이 함수가 Compose UI라는 의미
 fun FeedScreen(
     viewModel: FeedViewModel = viewModel(), // ViewModel 가져오기 (상태 관리)
     onAddPostClick: () -> Unit = {},        // 글 작성 버튼
     onFilterClick: () -> Unit = {},         // 필터 버튼
-    onHomeClick: () -> Unit = {},           // 하단 홈
-    onListClick: () -> Unit = {},           // 리스트
-    onMapClick: () -> Unit = {},            // 지도
-    onMyPageClick: () -> Unit = {},         // 마이페이지
+    navController: NavController,
     onFeedDetailClick: (Int) -> Unit = {},  // 피드 클릭 시 상세 이동
     onProfileClick: (String) -> Unit = {}   // 프로필 클릭
 ) {
@@ -68,15 +66,10 @@ fun FeedScreen(
             // Scaffold의 상단 영역에 들어갈 UI를 정의하는 자리
             // 여기 안에 넣은 Composable이 화면 맨 위에 고정됨
             CustomTopAppBar()
-        },
-        bottomBar = {
-            CustomBottomAppBar(
-                 onHomeClick = onHomeClick,
-                 onListClick = onListClick,
-                 onMapClick = onMapClick,
-                 onMyPageClick = onMyPageClick
-            )
         },*/
+        bottomBar = {
+            CustomBottomAppBar(navController = navController)
+        },
 
         // 배경 색
         containerColor = Color(0xFFF8F8F8),
