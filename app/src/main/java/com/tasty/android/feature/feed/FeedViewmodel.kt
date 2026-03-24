@@ -1,15 +1,10 @@
 package com.tasty.android.feature.feed
 
 import androidx.lifecycle.ViewModel
-<<<<<<< HEAD
-import com.tasty.android.core.model.AddressInfo
-import com.tasty.android.core.model.Feed
-import com.tasty.android.feature.feed.mapper.toFeedPostItem
-=======
+
 import com.tasty.android.feature.feed.mapper.toFeedPostItem
 import com.tasty.android.feature.feed.model.AddressInfo
 import com.tasty.android.feature.feed.model.Feed
->>>>>>> main
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
