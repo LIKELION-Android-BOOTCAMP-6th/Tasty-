@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.tasty.android"
-    compileSdk = 36
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.tasty.android"
@@ -46,6 +46,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
     // Add Androidx Compose Navigation Dependency
     implementation("androidx.navigation:navigation-compose:2.8.9")
     testImplementation(libs.junit)
