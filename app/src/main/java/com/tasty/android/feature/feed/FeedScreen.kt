@@ -55,7 +55,7 @@ fun FeedScreen(
     onAddPostClick: () -> Unit = {},        // 글 작성 버튼
     onFilterClick: () -> Unit = {},         // 필터 버튼
     navController: NavController,
-    onFeedDetailClick: (Int) -> Unit = {},  // 피드 클릭 시 상세 이동
+    onFeedDetailClick: (String) -> Unit = {},  // 피드 클릭 시 상세 이동
     onProfileClick: (String) -> Unit = {}   // 프로필 클릭
 ) {
     // ViewModel의 상태를 Compose에서 관찰
@@ -139,7 +139,7 @@ fun FeedScreen(
 @Composable
 private fun FeedHeaderSection(
     title: String,
-    tastyLists: List<TastyListUiModel>
+    tastyLists: List<TastyListItem>
 ) {
     Column( // 세로 레이아웃
         modifier = Modifier
@@ -199,7 +199,7 @@ private fun FeedHeaderSection(
 
 @Composable
 private fun FeedCard(
-    post: FeedPostUiModel,
+    post: FeedPostItem,
     userRegion: String,
     onClick: () -> Unit,
     onProfileClick: () -> Unit
