@@ -42,12 +42,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tasty.android.core.design.theme.MyApplicationTheme
-
 /*import com.tasty.android.core.design.component.CustomTopAppBar
 import com.tasty.android.core.design.component.CustomBottomAppBar*/
 
@@ -66,31 +63,6 @@ fun FeedScreen(
     // ViewModel의 상태를 Compose에서 관찰
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    FeedScreenContent(
-        uiState = uiState,
-        onAddPostClick = onAddPostClick,
-        onFilterClick = onFilterClick,
-        onHomeClick = onHomeClick,
-        onListClick = onListClick,
-        onMapClick = onMapClick,
-        onMyPageClick = onMyPageClick,
-        onFeedDetailClick = onFeedDetailClick,
-        onProfileClick = onProfileClick
-    )
-}
-
-@Composable
-private fun FeedScreenContent(
-    uiState: FeedUiState,
-    onAddPostClick: () -> Unit = {},
-    onFilterClick: () -> Unit = {},
-    onHomeClick: () -> Unit = {},
-    onListClick: () -> Unit = {},
-    onMapClick: () -> Unit = {},
-    onMyPageClick: () -> Unit = {},
-    onFeedDetailClick: (Int) -> Unit = {},
-    onProfileClick: (String) -> Unit = {}
-) {
     Scaffold( // 화면 기본 구조 (상단, 하단, FAB 포함)
 /*     topBar = {
             // Scaffold의 상단 영역에 들어갈 UI를 정의하는 자리
@@ -376,38 +348,5 @@ private fun FeedCard(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun FeedScreenPreview() {
-    MyApplicationTheme {
-        FeedScreenContent(
-            uiState = FeedUiState(
-                userRegion = "홍길동동",
-                tastyLists = listOf(
-                    TastyListUiModel(1, "홍길동동", "강원 맛집 모음"),
-                    TastyListUiModel(2, "홍길동동", "강원 맛집 모음"),
-                    TastyListUiModel(3, "홍길동동", "강원 맛집 모음"),
-                    TastyListUiModel(4, "홍길동동", "강원 맛집 모음")
-                ),
-                feedPosts = listOf(
-                    FeedPostUiModel(
-                        id = 1,
-                        authorName = "홍길동동",
-                        authorRegion = "홍길동동",
-                        placeName = "길동이네 식당",
-                        address = "송파구 XX동 XX로 1...",
-                        date = "2026-08-06",
-                        likeCount = 500,
-                        commentCount = 500,
-                        rating = 5f,
-                        description = "여기 진짜 맛있는 집 같아요. 분위기부터 근데 점자가 너무 많고 글씨 완전 작음 약간 광고충 불러놓음...",
-                        imageUrl = null
-                    )
-                )
-            )
-        )
     }
 }
