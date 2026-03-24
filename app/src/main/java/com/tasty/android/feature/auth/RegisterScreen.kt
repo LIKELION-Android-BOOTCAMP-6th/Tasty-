@@ -1,4 +1,8 @@
 package com.tasty.android.feature.auth
 
-class RegisterScreen {
+import androidx.compose.runtime.Composable
+
+@Composable
+fun RegisterScreen() {
+
 }

@@ -1,14 +1,5 @@
 package com.tasty.android.core.design.component
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -16,13 +7,12 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.PrimaryColor
-import com.tasty.android.core.navigation.ScreenState
+import com.tasty.android.core.navigation.TabScreen
 
 
 // 바텀 앱 바 컴포저블
@@ -36,17 +26,17 @@ fun CustomBottomAppBar(navController: NavController) {
     NavigationBar(
         containerColor = PrimaryColor
     ) {
-        ScreenState.entries.forEach{ screenState ->
+        TabScreen.entries.forEach{ tabScreen ->
             // 현재 화면 경로(루트) 확인
             val isSelected = currentDestination?.hierarchy?.any{navDestination ->
-                navDestination.route == screenState.route
+                navDestination.route == tabScreen.route
             } == true
             // 네비게이션 아이템 정의
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
                     // 해당 스크린으로 이동
-                    navController.navigate(screenState.route) {
+                    navController.navigate(tabScreen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true // 스크린 이전 상태 저장
                         }
@@ -57,8 +47,8 @@ fun CustomBottomAppBar(navController: NavController) {
 
                 icon = { // 바텀 네비게이션바 아이콘
                     Icon(
-                        imageVector = if (isSelected) screenState.activeIcon else screenState.inactiveIcon,
-                        contentDescription = screenState.label
+                        imageVector = if (isSelected) tabScreen.activeIcon else tabScreen.inactiveIcon,
+                        contentDescription = tabScreen.label
                     )
                 },
                 // 네비게이션바 아이콘 색상 정의
