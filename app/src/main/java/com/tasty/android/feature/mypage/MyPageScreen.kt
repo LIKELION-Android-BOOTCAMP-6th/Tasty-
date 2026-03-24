@@ -1,4 +1,8 @@
 package com.tasty.android.feature.mypage
 
-class MyPageScreen {
+import androidx.compose.runtime.Composable
+
+@Composable
+fun MyPageScreen() {
+
 }
