@@ -74,7 +74,7 @@ fun CustomTopAppBar(
             containerColor = PrimaryColor,
             navigationIconContentColor = TextColor,
             titleContentColor = TextColor,
-            scrolledContainerColor = Color.Transparent,
+            scrolledContainerColor = PrimaryColor,
             actionIconContentColor = TextColor
         ),
         // 상단 액션 정의
