@@ -23,22 +23,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,10 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.core.navigation.Screen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     navController: NavHostController,
@@ -61,6 +70,12 @@ fun FeedScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showRegionSelection by remember { mutableStateOf(false) }
+
+    // 적용 전 임시 필터 상태
+    var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -79,24 +94,27 @@ fun FeedScreen(
                             onClick = {
                                 navController.navigate(Screen.FEED_CREATE_FEED.route)
                             },
-                            containerColor = Color(0xFFCDE6B8),
-                            contentColor = Color.Black
+                            containerColor = PrimaryColor,
+                            contentColor = TextColor
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "게시글 작성"
                             )
                         }
+
                         FloatingActionButton(
                             onClick = {
-                                navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                                tempFilter = uiState.filter
+                                showFilterSheet = true
+                                showRegionSelection = false
                             },
-                            containerColor = Color(0xFFCDE6B8),
-                            contentColor = Color.Black
+                            containerColor = PrimaryColor,
+                            contentColor = TextColor
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "식당 검색"
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "필터"
                             )
                         }
                     }
@@ -105,35 +123,84 @@ fun FeedScreen(
         )
     }
 
-    LazyColumn(
+    Surface(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        color = Color(0xFFF5F5F5)
     ) {
-        item {
-            FeedHeaderSection(
-                tastyLists = uiState.tastyLists
-            )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            item {
+                FeedHeaderSection(
+                    tastyLists = uiState.tastyLists
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            items(
+                items = uiState.feedPosts,
+                key = { it.id }
+            ) { feedPost ->
+                FeedCard(
+                    post = feedPost,
+                    userRegion = uiState.userRegion,
+                    onCardClick = {
+                        navController.navigate(Screen.FEED_DETAIL.route)
+                    },
+                    onProfileClick = {
+                        navController.navigate(Screen.USER_PROFILE.route)
+                    },
+                    onLikeClick = {
+                        viewModel.increaseLike(feedPost.id)
+                    }
+                )
+            }
         }
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        items(
-            items = uiState.feedPosts,
-            key = { it.id }
-        ) { feedPost ->
-            FeedCard(
-                post = feedPost,
-                userRegion = uiState.userRegion,
-                onCardClick = {
-                    navController.navigate(Screen.FEED_DETAIL.route)
-                },
-                onProfileClick = {
-                    navController.navigate(Screen.USER_PROFILE.route)
-                },
-                onLikeClick = {
-                    viewModel.increaseLike(feedPost.id)
+
+        if (showFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showFilterSheet = false
+                    showRegionSelection = false
                 }
-            )
+            ) {
+                if (showRegionSelection) {
+                    RegionSelectionSheet(
+                        selectedRegion = tempFilter.selectedRegion,
+                        onBackClick = {
+                            showRegionSelection = false
+                        },
+                        onRegionSelected = { region ->
+                            tempFilter = tempFilter.copy(selectedRegion = region)
+                        },
+                        onConfirmClick = {
+                            showRegionSelection = false
+                        }
+                    )
+                } else {
+                    FeedFilterSheet(
+                        filter = tempFilter,
+                        onResetClick = {
+                            tempFilter = FeedFilterUiState()
+                        },
+                        onSortSelected = { sortType ->
+                            tempFilter = tempFilter.copy(sortType = sortType)
+                        },
+                        onRegionClick = {
+                            showRegionSelection = true
+                        },
+                        onApplyClick = {
+                            viewModel.applyFilter(tempFilter)
+                            showFilterSheet = false
+                            showRegionSelection = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -207,11 +274,12 @@ private fun TastyListCard(
 
         Text(
             text = item.subTitle,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = TextColor
+            ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            color = TextColor
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -227,38 +295,33 @@ private fun FeedCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .clickable { onCardClick() },
-        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = PrimaryColor
         ),
+        shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    color = Color(0xFF2F2F2F),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(bottom = 14.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onProfileClick() }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFD9D9D9))
+                        .clickable { onProfileClick() }
                 )
-                Spacer(modifier = Modifier.size(10.dp))
+
+                Spacer(modifier = Modifier.width(10.dp))
+
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -277,10 +340,11 @@ private fun FeedCard(
                     )
                 }
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1.15f)
+                    .aspectRatio(1.1f)
                     .background(Color(0xFFBEBEBE)),
                 contentAlignment = Alignment.Center
             ) {
@@ -289,6 +353,7 @@ private fun FeedCard(
                     color = TextColor
                 )
             }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -301,23 +366,33 @@ private fun FeedCard(
                     Icon(
                         imageVector = Icons.Default.FavoriteBorder,
                         contentDescription = "좋아요",
+                        tint = TextColor,
                         modifier = Modifier.clickable { onLikeClick() }
                     )
                     Text(
                         text = post.likeCount.toString(),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextColor
+                        )
                     )
+
                     Spacer(modifier = Modifier.height(10.dp))
+
                     Icon(
                         imageVector = Icons.Default.ChatBubbleOutline,
-                        contentDescription = "댓글"
+                        contentDescription = "댓글",
+                        tint = TextColor
                     )
                     Text(
                         text = post.commentCount.toString(),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextColor
+                        )
                     )
                 }
+
                 Spacer(modifier = Modifier.size(14.dp))
+
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -326,9 +401,12 @@ private fun FeedCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Place,
-                            contentDescription = "식당"
+                            contentDescription = "식당",
+                            tint = TextColor
                         )
+
                         Spacer(modifier = Modifier.size(4.dp))
+
                         Text(
                             text = post.placeName,
                             style = MaterialTheme.typography.bodyMedium.copy(
@@ -336,11 +414,12 @@ private fun FeedCard(
                                 color = TextColor
                             ),
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+
                     Spacer(modifier = Modifier.height(6.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -348,11 +427,13 @@ private fun FeedCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "별점",
-                                tint = if (index < post.rating) Color.Black else Color.LightGray,
+                                tint = if (index < post.rating) TextColor else Color.LightGray,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
+
                         Spacer(modifier = Modifier.size(8.dp))
+
                         Text(
                             text = post.dateText,
                             style = MaterialTheme.typography.bodySmall.copy(
@@ -360,7 +441,9 @@ private fun FeedCard(
                             )
                         )
                     }
+
                     Spacer(modifier = Modifier.height(6.dp))
+
                     Text(
                         text = post.address,
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -369,7 +452,9 @@ private fun FeedCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
                         text = post.description,
                         style = MaterialTheme.typography.bodyMedium.copy(
@@ -381,5 +466,283 @@ private fun FeedCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FeedFilterSheet(
+    filter: FeedFilterUiState,
+    onResetClick: () -> Unit,
+    onSortSelected: (FeedSortType) -> Unit,
+    onRegionClick: () -> Unit,
+    onApplyClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "필터",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            ),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "정렬",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            FilterChipButton(
+                text = "최신순",
+                selected = filter.sortType == FeedSortType.LATEST,
+                onClick = { onSortSelected(FeedSortType.LATEST) }
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            FilterChipButton(
+                text = "거리순",
+                selected = filter.sortType == FeedSortType.DISTANCE,
+                onClick = { onSortSelected(FeedSortType.DISTANCE) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(
+            text = "지역",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFD9D9D9),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .clickable { onRegionClick() }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = "지역 선택",
+                tint = TextColor
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = if (filter.selectedRegion.isBlank()) "지역 선택" else filter.selectedRegion,
+                color = TextColor,
+                modifier = Modifier.weight(1f)
+            )
+
+            Text(
+                text = ">",
+                color = TextColor
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFE5E5E5))
+                    .clickable { onResetClick() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "초기화",
+                    color = TextColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(PrimaryColor)
+                    .clickable { onApplyClick() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "적용",
+                    color = TextColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun FilterChipButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (selected) PrimaryColor else Color(0xFFF2F2F2)
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) PrimaryColor else Color(0xFFD9D9D9),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = TextColor,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun RegionSelectionSheet(
+    selectedRegion: String,
+    onBackClick: () -> Unit,
+    onRegionSelected: (String) -> Unit,
+    onConfirmClick: () -> Unit
+) {
+    val regions = listOf(
+        "서울 성동구",
+        "서울 강남구",
+        "서울 서초구",
+        "서울 송파구",
+        "서울 마포구"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "뒤로가기",
+                tint = TextColor,
+                modifier = Modifier.clickable { onBackClick() }
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "지역 선택",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextColor
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        regions.forEachIndexed { index, region ->
+            val isSelected = selectedRegion == region
+
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) Color(0xFFEFEFEF) else Color.Transparent
+                        )
+                        .clickable { onRegionSelected(region) }
+                        .padding(horizontal = 14.dp, vertical = 16.dp)
+                ) {
+                    Text(
+                        text = region,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = TextColor
+                        )
+                    )
+                }
+
+                // 마지막 아이템 제외하고 Divider 추가
+                if (index != regions.lastIndex) {
+                    HorizontalDivider(
+                        color = Color(0xFFE0E0E0),
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(PrimaryColor)
+                .clickable { onConfirmClick() }
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "선택 완료",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextColor
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
