@@ -16,6 +16,7 @@ class AuthManager {
     // FirebaseAuth 인스턴스 생성
     private val auth = Firebase.auth
 
+
     // 현재 유저 아이디 (없을 경우 null 반환)
     val currentUserId : String? = auth.currentUser?.uid
 
