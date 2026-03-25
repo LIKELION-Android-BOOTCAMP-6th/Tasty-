@@ -2,15 +2,22 @@ package com.tasty.android.core.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.feature.auth.OnboardingScreen
+import com.tasty.android.feature.auth.OnboardingViewModel
+import com.tasty.android.feature.auth.ProfileSetupScreen
+import com.tasty.android.feature.auth.SignUpScreen
 import com.tasty.android.feature.feed.FeedScreen
 
 @Composable
 fun CustomNavHost(
     navController: NavHostController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     // 로그인 상태 여부 확인
     val isLoggedIn = true
@@ -25,12 +32,24 @@ fun CustomNavHost(
         /** AUTH **/
         composable(Screen.AUTH_ON_BOARDING.route) {
             // 온보딩 화면 컴포저블
+            OnboardingScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
         composable(Screen.AUTH_SIGN_UP_EMAIL_PWD.route) {
             // 회원가입 이메일/비밀번호 설정 화면 컴포저블
+            SignUpScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
         composable(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
             // 회원가입 프로필 정보(닉네임 등) 설정 화면 컴포저블
+            ProfileSetupScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
         composable(Screen.AUTH_LOGIN.route) {
             // 로그인 화면 컴포저블
@@ -38,7 +57,13 @@ fun CustomNavHost(
 
         /** FEED **/
         composable(TabScreen.FEED.route) {
-            FeedScreen(navController = navController)  // 피드 메인 화면 컴포저블(TAB)
+            FeedScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )  // 피드 메인 화면 컴포저블(TAB)
+        }
+        composable(Screen.FEED_DETAIL.route) {
+            // 피드 세부 화면
         }
         composable(Screen.FEED_CREATE_FEED.route) {
             // 피드 생성 화면 컴포저블

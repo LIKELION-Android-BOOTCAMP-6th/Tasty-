@@ -21,9 +21,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.tasty.android.core.design.component.ScaffoldConfig
 
 @Composable
-fun OnboardingScreen (viewmodel: OnboardingViewModel){
+fun OnboardingScreen (
+    navController: NavController,
+    viewmodel: OnboardingViewModel = viewModel(),
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
+){
     Column(
         modifier = Modifier
             .fillMaxSize()
