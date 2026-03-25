@@ -133,7 +133,8 @@ class FeedViewModel : ViewModel() {
                     subTitle = "데이트"
                 )
             ),
-            feedPosts = originalFeedPosts
+            feedPosts = originalFeedPosts,
+            filter = FeedFilterUiState()
         )
     )
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
@@ -152,43 +153,16 @@ class FeedViewModel : ViewModel() {
         }
     }
 
-    fun updateSortType(sortType: FeedSortType) {
-        _uiState.update { currentState ->
-            currentState.copy(
-                filter = currentState.filter.copy(sortType = sortType)
-            )
-        }
-    }
-
-    fun updateRegion(region: String) {
-        _uiState.update { currentState ->
-            currentState.copy(
-                filter = currentState.filter.copy(selectedRegion = region)
-            )
-        }
-    }
-
-    fun resetFilter() {
-        _uiState.update { currentState ->
-            currentState.copy(
-                filter = FeedFilterUiState(),
-                feedPosts = originalFeedPosts
-            )
-        }
-    }
-
-    fun applyFilter() {
-        val currentFilter = _uiState.value.filter
-
+    fun applyFilter(newFilter: FeedFilterUiState) {
         var filteredPosts = originalFeedPosts
 
-        if (currentFilter.selectedRegion.isNotBlank()) {
+        if (newFilter.selectedRegion.isNotBlank()) {
             filteredPosts = filteredPosts.filter { post ->
-                post.address.contains(currentFilter.selectedRegion)
+                post.address.contains(newFilter.selectedRegion)
             }
         }
 
-        filteredPosts = when (currentFilter.sortType) {
+        filteredPosts = when (newFilter.sortType) {
             FeedSortType.LATEST -> {
                 filteredPosts.sortedByDescending { it.dateText }
             }
@@ -199,7 +173,10 @@ class FeedViewModel : ViewModel() {
         }
 
         _uiState.update { currentState ->
-            currentState.copy(feedPosts = filteredPosts)
+            currentState.copy(
+                filter = newFilter,
+                feedPosts = filteredPosts
+            )
         }
     }
 }

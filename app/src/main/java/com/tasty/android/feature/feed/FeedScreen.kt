@@ -42,9 +42,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,6 +74,9 @@ fun FeedScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
 
+    // 적용 전 임시 필터 상태
+    var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
+
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
             ScaffoldConfig(
@@ -102,6 +105,7 @@ fun FeedScreen(
 
                         FloatingActionButton(
                             onClick = {
+                                tempFilter = uiState.filter
                                 showFilterSheet = true
                                 showRegionSelection = false
                             },
@@ -166,12 +170,12 @@ fun FeedScreen(
             ) {
                 if (showRegionSelection) {
                     RegionSelectionSheet(
-                        selectedRegion = uiState.filter.selectedRegion,
+                        selectedRegion = tempFilter.selectedRegion,
                         onBackClick = {
                             showRegionSelection = false
                         },
                         onRegionSelected = { region ->
-                            viewModel.updateRegion(region)
+                            tempFilter = tempFilter.copy(selectedRegion = region)
                         },
                         onConfirmClick = {
                             showRegionSelection = false
@@ -179,19 +183,20 @@ fun FeedScreen(
                     )
                 } else {
                     FeedFilterSheet(
-                        filter = uiState.filter,
+                        filter = tempFilter,
                         onResetClick = {
-                            viewModel.resetFilter()
+                            tempFilter = FeedFilterUiState()
                         },
                         onSortSelected = { sortType ->
-                            viewModel.updateSortType(sortType)
+                            tempFilter = tempFilter.copy(sortType = sortType)
                         },
                         onRegionClick = {
                             showRegionSelection = true
                         },
                         onApplyClick = {
-                            viewModel.applyFilter()
+                            viewModel.applyFilter(tempFilter)
                             showFilterSheet = false
+                            showRegionSelection = false
                         }
                     )
                 }
@@ -290,39 +295,32 @@ private fun FeedCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .clickable { onCardClick() },
-        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = PrimaryColor
         ),
+        shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    color = Color(0xFF2F2F2F),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(bottom = 14.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onProfileClick() }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFD9D9D9))
+                        .clickable { onProfileClick() }
                 )
 
-                Spacer(modifier = Modifier.size(10.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(
                     modifier = Modifier.weight(1f)
@@ -482,35 +480,21 @@ private fun FeedFilterSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
+        Text(
+            text = "필터",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            ),
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "필터",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = TextColor
-                ),
-                modifier = Modifier.align(Alignment.Center)
-            )
-
-            Text(
-                text = "초기화",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = TextColor
-                ),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .clickable { onResetClick() }
-            )
-        }
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
-
         HorizontalDivider()
-
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
@@ -518,19 +502,23 @@ private fun FeedFilterSheet(
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = TextColor
-            )
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
         ) {
             FilterChipButton(
                 text = "최신순",
                 selected = filter.sortType == FeedSortType.LATEST,
                 onClick = { onSortSelected(FeedSortType.LATEST) }
             )
+
+            Spacer(modifier = Modifier.width(10.dp))
 
             FilterChipButton(
                 text = "거리순",
@@ -540,9 +528,7 @@ private fun FeedFilterSheet(
         }
 
         Spacer(modifier = Modifier.height(28.dp))
-
         HorizontalDivider()
-
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
@@ -550,7 +536,8 @@ private fun FeedFilterSheet(
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = TextColor
-            )
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -576,7 +563,7 @@ private fun FeedFilterSheet(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = if (filter.selectedRegion.isBlank()) "지역 선택하기" else filter.selectedRegion,
+                text = if (filter.selectedRegion.isBlank()) "지역 선택" else filter.selectedRegion,
                 color = TextColor,
                 modifier = Modifier.weight(1f)
             )
@@ -589,20 +576,41 @@ private fun FeedFilterSheet(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF8A8080))
-                .clickable { onApplyClick() }
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "적용",
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFE5E5E5))
+                    .clickable { onResetClick() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "초기화",
+                    color = TextColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(PrimaryColor)
+                    .clickable { onApplyClick() }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "적용",
+                    color = TextColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -632,7 +640,8 @@ private fun FilterChipButton(
     ) {
         Text(
             text = text,
-            color = TextColor
+            color = TextColor,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
@@ -645,18 +654,17 @@ private fun RegionSelectionSheet(
     onConfirmClick: () -> Unit
 ) {
     val regions = listOf(
+        "서울 성동구",
         "서울 강남구",
         "서울 서초구",
         "서울 송파구",
-        "서울 마포구",
-        "서울 종로구",
-        "서울 서대문구"
+        "서울 마포구"
     )
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically
@@ -668,11 +676,11 @@ private fun RegionSelectionSheet(
                 modifier = Modifier.clickable { onBackClick() }
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Text(
                 text = "지역 선택",
-                style = MaterialTheme.typography.titleLarge.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = TextColor
                 )
@@ -681,51 +689,60 @@ private fun RegionSelectionSheet(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        regions.forEach { region ->
+        regions.forEachIndexed { index, region ->
+            val isSelected = selectedRegion == region
+
             Column {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) Color(0xFFEFEFEF) else Color.Transparent
+                        )
                         .clickable { onRegionSelected(region) }
-                        .padding(vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 14.dp, vertical = 16.dp)
                 ) {
                     Text(
                         text = region,
-                        color = TextColor,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (selectedRegion == region) {
-                        Text(
-                            text = "선택됨",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             color = TextColor
                         )
-                    }
+                    )
                 }
 
-                HorizontalDivider()
+                // 마지막 아이템 제외하고 Divider 추가
+                if (index != regions.lastIndex) {
+                    HorizontalDivider(
+                        color = Color(0xFFE0E0E0),
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF8A8080))
+                .clip(RoundedCornerShape(14.dp))
+                .background(PrimaryColor)
                 .clickable { onConfirmClick() }
                 .padding(vertical = 14.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "선택 완료",
-                color = Color.White,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextColor
+                )
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
