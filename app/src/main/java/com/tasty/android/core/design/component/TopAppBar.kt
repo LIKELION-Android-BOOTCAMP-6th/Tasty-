@@ -91,6 +91,5 @@ fun CustomTopAppBar(
             }
         },
         scrollBehavior = scrollBehavior
-
     )
 }
