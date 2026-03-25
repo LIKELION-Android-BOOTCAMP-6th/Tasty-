@@ -1,82 +1,102 @@
 package com.tasty.android.feature.feed
 
 import androidx.lifecycle.ViewModel
-import com.tasty.android.feature.feed.mapper.toFeedPostItem
-import com.tasty.android.feature.feed.model.AddressInfo
-import com.tasty.android.feature.feed.model.Feed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-data class TastyListItem(
-    val id: Int,
-    val title: String,
-    val subtitle: String
-)
-
-data class FeedPostItem(
-    val id: String,
-    val authorName: String,
-    val authorRegion: String,
-    val placeName: String,
-    val address: String,
-    val date: String,
-    val likeCount: Int,
-    val commentCount: Int,
-    val rating: Float,
-    val description: String,
-    val imageUrl: String? = null
-)
+import kotlinx.coroutines.flow.update
 
 data class FeedUiState(
-    val userRegion: String = "홍길동동",
-    val tastyLists: List<TastyListItem> = emptyList(),
-    val feedPosts: List<FeedPostItem> = emptyList()
+    val userRegion: String = "",
+    val tastyLists: List<TastyListUiModel> = emptyList(),
+    val feedPosts: List<FeedPostUiModel> = emptyList(),
+    val isLoading: Boolean = false
+)
+
+data class TastyListUiModel(
+    val id: String,
+    val title: String,
+    val subTitle: String
+)
+
+data class FeedPostUiModel(
+    val id: String,
+    val authorId: String,
+    val authorName: String,
+    val placeName: String,
+    val address: String,
+    val rating: Int,
+    val description: String,
+    val likeCount: Int,
+    val commentCount: Int,
+    val dateText: String
 )
 
 class FeedViewModel : ViewModel() {
 
-    private val sampleFeeds = listOf(
-        Feed(
-            feedId = "feed_1",
-            authorId = "user_1",
-            content = "여기 진짜 맛있는 집 같아요. 분위기도 좋고 음식도 괜찮았어요.",
-            createdAt = "2026-08-06",
-            imagesUrl = listOf(""),
-            likeCount = 500,
-            commentCount = 500,
-            rating = 5,
-            shortReview = "맛있어요",
-            businessHours = "09:00 ~ 21:00",
-            businessStatus = "영업중",
-            restaurantId = "restaurant_1",
-            restaurantName = "길동이네 식당",
-            restaurantPhoneNumber = "02-0000-0000",
-            restaurantThumbnailUrl = "",
-            addressInfo = AddressInfo(
-                latitude = 37.0,
-                longitude = 127.0,
-                mainRegion = "서울",
-                roadAddress = "송파구 XX동 XX로 1",
-                subRegion = "홍길동동"
+    private val _uiState = MutableStateFlow(
+        FeedUiState(
+            userRegion = "성수동",
+            tastyLists = listOf(
+                TastyListUiModel("tasty_1", "성수 브런치", "브런치"),
+                TastyListUiModel("tasty_2", "강남 파스타", "양식"),
+                TastyListUiModel("tasty_3", "홍대 술집", "주점"),
+                TastyListUiModel("tasty_4", "잠실 데이트", "데이트")
+            ),
+            feedPosts = listOf(
+                FeedPostUiModel(
+                    id = "feed_1",
+                    authorId = "user_1",
+                    authorName = "tasty_user",
+                    placeName = "테이스티 파스타",
+                    address = "서울 성동구 성수동 123-45",
+                    rating = 4,
+                    description = "분위기도 좋고 음식도 깔끔해서 재방문하고 싶은 곳이었어요.",
+                    likeCount = 12,
+                    commentCount = 3,
+                    dateText = "03.25"
+                ),
+                FeedPostUiModel(
+                    id = "feed_2",
+                    authorId = "user_2",
+                    authorName = "foodie",
+                    placeName = "성수 브런치 하우스",
+                    address = "서울 성동구 성수이로 00길 10",
+                    rating = 5,
+                    description = "브런치 메뉴가 다양하고 사진 찍기에도 좋았어요.",
+                    likeCount = 25,
+                    commentCount = 8,
+                    dateText = "03.24"
+                ),
+                FeedPostUiModel(
+                    id = "feed_3",
+                    authorId = "user_3",
+                    authorName = "yummy",
+                    placeName = "서울 스테이크",
+                    address = "서울 강남구 테헤란로 10",
+                    rating = 3,
+                    description = "고기 맛은 좋았고 전체적으로 무난했어요.",
+                    likeCount = 7,
+                    commentCount = 1,
+                    dateText = "03.23"
+                )
             )
         )
     )
 
-    private val _uiState = MutableStateFlow(
-        FeedUiState(
-            userRegion = "홍길동동",
-            tastyLists = listOf(
-                TastyListItem(1, "홍길동동", "강원 맛집 모음"),
-                TastyListItem(2, "홍길동동", "강원 맛집 모음"),
-                TastyListItem(3, "홍길동동", "강원 맛집 모음"),
-                TastyListItem(4, "홍길동동", "강원 맛집 모음")
-            ),
-            feedPosts = sampleFeeds.map { feed ->
-                feed.toFeedPostItem(authorName = "홍길동")
-            }
-        )
-    )
-
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
+
+    fun increaseLike(feedId: String) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                feedPosts = currentState.feedPosts.map { post ->
+                    if (post.id == feedId) {
+                        post.copy(likeCount = post.likeCount + 1)
+                    } else {
+                        post
+                    }
+                }
+            )
+        }
+    }
 }
