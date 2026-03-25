@@ -36,13 +36,11 @@ fun CustomScaffold(navController: NavHostController) {
         mutableStateOf(ScaffoldConfig())
     }
     Scaffold(
-        // TopBar 숨김 여부(Config)에 따라 Modifier 동적 결정
+        // AppBar 숨김 여부(Config)에 따라 Modifier 동적 결정
         modifier = if (config.showTopBar) {
             Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else Modifier,
         topBar = {
-            // 현재 화면이 상단 앱바가 없는 루트에 포함되면 CustomAppBar 미호출
-            // 현재 화면이 상단 검색 바 루트에 포함되면 CustomSearchBar 호출
             if (config.showTopBar) {
                 CustomTopAppBar(
                     title = config.title,
