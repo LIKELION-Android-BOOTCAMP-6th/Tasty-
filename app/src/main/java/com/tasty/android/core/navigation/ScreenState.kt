@@ -52,6 +52,7 @@ enum class Screen(
     /** FEED **/
     FEED_CREATE_FEED("feed_create_feed"), // 피드 생성 화면
     FEED_SEARCH_RESTAURANT("feed_search_restaurant"), // 피드 - 작성 시 식당 검색 화면
+    FEED_DETAIL("feed_detail"), // 피드 - 세부 화면
 
     /** Tasty **/
     TASTY_DETAIL("tasty_detail"), // 테이스티- 세부 화면

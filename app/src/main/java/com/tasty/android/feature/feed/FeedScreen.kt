@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 /*import com.tasty.android.core.design.component.CustomTopAppBar*/
 import com.tasty.android.core.design.component.CustomBottomAppBar
+import com.tasty.android.core.design.component.ScaffoldConfig
 
 @Composable // 이 함수가 Compose UI라는 의미
 fun FeedScreen(
@@ -56,7 +57,8 @@ fun FeedScreen(
     onFilterClick: () -> Unit = {},         // 필터 버튼
     navController: NavController,
     onFeedDetailClick: (String) -> Unit = {},  // 피드 클릭 시 상세 이동
-    onProfileClick: (String) -> Unit = {}   // 프로필 클릭
+    onProfileClick: (String) -> Unit = {},
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit// 프로필 클릭
 ) {
     // ViewModel의 상태를 Compose에서 관찰
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

@@ -33,7 +33,7 @@ data class AppBarAction(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopAppBar(
-    title: String,  // 제목
+    title: String = "",  // 제목
     appIcon: ImageVector? = null, // 앱 아이콘(선택)
     containsBackButton: Boolean = false, // 백 버튼 포함 여부 true/false| *기본 false
     onBackClick: () -> Unit = {}, // 백 버튼 클릭 시 이벤트 함수 주입
@@ -91,6 +91,5 @@ fun CustomTopAppBar(
             }
         },
         scrollBehavior = scrollBehavior
-
     )
 }

@@ -13,9 +13,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.tasty.android.core.design.component.ScaffoldConfig
 
 @Composable
-fun SignUpScreen(viewmodel: SignUpAccountViewmodel) {
+fun SignUpScreen(
+    navController: NavController,
+    viewmodel: SignUpAccountViewmodel = viewModel(),
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
+) {
     // 입력값 상태 관리
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
