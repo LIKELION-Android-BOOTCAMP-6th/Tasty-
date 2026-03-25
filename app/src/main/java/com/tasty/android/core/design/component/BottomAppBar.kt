@@ -1,5 +1,6 @@
 package com.tasty.android.core.design.component
 
+import android.util.Log
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,7 +19,7 @@ import com.tasty.android.core.navigation.TabScreen
 
 // 바텀 앱 바 컴포저블
 @Composable
-fun CustomBottomAppBar(navController: NavController) {
+fun CustomBottomAppBar(navController: NavHostController) {
     // 현재 네비게이션 백 스택 상태 추적
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     // 화면 정보 정의

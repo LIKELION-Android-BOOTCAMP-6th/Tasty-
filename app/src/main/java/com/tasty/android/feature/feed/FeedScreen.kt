@@ -2,6 +2,7 @@ package com.tasty.android.feature.feed
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -32,311 +34,347 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-/*import com.tasty.android.core.design.component.CustomTopAppBar*/
-import com.tasty.android.core.design.component.CustomBottomAppBar
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.design.theme.PrimaryColor
+import com.tasty.android.core.design.theme.TextColor
 
-@Composable // 이 함수가 Compose UI라는 의미
+@Composable
 fun FeedScreen(
-    viewModel: FeedViewModel = viewModel(), // ViewModel 가져오기 (상태 관리)
-    onAddPostClick: () -> Unit = {},        // 글 작성 버튼
-    onFilterClick: () -> Unit = {},         // 필터 버튼
-    navController: NavController,
-    onFeedDetailClick: (String) -> Unit = {},  // 피드 클릭 시 상세 이동
-    onProfileClick: (String) -> Unit = {},
-    onScaffoldConfigChange: (ScaffoldConfig) -> Unit// 프로필 클릭
+    navController: NavHostController,
+    viewModel: FeedViewModel = viewModel(),
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
-    // ViewModel의 상태를 Compose에서 관찰
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold( // 화면 기본 구조 (상단, 하단, FAB 포함)
-/*     topBar = {
-            // Scaffold의 상단 영역에 들어갈 UI를 정의하는 자리
-            // 여기 안에 넣은 Composable이 화면 맨 위에 고정됨
-            CustomTopAppBar()
-        },*/
-        bottomBar = {
-            CustomBottomAppBar(navController = navController)
-        },
-
-        // 배경 색
-        containerColor = Color(0xFFF8F8F8),
-
-        // 오른쪽 아래 버튼 (플로팅 버튼 영역)
-        floatingActionButton = {
-            Column( // 버튼 2개를 세로로 배치
-                verticalArrangement = Arrangement.spacedBy(12.dp), // 버튼 간격
-                horizontalAlignment = Alignment.End, // 오른쪽 정렬
-                modifier = Modifier.navigationBarsPadding() // 하단 네비게이션 영역 피하기
-            ) {
-
-                // ➕ 게시글 작성 버튼
-                FloatingActionButton(
-                    onClick = onAddPostClick,
-                    containerColor = Color(0xFFC9E4B7),
-                    contentColor = Color.Black
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "게시글 작성")
+    LaunchedEffect(Unit) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                title = "Tasty",
+                showTopBar = true,
+                showBottomBar = true,
+                containsBackButton = false,
+                floatingActionButton = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.navigationBarsPadding()
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                navController.navigate(Screen.FEED_CREATE_FEED.route)
+                            },
+                            containerColor = Color(0xFFCDE6B8),
+                            contentColor = Color.Black
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "게시글 작성"
+                            )
+                        }
+                        FloatingActionButton(
+                            onClick = {
+                                navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                            },
+                            containerColor = Color(0xFFCDE6B8),
+                            contentColor = Color.Black
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "식당 검색"
+                            )
+                        }
+                    }
                 }
+            )
+        )
+    }
 
-                // ⚙️ 필터 버튼
-                FloatingActionButton(
-                    onClick = onFilterClick,
-                    containerColor = Color(0xFFC9E4B7),
-                    contentColor = Color.Black
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = "필터")
-                }
-            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp)
+    ) {
+        item {
+            FeedHeaderSection(
+                tastyLists = uiState.tastyLists
+            )
         }
-    ) { innerPadding -> // Scaffold 내부 패딩 (상단/하단 바 공간)
-
-        LazyColumn( // 세로 스크롤 리스트
-            modifier = Modifier
-                .fillMaxSize() // 화면 꽉 채움
-                .padding(innerPadding), // Scaffold 패딩 적용
-            contentPadding = PaddingValues(bottom = 24.dp) // 하단 여백
-        ) {
-
-            // 🔹 상단 Tasty 리스트 영역
-            item {
-                FeedHeaderSection(
-                    title = "Tasty 리스트",
-                    tastyLists = uiState.tastyLists
-                )
-            }
-
-            // 🔹 카드 위 간격
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // 🔹 피드 리스트 반복
-            items(uiState.feedPosts) { post ->
-                FeedCard(
-                    post = post,
-                    userRegion = uiState.userRegion,
-                    onClick = { onFeedDetailClick(post.id) },
-                    onProfileClick = { onProfileClick(post.authorName) }
-                )
-            }
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        items(
+            items = uiState.feedPosts,
+            key = { it.id }
+        ) { feedPost ->
+            FeedCard(
+                post = feedPost,
+                userRegion = uiState.userRegion,
+                onCardClick = {
+                    navController.navigate(Screen.FEED_DETAIL.route)
+                },
+                onProfileClick = {
+                    navController.navigate(Screen.USER_PROFILE.route)
+                },
+                onLikeClick = {
+                    viewModel.increaseLike(feedPost.id)
+                }
+            )
         }
     }
 }
 
 @Composable
 private fun FeedHeaderSection(
-    title: String,
-    tastyLists: List<TastyListItem>
+    tastyLists: List<TastyListUiModel>
 ) {
-    Column( // 세로 레이아웃
+    Column(
         modifier = Modifier
-            .fillMaxWidth() // 가로 꽉 채움
-            .background(Color(0xFFC9E4B7)) // 배경색
-            .padding(vertical = 16.dp) // 위아래 패딩
+            .fillMaxWidth()
+            .background(PrimaryColor)
+            .padding(top = 10.dp, bottom = 14.dp)
     ) {
-
-        // "Tasty 리스트" 제목
         Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.align(Alignment.CenterHorizontally) // 가운데 정렬
+            text = "Tasty 리스트",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            )
         )
 
-        Spacer(modifier = Modifier.height(12.dp)) // 간격
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 가로 스크롤 리스트
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(20.dp), // 아이템 간격
-            contentPadding = PaddingValues(horizontal = 16.dp) // 좌우 여백
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            items(tastyLists) { item ->
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                    // 지역 이름
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.DarkGray
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // 동그란 썸네일 자리
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape) // 원형
-                            .background(Color(0xFFE8E8E8))
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // 설명 텍스트
-                    Text(
-                        text = item.subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.DarkGray
-                    )
-                }
+            items(
+                items = tastyLists.take(4),
+                key = { it.id }
+            ) { item ->
+                TastyListCard(item = item)
             }
         }
     }
 }
 
 @Composable
-private fun FeedCard(
-    post: FeedPostItem,
-    userRegion: String,
-    onClick: () -> Unit,
-    onProfileClick: () -> Unit
+private fun TastyListCard(
+    item: TastyListUiModel
 ) {
-    Card( // 카드 컨테이너
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFD9D9D9))
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = item.subTitle,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            color = TextColor
+        )
+    }
+}
+
+@Composable
+private fun FeedCard(
+    post: FeedPostUiModel,
+    userRegion: String,
+    onCardClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onLikeClick: () -> Unit
+) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp), // 바깥 여백
-        shape = RoundedCornerShape(20.dp), // 둥근 모서리
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFC9E4B7)),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onCardClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = PrimaryColor
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFF3B3B3B), RoundedCornerShape(20.dp)) // 테두리
-                .clip(RoundedCornerShape(20.dp)) // 카드 모양 유지
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFF2F2F2F),
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .padding(bottom = 14.dp)
         ) {
-
-            // 🔹 상단 프로필 영역
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onProfileClick() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFD9D9D9))
+                )
+                Spacer(modifier = Modifier.size(10.dp))
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = post.authorName,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = TextColor
+                        )
+                    )
+                    Text(
+                        text = userRegion,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextColor
+                        )
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.15f)
+                    .background(Color(0xFFBEBEBE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "피드 이미지",
+                    color = TextColor
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                // 프로필 이미지 자리
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFD9D9D9))
-                )
-
-                Spacer(modifier = Modifier.size(10.dp))
-
-                // 지역 이름
-                Text(
-                    text = userRegion,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.weight(1f) // 남은 공간 차지
-                )
-            }
-
-            // 🔹 이미지 영역
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.25f) // 비율 유지
-                    .background(Color(0xFFB7B7B7))
-            ) {
-                Text(
-                    text = "피드 이미지",
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            // 🔹 하단 정보 영역
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
                 verticalAlignment = Alignment.Top
             ) {
-
-                // 좋아요 / 댓글 영역
                 Column(
-                    horizontalAlignment = Alignment.Start,
-                    modifier = Modifier.padding(end = 14.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-
-                    Icon(Icons.Default.FavoriteBorder, contentDescription = "좋아요")
-                    Text(text = post.likeCount.toString())
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Icon(Icons.Default.ChatBubbleOutline, contentDescription = "댓글")
-                    Text(text = post.commentCount.toString())
+                    Icon(
+                        imageVector = Icons.Default.FavoriteBorder,
+                        contentDescription = "좋아요",
+                        modifier = Modifier.clickable { onLikeClick() }
+                    )
+                    Text(
+                        text = post.likeCount.toString(),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Icon(
+                        imageVector = Icons.Default.ChatBubbleOutline,
+                        contentDescription = "댓글"
+                    )
+                    Text(
+                        text = post.commentCount.toString(),
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-
-                // 오른쪽 정보 영역
-                Column(modifier = Modifier.weight(1f)) {
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        Icon(Icons.Default.Place, contentDescription = "장소")
-
+                Spacer(modifier = Modifier.size(14.dp))
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = "식당"
+                        )
                         Spacer(modifier = Modifier.size(4.dp))
-
-                        // 식당 이름
                         Text(
                             text = post.placeName,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = TextColor
+                            ),
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
-
-                        Spacer(modifier = Modifier.size(10.dp))
-
-                        // 별점 표시
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         repeat(5) { index ->
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "별점",
-                                tint = if (index < post.rating.toInt())
-                                    Color.Black else Color.LightGray
+                                tint = if (index < post.rating) Color.Black else Color.LightGray,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row {
-
-                        // 주소
-                        Text(
-                            text = post.address,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-
                         Spacer(modifier = Modifier.size(8.dp))
-
-                        // 날짜
-                        Text(text = post.date)
+                        Text(
+                            text = post.dateText,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = TextColor
+                            )
+                        )
                     }
-
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = post.address,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextColor
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    // 설명 텍스트
                     Text(
                         text = post.description,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = TextColor
+                        ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
