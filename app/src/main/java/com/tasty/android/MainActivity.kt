@@ -29,7 +29,7 @@ import com.tasty.android.core.navigation.CustomNavHost
 import com.tasty.android.core.navigation.TabScreen
 
 class MainActivity : ComponentActivity() {
-    // 탑 앱바 액션이 화면마다 다르므로 각 화면에서 관리
+    // CustomScaffold 공통 스케폴드 구조 내에서 화면 정의
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
