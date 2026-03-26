@@ -20,6 +20,16 @@ fun ProfileSetupScreen(
     viewModel: ProfileSetupViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+    // 스캐폴드(상단 및 하단 메뉴) 적용
+    LaunchedEffect(Unit) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                showTopBar = false,
+                showBottomBar = false
+            )
+        )
+    }
+
     // 상태 관리: 입력된 닉네임
     var nickname by remember { mutableStateOf("") }
 

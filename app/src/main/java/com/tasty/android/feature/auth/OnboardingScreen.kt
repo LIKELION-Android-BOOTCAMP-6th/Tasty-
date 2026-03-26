@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,11 +27,11 @@ import androidx.navigation.NavController
 import com.tasty.android.core.design.component.ScaffoldConfig
 
 @Composable
-fun OnboardingScreen (
+fun OnboardingScreen(
     navController: NavController,
     viewmodel: OnboardingViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
-){
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -38,6 +39,15 @@ fun OnboardingScreen (
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // 스캐폴드(상단 및 하단 메뉴) 적용
+        LaunchedEffect(Unit) {
+            onScaffoldConfigChange(
+                ScaffoldConfig(
+                    showTopBar = false,
+                    showBottomBar = false
+                )
+            )
+        }
         Spacer(modifier = Modifier.weight(1f))
 
         // 로고 텍스트
@@ -87,7 +97,7 @@ fun OnboardingScreen (
                 fontSize = 14.sp,
                 color = Color.Black,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable{
+                modifier = Modifier.clickable {
                     // 로그인 클릭 이벤트 실행
                     viewmodel.onLoginClicked()
                 }
