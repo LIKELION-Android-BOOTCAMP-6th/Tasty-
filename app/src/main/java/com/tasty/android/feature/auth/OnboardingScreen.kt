@@ -24,11 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
-
+// 회원가입/로그인 진입 화면
 @Composable
-fun OnboardingScreen(
-    navController: NavController,
+fun OnboardingScreen (
+    navController: NavHostController,
     viewmodel: OnboardingViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
