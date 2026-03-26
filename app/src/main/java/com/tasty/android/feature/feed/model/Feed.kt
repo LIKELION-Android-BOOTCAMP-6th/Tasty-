@@ -9,6 +9,7 @@ data class Feed(
     val content: String = "",
     @ServerTimestamp
     val createdAt: Timestamp? = null,
+    val geohash: String = "", // 위경도 기반 거리 계산용
     val imagesUrl: List<String> = emptyList(),
     val likeCount: Int = 0,
     val commentCount: Int = 0,
