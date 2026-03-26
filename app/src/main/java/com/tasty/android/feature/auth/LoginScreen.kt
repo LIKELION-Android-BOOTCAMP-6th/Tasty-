@@ -14,6 +14,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+<<<<<<< feature/login-ui
+=======
+import androidx.compose.runtime.LaunchedEffect
+>>>>>>> main
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +53,19 @@ fun LoginScreen(
     viewmodel: LoginViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+<<<<<<< feature/login-ui
+=======
+    // 스캐폴드(상단 및 하단 메뉴) 적용
+    LaunchedEffect(Unit) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                showTopBar = false,
+                showBottomBar = false
+            )
+        )
+    }
+
+>>>>>>> main
     // 입력값 상태 관리
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
