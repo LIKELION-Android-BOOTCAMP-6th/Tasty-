@@ -75,18 +75,24 @@ class FirestoreManager {
         }
     }
     /*** 피드 작성/조희 ***/
-    /*// 다수 피드 조회
-    suspend fun getLatestFeeds(): Flow<List<Feed>> {
 
-    }*/
+    // 피드 생성(저장) 흐름
+    // 피드 게시 클릭
+    // ->  피드 아이디 발급
+    // -> 피드의 이미지 Uri 스토리지에 저장
+    // -> 생성된 피드 아이디의 도큐먼트에 feed 객체 매핑 후 저장
 
+    // 피드 ID 발급
+    fun generateFeedId(): String = firebaseDB.collection("feeds").document().id
+
+    // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
         return try {
-            // doc Reference 생성
-            val docRef = firebaseDB.collection("feeds").document()
-            val feedId = feed.copy(feedId = docRef.id)
-            docRef.set(feedId).await()
-            Log.d("jjam", feedId.toString())
+            firebaseDB
+                .collection("feeds")
+                .document(feed.feedId)
+                .set(feed)
+                .await()
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
