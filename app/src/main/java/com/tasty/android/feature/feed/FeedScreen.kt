@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 /*import com.tasty.android.core.design.component.CustomTopAppBar*/
 import com.tasty.android.core.design.component.CustomBottomAppBar
 import com.tasty.android.core.design.component.ScaffoldConfig
@@ -55,7 +56,7 @@ fun FeedScreen(
     viewModel: FeedViewModel = viewModel(), // ViewModel 가져오기 (상태 관리)
     onAddPostClick: () -> Unit = {},        // 글 작성 버튼
     onFilterClick: () -> Unit = {},         // 필터 버튼
-    navController: NavController,
+    navController: NavHostController,
     onFeedDetailClick: (String) -> Unit = {},  // 피드 클릭 시 상세 이동
     onProfileClick: (String) -> Unit = {},
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit// 프로필 클릭
