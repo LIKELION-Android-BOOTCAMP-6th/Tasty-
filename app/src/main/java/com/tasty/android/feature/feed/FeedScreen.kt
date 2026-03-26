@@ -571,7 +571,7 @@ private fun FeedFilterSheet(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = if (filter.selectedRegion.isBlank()) "지역 선택" else filter.selectedRegion,
+                text = filter.selectedRegionText.ifBlank { "지역 선택" },
                 color = TextColor,
                 modifier = Modifier.weight(1f)
             )
