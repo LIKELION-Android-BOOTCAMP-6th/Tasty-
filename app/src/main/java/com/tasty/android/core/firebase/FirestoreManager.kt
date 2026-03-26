@@ -1,19 +1,24 @@
 package com.tasty.android.core.firebase
 
-import android.util.Log
+
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
 
 import com.google.firebase.firestore.firestore
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
+import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Feed
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
     private val firebaseDB = Firebase.firestore
+    // 페이네이션 제한 한 번에 10개씩 load
+    private val paginationLimit: Long = 10
 
     /*** 유저 생성&조회&수정 ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
@@ -79,7 +84,6 @@ class FirestoreManager {
     }
 
     /*** 피드 작성/조희 ***/
-
     // 피드 생성(저장) 흐름
     // 피드 게시 클릭
     // ->  피드 아이디 발급
@@ -98,6 +102,57 @@ class FirestoreManager {
                 .set(feed)
                 .await()
             Result.success(Unit)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 피드 상세 조회(피드 상세)
+    suspend fun getFeedDetail(feedId: String): Result<Feed?> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds")
+                .document(feedId)
+                .get()
+                .await()
+            val feed = snapshot.toObject(Feed::class.java)
+            Result.success(feed)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 피드 다수 조회
+    suspend fun getFeeds(
+        sortType: FeedSortType = FeedSortType.LATEST,
+        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 10개씩
+        lastFeedId: String? = null // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
+    ): Result<List<Feed>> {
+        return try {
+            var query = firebaseDB
+                .collection("feeds")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(limit)
+
+            if (lastFeedId != null) {
+                val lastSnapshot = firebaseDB
+                    .collection("feeds")
+                    .document(lastFeedId)
+                    .get()
+                    .await()
+                query = query.startAfter(lastSnapshot)
+            }
+
+            val feeds = query.get().await().toObjects(Feed::class.java)
+
+            val sortedFeeds = when(sortType) {
+                FeedSortType.LATEST -> feeds // 최신순일 경우
+                FeedSortType.DISTANCE -> { // 거리순일 경우
+
+                }
+            }
+
+            Result.success(feeds)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
