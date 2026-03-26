@@ -1,11 +1,16 @@
 package com.tasty.android.feature.feed
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -37,15 +41,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.design.theme.PrimaryColor
-import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+
+private val TextColor = Color(0xFF222222)
+private val Gray100 = Color(0xFFF7F7F7)
+private val Gray200 = Color(0xFFE5E5E5)
+private val Gray400 = Color(0xFFBDBDBD)
+private val PrimaryColor = Color(0xFFFF7A00)
 
 @Composable
 fun FeedWriteScreen(
@@ -54,6 +65,14 @@ fun FeedWriteScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            viewModel.addPhoto(selectedUri)
+        }
+    }
 
     LaunchedEffect(uiState.canSubmit, uiState.isSubmitting) {
         onScaffoldConfigChange(
@@ -117,7 +136,15 @@ fun FeedWriteScreen(
 
             PhotoSection(
                 photos = uiState.photos,
-                onAddPhotoClick = viewModel::addDummyPhoto,
+                onAddPhotoClick = {
+                    if (uiState.photos.size < 5) {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    }
+                },
                 onRemovePhotoClick = viewModel::removePhoto
             )
         }
@@ -319,9 +346,8 @@ private fun PhotoSection(
     Column {
         Text(
             text = "사진 추가",
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = TextColor
-            )
+            style = MaterialTheme.typography.bodySmall,
+            color = TextColor
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -330,60 +356,66 @@ private fun PhotoSection(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        color = Color(0xFFF2F2F2),
-                        shape = RoundedCornerShape(4.dp)
+            if (photos.size < 5) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Gray100)
+                        .border(1.dp, Gray200, RoundedCornerShape(12.dp))
+                        .clickable(onClick = onAddPhotoClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "사진 추가",
+                        tint = Gray400
                     )
-                    .border(
-                        width = 1.dp,
-                        color = Color(0xFFD9D9D9),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .clickable(onClick = onAddPhotoClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = "사진 추가",
-                    tint = Color(0xFFB5B5B5)
-                )
+                }
             }
 
             photos.forEach { photo ->
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(
-                            color = PrimaryColor,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = Color(0xFFD9D9D9),
-                            shape = RoundedCornerShape(4.dp)
-                        )
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Gray100)
+                        .border(1.dp, Gray200, RoundedCornerShape(12.dp))
                 ) {
-                    Text(
-                        text = "사진",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextColor
-                        ),
-                        modifier = Modifier.align(Alignment.Center)
+                    AsyncImage(
+                        model = photo.uri,
+                        contentDescription = "선택한 사진 ${photo.order}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
 
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp)
-                            .size(18.dp)
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
                             .background(
                                 color = Color.Black.copy(alpha = 0.6f),
-                                shape = CircleShape
+                                shape = RoundedCornerShape(999.dp)
                             )
-                            .clickable { onRemovePhotoClick(photo.id) },
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${photo.order}",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .clickable {
+                                onRemovePhotoClick(photo.id)
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -396,5 +428,13 @@ private fun PhotoSection(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "${photos.size}/5",
+            style = MaterialTheme.typography.bodySmall,
+            color = Gray400
+        )
     }
 }
