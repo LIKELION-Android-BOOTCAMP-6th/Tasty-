@@ -1,5 +1,6 @@
 package com.tasty.android.core.design.component
 
+import android.util.Log
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem

@@ -12,6 +12,7 @@ import com.tasty.android.feature.auth.OnboardingViewModel
 import com.tasty.android.feature.auth.ProfileSetupScreen
 import com.tasty.android.feature.auth.SignUpScreen
 import com.tasty.android.feature.feed.FeedScreen
+import com.tasty.android.feature.feed.FeedWriteScreen
 
 @Composable
 fun CustomNavHost(
@@ -66,6 +67,10 @@ fun CustomNavHost(
             // 피드 세부 화면
         }
         composable(Screen.FEED_CREATE_FEED.route) {
+            FeedWriteScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
             // 피드 생성 화면 컴포저블
         }
         composable(Screen.FEED_SEARCH_RESTAURANT.route) {
