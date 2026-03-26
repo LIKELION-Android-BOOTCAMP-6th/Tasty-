@@ -72,5 +72,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.5")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
-
+    // Add the dependency for Geolocation Dependency
+    implementation("com.firebase:geofire-android-common:3.2.0")
 }
