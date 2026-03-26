@@ -1,23 +1,22 @@
 package com.tasty.android.feature.feed.mapper
 
-import com.tasty.android.feature.feed.FeedPostItem
+import com.tasty.android.feature.feed.FeedPostUiModel
 import com.tasty.android.feature.feed.model.Feed
 
-fun Feed.toFeedPostItem(
+fun Feed.toFeedPostUiModel(
     authorName: String = "작성자",
     authorRegion: String = addressInfo.subRegion.ifBlank { addressInfo.mainRegion }
-): FeedPostItem {
-    return FeedPostItem(
+): FeedPostUiModel {
+    return FeedPostUiModel(
         id = feedId,
+        authorId = authorId,
         authorName = authorName,
-        authorRegion = authorRegion,
         placeName = restaurantName,
         address = addressInfo.roadAddress,
-        date = createdAt,
+        dateText = createdAt,
         likeCount = likeCount,
         commentCount = commentCount,
-        rating = rating.toFloat(),
-        description = content,
-        imageUrl = imagesUrl.firstOrNull()
+        rating = rating,
+        description = content
     )
 }
