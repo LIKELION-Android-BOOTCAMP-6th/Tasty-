@@ -52,11 +52,10 @@ import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.navigation.Screen
 
-private val TextColor = Color(0xFF222222)
+private val TextColor = Color(0xFF4C4B4B)
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
 private val Gray400 = Color(0xFFBDBDBD)
-private val PrimaryColor = Color(0xFFFF7A00)
 
 @Composable
 fun FeedWriteScreen(

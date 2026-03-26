@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.tasty.android.core.asset.RegionData
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
@@ -74,7 +76,6 @@ fun FeedScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
 
-    // 적용 전 임시 필터 상태
     var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
     LaunchedEffect(Unit) {
@@ -170,12 +171,21 @@ fun FeedScreen(
             ) {
                 if (showRegionSelection) {
                     RegionSelectionSheet(
-                        selectedRegion = tempFilter.selectedRegion,
+                        selectedMainRegion = tempFilter.mainRegion,
+                        selectedSubRegion = tempFilter.subRegion,
                         onBackClick = {
                             showRegionSelection = false
                         },
-                        onRegionSelected = { region ->
-                            tempFilter = tempFilter.copy(selectedRegion = region)
+                        onMainRegionSelected = { mainRegion ->
+                            tempFilter = tempFilter.copy(
+                                mainRegion = mainRegion,
+                                subRegion = ""
+                            )
+                        },
+                        onSubRegionSelected = { subRegion ->
+                            tempFilter = tempFilter.copy(
+                                subRegion = subRegion
+                            )
                         },
                         onConfirmClick = {
                             showRegionSelection = false
@@ -266,11 +276,8 @@ private fun TastyListCard(
                 color = TextColor
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
+            overflow = TextOverflow.Ellipsis
         )
-
-        Spacer(modifier = Modifier.height(2.dp))
 
         Text(
             text = item.subTitle,
@@ -278,8 +285,7 @@ private fun TastyListCard(
                 color = TextColor
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -563,7 +569,7 @@ private fun FeedFilterSheet(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = if (filter.selectedRegion.isBlank()) "지역 선택" else filter.selectedRegion,
+                text = filter.selectedRegionText.ifBlank { "지역 선택" },
                 color = TextColor,
                 modifier = Modifier.weight(1f)
             )
@@ -591,8 +597,10 @@ private fun FeedFilterSheet(
             ) {
                 Text(
                     text = "초기화",
-                    color = TextColor,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
                 )
             }
 
@@ -607,13 +615,15 @@ private fun FeedFilterSheet(
             ) {
                 Text(
                     text = "적용",
-                    color = TextColor,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -627,39 +637,35 @@ private fun FilterChipButton(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(
-                if (selected) PrimaryColor else Color(0xFFF2F2F2)
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) PrimaryColor else Color(0xFFD9D9D9),
-                shape = RoundedCornerShape(20.dp)
+                if (selected) PrimaryColor else Color(0xFFE5E5E5)
             )
             .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = TextColor,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextColor
+            )
         )
     }
 }
 
 @Composable
 private fun RegionSelectionSheet(
-    selectedRegion: String,
+    selectedMainRegion: String,
+    selectedSubRegion: String,
     onBackClick: () -> Unit,
-    onRegionSelected: (String) -> Unit,
+    onMainRegionSelected: (String) -> Unit,
+    onSubRegionSelected: (String) -> Unit,
     onConfirmClick: () -> Unit
 ) {
-    val regions = listOf(
-        "서울 성동구",
-        "서울 강남구",
-        "서울 서초구",
-        "서울 송파구",
-        "서울 마포구"
-    )
+    val mainRegions = RegionData.mainRegions
+    val currentMainRegion =
+        mainRegions.find { it.name == selectedMainRegion } ?: mainRegions.firstOrNull()
+    val currentSubRegions = currentMainRegion?.subRegions ?: emptyList()
 
     Column(
         modifier = Modifier
@@ -687,43 +693,116 @@ private fun RegionSelectionSheet(
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        regions.forEachIndexed { index, region ->
-            val isSelected = selectedRegion == region
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(320.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFD9D9D9),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .background(Color(0xFFF3F3F3))
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(0.9f)
+                    .fillMaxHeight()
+                    .background(Color(0xFFE9E9E9))
+            ) {
+                items(
+                    items = mainRegions,
+                    key = { it.name }
+                ) { mainRegion ->
+                    val isSelected = mainRegion.name == currentMainRegion?.name
 
-            Column {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isSelected) Color(0xFFEFEFEF) else Color.Transparent
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) Color.White else Color(0xFFE9E9E9)
+                                )
+                                .clickable {
+                                    onMainRegionSelected(mainRegion.name)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        ) {
+                            Text(
+                                text = mainRegion.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = TextColor
+                                )
+                            )
+                        }
+
+                        HorizontalDivider(
+                            color = Color(0xFFD3D3D3),
+                            thickness = 1.dp
                         )
-                        .clickable { onRegionSelected(region) }
-                        .padding(horizontal = 14.dp, vertical = 16.dp)
-                ) {
-                    Text(
-                        text = region,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = TextColor
-                        )
-                    )
+                    }
                 }
+            }
 
-                // 마지막 아이템 제외하고 Divider 추가
-                if (index != regions.lastIndex) {
-                    HorizontalDivider(
-                        color = Color(0xFFE0E0E0),
-                        thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1.7f)
+                    .fillMaxHeight()
+                    .background(Color.White)
+            ) {
+                items(
+                    items = currentSubRegions,
+                    key = { it.name }
+                ) { subRegion ->
+                    val isSelected = subRegion.name == selectedSubRegion
+
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) Color(0xFFF6F1F0) else Color.White
+                                )
+                                .clickable {
+                                    onSubRegionSelected(subRegion.name)
+                                }
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = subRegion.name,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = TextColor
+                                )
+                            )
+
+                            if (isSelected) {
+                                Text(
+                                    text = "✓",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryColor
+                                    )
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(
+                            color = Color(0xFFE7E7E7),
+                            thickness = 1.dp
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Box(
             modifier = Modifier
