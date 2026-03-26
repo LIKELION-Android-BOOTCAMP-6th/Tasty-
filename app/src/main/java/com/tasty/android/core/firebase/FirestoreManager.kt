@@ -84,14 +84,15 @@ class FirestoreManager {
         return try {
             // doc Reference 생성
             val docRef = firebaseDB.collection("feeds").document()
-            val feedId = feed.copy(feedId = docRef.id)
-            docRef.set(feedId).await()
-            Log.d("jjam", feedId.toString())
+            // copy 객체 선언 후 feedId 주입
+            val feedCopy = feed.copy(feedId = docRef.id)
+            // 해당 Id에 해당하는 document에 copy 객체 저장
+            docRef.set(feedCopy).await()
+            // 로그로 내용 확인
+            Log.d("jjam", feedCopy.toString())
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
-
-
 }
