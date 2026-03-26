@@ -12,11 +12,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
 
+// 닉네임(프로필 정보) 설정 화면
 @Composable
 fun ProfileSetupScreen(
-    navController: NavController,
+    navController: NavHostController,
     viewModel: ProfileSetupViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {

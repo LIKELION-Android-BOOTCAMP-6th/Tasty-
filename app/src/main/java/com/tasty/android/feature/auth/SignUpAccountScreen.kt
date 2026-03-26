@@ -15,11 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
-
+// 회원가입/이메일/비밀번호 입력 화면
 @Composable
 fun SignUpScreen(
-    navController: NavController,
+    navController: NavHostController,
     viewmodel: SignUpAccountViewmodel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {

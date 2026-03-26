@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,11 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
-
+// 회원가입/로그인 진입 화면
 @Composable
 fun OnboardingScreen (
-    navController: NavController,
+    navController: NavHostController,
     viewmodel: OnboardingViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ){
