@@ -4,9 +4,11 @@ package com.tasty.android.core.firebase
 import com.firebase.geofire.GeoFireUtils
 import com.firebase.geofire.GeoLocation
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.FeedSortType
@@ -69,6 +71,98 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+    /***
+     * 팔로우 / 언팔로우 로직
+     ***/
+
+    // 팔로우/팔로잉 increment
+    suspend fun followUser(
+        follow: Follow
+    ) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val followRef = firebaseDB
+                .collection("follows")
+                .document()
+            batch.set(followRef, follow.copy(followId = followRef.id))
+
+            batch.update( // 팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(1)
+            )
+
+            batch.update( // 해당 유저가 팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 언팔로우/언팔로잉 decrement
+    suspend fun unfollowUser(
+        follow: Follow
+    ) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val followDoc = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
+                .get().await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("팔로잉 관계 아님"))
+
+            batch.delete(followDoc.reference)
+
+            batch.update( // 언팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(-1)
+            )
+
+            batch.update( // 해당 유저가 언팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 팔로우 여부 확인
+    suspend fun isFollowing(follow:Follow): Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
+                .get()
+                .await()
+            Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+
 
     /*** 피드 작성/조희 ***/
 
