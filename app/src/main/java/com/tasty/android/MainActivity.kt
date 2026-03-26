@@ -29,6 +29,7 @@ import com.tasty.android.core.navigation.CustomNavHost
 import com.tasty.android.core.navigation.TabScreen
 
 class MainActivity : ComponentActivity() {
+
     // CustomScaffold 공통 스케폴드 구조 내에서 화면 정의
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +40,11 @@ class MainActivity : ComponentActivity() {
                 CustomScaffold(navController = navController)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // refresh user info
     }
 }
 

@@ -12,14 +12,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
 
+// 닉네임(프로필 정보) 설정 화면
 @Composable
 fun ProfileSetupScreen(
-    navController: NavController,
+    navController: NavHostController,
     viewModel: ProfileSetupViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+    // 스캐폴드(상단 및 하단 메뉴) 적용
+    LaunchedEffect(Unit) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                showTopBar = false,
+                showBottomBar = false
+            )
+        )
+    }
+
     // 상태 관리: 입력된 닉네임
     var nickname by remember { mutableStateOf("") }
 
