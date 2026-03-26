@@ -1,6 +1,5 @@
 package com.tasty.android.core.design.component
 
-
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold

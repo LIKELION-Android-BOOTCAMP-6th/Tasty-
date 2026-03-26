@@ -17,7 +17,7 @@ class FirestoreManager {
 
     /*** 유저 생성&조회&수정 ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
-    suspend fun saveUser(user: User): Result<Unit>{
+    suspend fun saveUser(user: User): Result<Unit> {
         return try {
             firebaseDB.collection("users")
                 .document(user.userId)
@@ -28,6 +28,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 단일 유저 전체 정보 조회
     suspend fun getUser(userId: String): Result<User?> {
         return try {
@@ -43,6 +44,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 단일 유저 요약 정보 조회
     suspend fun getUserSummary(userId: String): Result<UserSummary?> {
         return try {
@@ -59,6 +61,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 유저 이메일 단일 조희
     suspend fun getUserEmail(userId: String): Result<String?> {
         return try {
@@ -74,6 +77,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     /*** 피드 작성/조희 ***/
 
     // 피드 생성(저장) 흐름
@@ -98,6 +102,4 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
-
-
 }
