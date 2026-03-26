@@ -1,7 +1,8 @@
 package com.tasty.android.feature.feed.mapper
 
-import com.tasty.android.feature.feed.FeedPostItem
+
 import com.tasty.android.feature.feed.model.Feed
+import com.tasty.android.feature.feed.model.FeedPostItem
 
 fun Feed.toFeedPostItem(
     authorName: String = "작성자",
