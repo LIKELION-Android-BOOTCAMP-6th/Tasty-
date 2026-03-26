@@ -12,7 +12,6 @@ import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Feed
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
@@ -84,6 +83,7 @@ class FirestoreManager {
     }
 
     /*** 피드 작성/조희 ***/
+
     // 피드 생성(저장) 흐름
     // 피드 게시 클릭
     // ->  피드 아이디 발급

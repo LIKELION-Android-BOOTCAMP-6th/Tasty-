@@ -13,9 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.navigation.CustomNavHost
-
+import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.navigation.TabScreen
+import kotlin.collections.setOf
 
 // 스캐폴드 커스텀 설정 클래스 선언
 data class ScaffoldConfig(

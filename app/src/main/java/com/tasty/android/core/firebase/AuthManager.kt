@@ -16,20 +16,15 @@ class AuthManager {
     // FirebaseAuth 인스턴스 생성
     private val auth = Firebase.auth
 
-    // 현재 유저 아이디 (없을 경우 null 반환)
-    private val currentUserId : String? = auth.currentUser?.uid
-
     // 현재 로그인 상태 여부
-    val isLoggedIn: Boolean = currentUserId != null
+    val isLoggedIn: Boolean get() = auth.currentUser?.uid != null
 
     // 회원가입 / 반환: uid
     suspend fun signUp(email: String, password: String): Result<String> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            Log.d("jjam", result.user!!.uid)
             Result.success(result.user!!.uid)
         } catch (e: FirebaseAuthException) {
-            Log.d("jjam", e.toString())
             Result.failure(e)
         }
     }
@@ -38,10 +33,8 @@ class AuthManager {
     suspend fun signIn(email: String, password: String): Result<String> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
-            Log.d("jjam", result.user!!.uid)
             Result.success(result.user!!.uid)
         } catch (e: FirebaseAuthException) {
-            Log.d("jjam", e.toString())
             Result.failure(e)
         }
     }
