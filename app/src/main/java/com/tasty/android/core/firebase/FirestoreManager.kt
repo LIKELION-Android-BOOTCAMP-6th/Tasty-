@@ -1,19 +1,24 @@
 package com.tasty.android.core.firebase
 
-import android.util.Log
+
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
 
 import com.google.firebase.firestore.firestore
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
+import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Feed
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
     private val firebaseDB = Firebase.firestore
+    // 페이네이션 제한 한 번에 10개씩 load
+    private val paginationLimit: Long = 10
 
     /*** 유저 생성&조회&수정 ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
@@ -79,7 +84,6 @@ class FirestoreManager {
     }
 
     /*** 피드 작성/조희 ***/
-
     // 피드 생성(저장) 흐름
     // 피드 게시 클릭
     // ->  피드 아이디 발급
@@ -102,4 +106,20 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
+    // 피드 상세 조회(피드 상세)
+    suspend fun getFeedDetail(feedId: String): Result<Feed?> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds")
+                .document(feedId)
+                .get()
+                .await()
+            val feed = snapshot.toObject(Feed::class.java)
+            Result.success(feed)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
 }
