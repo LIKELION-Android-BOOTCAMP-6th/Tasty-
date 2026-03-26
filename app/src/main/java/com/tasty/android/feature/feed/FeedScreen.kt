@@ -76,6 +76,7 @@ fun FeedScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
 
+    // 적용 전 임시 필터 상태
     var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
     LaunchedEffect(Unit) {
@@ -285,7 +286,8 @@ private fun TastyListCard(
                 color = TextColor
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -569,7 +571,7 @@ private fun FeedFilterSheet(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = filter.selectedRegionText.ifBlank { "지역 선택" },
+                text = if (filter.selectedRegion.isBlank()) "지역 선택" else filter.selectedRegion,
                 color = TextColor,
                 modifier = Modifier.weight(1f)
             )

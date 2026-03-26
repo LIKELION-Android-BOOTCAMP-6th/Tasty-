@@ -50,6 +50,8 @@ import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.design.theme.PrimaryColor
+import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 
 private val TextColor = Color(0xFF4C4B4B)
