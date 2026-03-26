@@ -50,6 +50,7 @@ fun LoginScreen(
     viewmodel: LoginViewModel = viewModel(),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+
     // 스캐폴드(상단 및 하단 메뉴) 적용
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -59,6 +60,7 @@ fun LoginScreen(
             )
         )
     }
+
 
     // 입력값 상태 관리
     var email by remember { mutableStateOf("") }

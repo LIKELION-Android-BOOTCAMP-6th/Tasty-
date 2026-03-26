@@ -2,11 +2,15 @@ package com.tasty.android.core.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Dining
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalDining
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Dining
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalDining
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -23,7 +27,7 @@ enum class TabScreen(
 
     // 아래 아이콘은 추후 extended 아이콘 main에 Merge 후에 라이브러리 추가 후 변경
     // route: 테이스티 리스트 탭 메인화면
-    TASTY("tasty","테이스티 리스트", Icons.Filled.PlayArrow, Icons.Outlined.PlayArrow),
+    TASTY("tasty","테이스티 리스트", Icons.Filled.LocalDining,Icons.Outlined.LocalDining),
     // route: 지도 탭 메인화면
     MAP("map","지도", Icons.Filled.LocationOn, Icons.Outlined.LocationOn),
     // route: 마이페이지 탭 메인화면
@@ -53,7 +57,6 @@ enum class Screen(
     FEED_CREATE_FEED("feed_create_feed"), // 피드 생성 화면
     FEED_SEARCH_RESTAURANT("feed_search_restaurant"), // 피드 - 작성 시 식당 검색 화면
     FEED_DETAIL("feed_detail"), // 피드 - 세부 화면
-
     /** Tasty **/
     TASTY_DETAIL("tasty_detail"), // 테이스티- 세부 화면
 
