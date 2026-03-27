@@ -13,8 +13,16 @@ enum class FeedSortType {
 
 data class FeedFilterUiState(
     val sortType: FeedSortType = FeedSortType.LATEST,
-    val selectedRegion: String = ""
-)
+    val mainRegion: String = "",
+    val subRegion: String = ""
+) {
+    val selectedRegionText: String
+        get() = when {
+            mainRegion.isBlank() && subRegion.isBlank() -> ""
+            mainRegion.isNotBlank() && subRegion.isBlank() -> mainRegion
+            else -> "$mainRegion $subRegion"
+        }
+}
 
 data class FeedUiState(
     val userRegion: String = "성수동",
@@ -156,16 +164,20 @@ class FeedViewModel : ViewModel() {
     fun applyFilter(newFilter: FeedFilterUiState) {
         var filteredPosts = originalFeedPosts
 
-        if (newFilter.selectedRegion.isNotBlank()) {
+        if (newFilter.mainRegion.isNotBlank()) {
             filteredPosts = filteredPosts.filter { post ->
-                post.address.contains(newFilter.selectedRegion)
+                post.address.contains(newFilter.mainRegion)
+            }
+        }
+
+        if (newFilter.subRegion.isNotBlank()) {
+            filteredPosts = filteredPosts.filter { post ->
+                post.address.contains(newFilter.subRegion)
             }
         }
 
         filteredPosts = when (newFilter.sortType) {
-            FeedSortType.LATEST -> {
-                filteredPosts.sortedByDescending { it.dateText }
-            }
+            FeedSortType.LATEST -> filteredPosts.sortedByDescending { it.dateText }
             FeedSortType.DISTANCE -> {
                 // TODO: 실제 거리순 정렬 로직 연결
                 filteredPosts

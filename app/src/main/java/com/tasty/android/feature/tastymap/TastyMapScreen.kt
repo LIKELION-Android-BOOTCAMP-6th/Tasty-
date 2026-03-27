@@ -46,6 +46,7 @@ fun TastyMapScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RestaurantListBottomSheet() {
+
     // 아이템 개수가 바뀔 때마다 UI 업데이트
     var restaurantCount by remember { mutableIntStateOf(10) }
 

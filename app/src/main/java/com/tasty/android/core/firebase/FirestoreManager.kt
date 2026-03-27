@@ -1,23 +1,31 @@
 package com.tasty.android.core.firebase
 
-import android.util.Log
-import com.google.firebase.Firebase
-import com.google.firebase.FirebaseException
-import com.google.firebase.firestore.FirebaseFirestoreException
 
+import com.firebase.geofire.GeoFireUtils
+import com.firebase.geofire.GeoLocation
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
+import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Feed
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
     private val firebaseDB = Firebase.firestore
+    // 페이네이션 제한 한 번에 10개씩 load
+    private val paginationLimit: Long = 10
+    // 거리순의 경우 1회 데이터 상한선
+    private val maxFetchLimit: Long = 200
 
-    /*** 유저 생성&조회&수정 ***/
+    /***
+     * 회원가입/마이페이지/피드/테이스티리스트용
+     * 유저 생성&조회&수정
+     ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
-    suspend fun saveUser(user: User): Result<Unit>{
+    suspend fun saveUser(user: User): Result<Unit> {
         return try {
             firebaseDB.collection("users")
                 .document(user.userId)
@@ -28,6 +36,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 단일 유저 전체 정보 조회
     suspend fun getUser(userId: String): Result<User?> {
         return try {
@@ -43,6 +52,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 단일 유저 요약 정보 조회
     suspend fun getUserSummary(userId: String): Result<UserSummary?> {
         return try {
@@ -59,39 +69,145 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
-    // 유저 이메일 단일 조희
-    suspend fun getUserEmail(userId: String): Result<String?> {
-        return try {
-            val snapshot = firebaseDB
-                .collection("users")
-                .document(userId)
-                .get()
-                .await()
-            // 유저 이메일
-            val userEmail = snapshot.getString("email")
-            Result.success(userEmail)
-        } catch (e: FirebaseException) {
-            Result.failure(e)
-        }
-    }
+
     /*** 피드 작성/조희 ***/
-    /*// 다수 피드 조회
-    suspend fun getLatestFeeds(): Flow<List<Feed>> {
 
-    }*/
+    // 피드 생성(저장) 흐름
+    // 피드 게시 클릭
+    // ->  피드 아이디 발급
+    // -> 피드의 이미지 Uri 스토리지에 저장
+    // -> 생성된 피드 아이디의 도큐먼트에 feed 객체 매핑 후 저장
 
+    // 피드 ID 발급
+    fun generateFeedId(): String = firebaseDB.collection("feeds").document().id
+
+    // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
         return try {
-            // doc Reference 생성
-            val docRef = firebaseDB.collection("feeds").document()
-            val feedId = feed.copy(feedId = docRef.id)
-            docRef.set(feedId).await()
-            Log.d("jjam", feedId.toString())
+            val geohash = GeoFireUtils.getGeoHashForLocation( // hash값 발급
+                GeoLocation(
+                    feed.addressInfo.latitude,
+                    feed.addressInfo.longitude
+                )
+            )
+            firebaseDB
+                .collection("feeds")
+                .document(feed.feedId)
+                .set(feed.copy(geohash = geohash))
+                .await()
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
 
+    // 피드 상세 조회(피드 상세)
+    suspend fun getFeedDetail(feedId: String): Result<Feed?> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds")
+                .document(feedId)
+                .get()
+                .await()
+            val feed = snapshot.toObject(Feed::class.java)
+            Result.success(feed)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 피드 다수 조회
+    suspend fun getFeeds(
+        sortType: FeedSortType = FeedSortType.LATEST,
+        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 10개씩
+        lastFeedId: String? = null, // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
+        userLat: Double? = null,
+        userLon: Double? = null,
+        radiusKm: Double = 10.0,
+        maxFetch: Long = maxFetchLimit
+    ): Result<List<Feed>> {
+        return try {
+            val feeds = when (sortType) {
+                FeedSortType.LATEST -> { // 최신순
+                    fetchLatestFeeds(limit,lastFeedId)
+                }
+                FeedSortType.DISTANCE -> { // 거리순
+                    if (userLat == null || userLon == null) return Result.failure(Exception("유저 위/경도 필요"))
+                    fetchFeedsByDistance(
+                        userLat,
+                        userLon,
+                        radiusKm,
+                        maxFetch
+                    )
+                }
+            }
+            Result.success(feeds)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun fetchLatestFeeds(
+        limit: Long = paginationLimit,
+        lastFeedId: String? = null,
+    ): List<Feed> {
+        var query = firebaseDB
+            .collection("feeds")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        if (lastFeedId != null) {
+            val lastSnapshot = firebaseDB
+                .collection("feeds")
+                .document(lastFeedId)
+                .get()
+                .await()
+            query = query.startAfter(lastSnapshot)
+        }
+        return query.get().await().toObjects(Feed::class.java)
+    }
+
+    private suspend fun fetchFeedsByDistance(
+        userLat: Double? = null,
+        userLon: Double? = null,
+        radiusKm: Double = 10.0,
+        maxFetch: Long = maxFetchLimit
+    ): List<Feed> {
+        val center = GeoLocation(userLat!!, userLon!!)
+        val radiusInMeters = radiusKm * 1000
+
+        val bounds = GeoFireUtils.getGeoHashQueryBounds(center, radiusInMeters)
+
+        return bounds
+            .flatMap { bound ->
+                firebaseDB
+                    .collection("feeds")
+                    .orderBy("geohash")
+                    .startAt(bound.startHash)
+                    .endAt(bound.endHash)
+                    .get()
+                    .await()
+                    .toObjects(Feed::class.java)
+            }
+            .distinctBy { it.feedId }
+            .map { feed ->
+                feed to GeoFireUtils.getDistanceBetween(
+                    GeoLocation(feed.addressInfo.latitude, feed.addressInfo.longitude),
+                    center
+                )
+            }
+            .filter {(_, distance) ->
+                distance <= radiusInMeters // 반경 내 거리만 매핑
+            }
+            .sortedBy { (_, distance) ->  // 거리순으로 재정렬
+                distance
+            }
+            .map {(feed, _) -> // 정렬된 피드 반환
+                feed
+            }
+            .take(maxFetch.toInt()) // 상한선만큼 take
+    }
+
 
 }
+

@@ -1,5 +1,6 @@
 package com.tasty.android.feature.feed
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +13,9 @@ data class SelectedRestaurantUiModel(
 )
 
 data class FeedPhotoUiModel(
-    val id: String
+    val id: String,
+    val uri: Uri,
+    val order: Int
 )
 
 data class FeedWriteUiState(
@@ -88,14 +91,17 @@ class FeedWriteViewModel : ViewModel() {
         }
     }
 
-    fun addDummyPhoto() {
+    fun addPhoto(uri: Uri) {
         _uiState.update { currentState ->
-            if (currentState.photos.size >= 4) {
+            if (currentState.photos.size >= 5) {
                 currentState
             } else {
+                val nextOrder = currentState.photos.size + 1
                 currentState.copy(
                     photos = currentState.photos + FeedPhotoUiModel(
-                        id = "photo_${currentState.photos.size + 1}"
+                        id = "photo_$nextOrder",
+                        uri = uri,
+                        order = nextOrder
                     )
                 )
             }
@@ -104,9 +110,16 @@ class FeedWriteViewModel : ViewModel() {
 
     fun removePhoto(photoId: String) {
         _uiState.update { currentState ->
-            currentState.copy(
-                photos = currentState.photos.filterNot { it.id == photoId }
-            )
+            val updatedPhotos = currentState.photos
+                .filterNot { it.id == photoId }
+                .mapIndexed { index, photo ->
+                    photo.copy(
+                        id = "photo_${index + 1}",
+                        order = index + 1
+                    )
+                }
+
+            currentState.copy(photos = updatedPhotos)
         }
     }
 
