@@ -19,6 +19,9 @@ class AuthManager {
     // 현재 로그인 상태 여부
     val isLoggedIn: Boolean get() = auth.currentUser?.uid != null
 
+    // 현재 로그인된 유저 객체 전체 가져오기
+    fun getCurrentUser() = auth.currentUser
+
     // 회원가입 / 반환: uid
     suspend fun signUp(email: String, password: String): Result<String> {
         return try {
