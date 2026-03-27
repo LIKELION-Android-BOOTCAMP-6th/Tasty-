@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.feature.auth.LoginScreen
 import com.tasty.android.feature.auth.OnboardingScreen
 import com.tasty.android.feature.auth.OnboardingViewModel
 import com.tasty.android.feature.auth.ProfileSetupScreen
@@ -23,7 +24,7 @@ fun CustomNavHost(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     // 로그인 상태 여부 확인
-    val isLoggedIn = true
+    val isLoggedIn = false
     // 로그인 상태에 따라 첫 화면 동적으로 결정
     val startDestination = if(isLoggedIn) TabScreen.FEED.route else Screen.AUTH_ON_BOARDING.route
     NavHost(
@@ -56,6 +57,10 @@ fun CustomNavHost(
         }
         composable(Screen.AUTH_LOGIN.route) {
             // 로그인 화면 컴포저블
+            LoginScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
 
         /** FEED **/
