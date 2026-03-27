@@ -14,6 +14,7 @@ import com.tasty.android.feature.auth.SignUpScreen
 import com.tasty.android.feature.feed.FeedDetailScreen
 import com.tasty.android.feature.feed.FeedScreen
 import com.tasty.android.feature.feed.FeedWriteScreen
+import com.tasty.android.feature.mypage.MyPageScreen
 
 @Composable
 fun CustomNavHost(
@@ -103,6 +104,10 @@ fun CustomNavHost(
 
         /** My Page **/
         composable(TabScreen.MY_PAGE.route) {
+            MyPageScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
             // 마이페이지 메인 화면 컴포저블(TAB)
         }
         composable(Screen.MY_PAGE_SELECT_FEEDS.route) {
