@@ -12,7 +12,9 @@ import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.FeedSortType
+import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
+import com.tasty.android.feature.feed.model.FeedLike
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
@@ -162,8 +164,6 @@ class FirestoreManager {
         }
     }
 
-
-
     /*** 피드 작성/조희 ***/
 
     // 피드 생성(저장) 흐름
@@ -240,6 +240,122 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
+    /*** 피드 좋아요/댓글 ***/
+
+    // 좋아요 추가
+    suspend fun likeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val likeRef = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes").document()
+            batch.set(
+                likeRef,
+                feedLike.copy(likeId = likeRef.id)
+            )
+            batch.update(
+                firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 취소
+    suspend fun unlikeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+            val likeDoc = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("좋아요 상태 아님"))
+
+            batch.delete(likeDoc.reference)
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 여부 확인
+    suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+            Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 추가
+    suspend fun addComment(comment: Comment): Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val commentRef = firebaseDB
+                .collection("feeds")
+                .document(comment.feedId)
+                .collection("comments")
+                .document()
+
+            batch.set(
+                commentRef,
+                comment.copy(commentId = commentRef.id)
+                )
+
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(comment.feedId),
+                "commentCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 목록 조회
+    suspend fun getComments(feedId: String): Result<List<Comment>> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds").document(feedId)
+                .collection("comments")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val comments = snapshot.toObjects(Comment::class.java)
+            Result.success(comments)
+        } catch(e:FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+
 
     private suspend fun fetchLatestFeeds(
         limit: Long = paginationLimit,
