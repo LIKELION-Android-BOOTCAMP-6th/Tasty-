@@ -15,6 +15,7 @@ import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedLike
+import com.tasty.android.feature.tastylist.model.TastyList
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
