@@ -4,13 +4,18 @@ package com.tasty.android.core.firebase
 import com.firebase.geofire.GeoFireUtils
 import com.firebase.geofire.GeoLocation
 import com.google.firebase.Firebase
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.FeedSortType
+import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
+import com.tasty.android.feature.feed.model.FeedLike
+import com.tasty.android.feature.tastylist.model.TastyList
 import kotlinx.coroutines.tasks.await
 
 class FirestoreManager {
@@ -65,6 +70,96 @@ class FirestoreManager {
             // 유저 요약 정보 UserSummary에 매핑
             val userSummary = snapshot.toObject(UserSummary::class.java)
             Result.success(userSummary)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+    /***
+     * 팔로우 / 언팔로우 로직
+     ***/
+
+    // 팔로우/팔로잉 increment
+    suspend fun followUser(
+        follow: Follow
+    ) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val followRef = firebaseDB
+                .collection("follows")
+                .document()
+            batch.set(followRef, follow.copy(followId = followRef.id))
+
+            batch.update( // 팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(1)
+            )
+
+            batch.update( // 해당 유저가 팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 언팔로우/언팔로잉 decrement
+    suspend fun unfollowUser(
+        follow: Follow
+    ) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val followDoc = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
+                .get().await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("팔로잉 관계 아님"))
+
+            batch.delete(followDoc.reference)
+
+            batch.update( // 언팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(-1)
+            )
+
+            batch.update( // 해당 유저가 언팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 팔로우 여부 확인
+    suspend fun isFollowing(follow:Follow): Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
+                .get()
+                .await()
+            Result.success(!result.isEmpty)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
@@ -146,6 +241,122 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
+    /*** 피드 좋아요/댓글 ***/
+
+    // 좋아요 추가
+    suspend fun likeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val likeRef = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes").document()
+            batch.set(
+                likeRef,
+                feedLike.copy(likeId = likeRef.id)
+            )
+            batch.update(
+                firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 취소
+    suspend fun unlikeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+            val likeDoc = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("좋아요 상태 아님"))
+
+            batch.delete(likeDoc.reference)
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 여부 확인
+    suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+            Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 추가
+    suspend fun addComment(comment: Comment): Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val commentRef = firebaseDB
+                .collection("feeds")
+                .document(comment.feedId)
+                .collection("comments")
+                .document()
+
+            batch.set(
+                commentRef,
+                comment.copy(commentId = commentRef.id)
+                )
+
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(comment.feedId),
+                "commentCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 목록 조회
+    suspend fun getComments(feedId: String): Result<List<Comment>> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds").document(feedId)
+                .collection("comments")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val comments = snapshot.toObjects(Comment::class.java)
+            Result.success(comments)
+        } catch(e:FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+
 
     private suspend fun fetchLatestFeeds(
         limit: Long = paginationLimit,
