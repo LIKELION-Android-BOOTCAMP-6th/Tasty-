@@ -17,7 +17,7 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.tastylist.model.TastyList
 import kotlinx.coroutines.tasks.await
-import org.w3c.dom.Comment
+
 
 class FirestoreManager {
     private val firebaseDB = Firebase.firestore
