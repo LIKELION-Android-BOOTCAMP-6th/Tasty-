@@ -1,23 +1,30 @@
 package com.tasty.android.core.firebase
 
 
+import com.firebase.geofire.GeoFireUtils
+import com.firebase.geofire.GeoLocation
 import com.google.firebase.Firebase
-import com.google.firebase.FirebaseException
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
-
 import com.google.firebase.firestore.firestore
+import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.FeedSortType
+import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
-import kotlinx.coroutines.flow.Flow
+import com.tasty.android.feature.feed.model.FeedLike
+import com.tasty.android.feature.tastylist.model.TastyList
 import kotlinx.coroutines.tasks.await
+import org.w3c.dom.Comment
 
 class FirestoreManager {
     private val firebaseDB = Firebase.firestore
     // 페이네이션 제한 한 번에 10개씩 load
     private val paginationLimit: Long = 10
+    // 거리순의 경우 1회 데이터 상한선
+    private val maxFetchLimit: Long = 200
 
     /*** 유저 생성&조회&수정 ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
@@ -65,19 +72,93 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+    /***
+     * 팔로우 / 언팔로우 로직
+     ***/
 
-    // 유저 이메일 단일 조희
-    suspend fun getUserEmail(userId: String): Result<String?> {
+    // 팔로우/팔로잉 increment
+    suspend fun followUser(
+        follow: Follow
+    ) : Result<Unit> {
         return try {
-            val snapshot = firebaseDB
-                .collection("users")
-                .document(userId)
+            val batch = firebaseDB.batch()
+
+            val followRef = firebaseDB
+                .collection("follows")
+                .document()
+            batch.set(followRef, follow.copy(followId = followRef.id))
+
+            batch.update( // 팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(1)
+            )
+
+            batch.update( // 해당 유저가 팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 언팔로우/언팔로잉 decrement
+    suspend fun unfollowUser(
+        follow: Follow
+    ) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val followDoc = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
+                .get().await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("팔로잉 관계 아님"))
+
+            batch.delete(followDoc.reference)
+
+            batch.update( // 언팔로우 누른 유저 팔로잉 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followerUserId),
+                "followingCount",
+                FieldValue.increment(-1)
+            )
+
+            batch.update( // 해당 유저가 언팔로우한 유저의 팔로워 카운트 업데이트
+                firebaseDB
+                    .collection("users")
+                    .document(follow.followingUserId),
+                "followerCount",
+                FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 팔로우 여부 확인
+    suspend fun isFollowing(follow:Follow): Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", follow.followerUserId)
+                .whereEqualTo("followingUserId", follow.followingUserId)
                 .get()
                 .await()
-            // 유저 이메일
-            val userEmail = snapshot.getString("email")
-            Result.success(userEmail)
-        } catch (e: FirebaseException) {
+            Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
@@ -96,10 +177,16 @@ class FirestoreManager {
     // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
         return try {
+            val geohash = GeoFireUtils.getGeoHashForLocation( // hash값 발급
+                GeoLocation(
+                    feed.addressInfo.latitude,
+                    feed.addressInfo.longitude
+                )
+            )
             firebaseDB
                 .collection("feeds")
                 .document(feed.feedId)
-                .set(feed)
+                .set(feed.copy(geohash = geohash))
                 .await()
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
@@ -126,35 +213,224 @@ class FirestoreManager {
     suspend fun getFeeds(
         sortType: FeedSortType = FeedSortType.LATEST,
         limit: Long = paginationLimit, // 페이지네이션 상수 기본: 10개씩
-        lastFeedId: String? = null // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
+        lastFeedId: String? = null, // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
+        userLat: Double? = null,
+        userLon: Double? = null,
+        radiusKm: Double = 10.0,
+        maxFetch: Long = maxFetchLimit
     ): Result<List<Feed>> {
         return try {
-            var query = firebaseDB
-                .collection("feeds")
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(limit)
-
-            if (lastFeedId != null) {
-                val lastSnapshot = firebaseDB
-                    .collection("feeds")
-                    .document(lastFeedId)
-                    .get()
-                    .await()
-                query = query.startAfter(lastSnapshot)
-            }
-
-            val feeds = query.get().await().toObjects(Feed::class.java)
-
-            val sortedFeeds = when(sortType) {
-                FeedSortType.LATEST -> feeds // 최신순일 경우
-                FeedSortType.DISTANCE -> { // 거리순일 경우
-
+            val feeds = when (sortType) {
+                FeedSortType.LATEST -> { // 최신순
+                    fetchLatestFeeds(limit,lastFeedId)
+                }
+                FeedSortType.DISTANCE -> { // 거리순
+                    if (userLat == null || userLon == null) return Result.failure(Exception("유저 위/경도 필요"))
+                    fetchFeedsByDistance(
+                        userLat,
+                        userLon,
+                        radiusKm,
+                        maxFetch
+                    )
                 }
             }
-
             Result.success(feeds)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
+
+    /*** 피드 좋아요/댓글 ***/
+
+    // 좋아요 추가
+    suspend fun likeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val likeRef = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes").document()
+            batch.set(
+                likeRef,
+                feedLike.copy(likeId = likeRef.id)
+            )
+            batch.update(
+                firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 취소
+    suspend fun unlikeFeed(feedLike: FeedLike) : Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+            val likeDoc = firebaseDB
+                .collection("feeds").document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+                .documents.firstOrNull() ?: return Result.failure(Exception("좋아요 상태 아님"))
+
+            batch.delete(likeDoc.reference)
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(feedLike.feedId),
+                "likeCount", FieldValue.increment(-1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 좋아요 여부 확인
+    suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
+        return try {
+            val result = firebaseDB
+                .collection("feeds")
+                .document(feedLike.feedId)
+                .collection("feedLikes")
+                .whereEqualTo("userId", feedLike.userId)
+                .get()
+                .await()
+            Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 추가
+    suspend fun addComment(comment: Comment): Result<Unit> {
+        return try {
+            val batch = firebaseDB.batch()
+
+            val commentRef = firebaseDB
+                .collection("feeds")
+                .document(comment.feedId)
+                .collection("comments")
+                .document()
+
+            batch.set(
+                commentRef,
+                comment.copy(commentId = commentRef.id)
+                )
+
+            batch.update(
+                firebaseDB
+                    .collection("feeds")
+                    .document(comment.feedId),
+                "commentCount", FieldValue.increment(1)
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch(e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 댓글 목록 조회
+    suspend fun getComments(feedId: String): Result<List<Comment>> {
+        return try {
+            val snapshot = firebaseDB
+                .collection("feeds").document(feedId)
+                .collection("comments")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val comments = snapshot.toObjects(Comment::class.java)
+            Result.success(comments)
+        } catch(e:FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    /*** 마이페이지&&테이스티리스트 홈/테이스티리스트 CRUD(생성/조회/수정/삭제) ***/
+    suspend fun createTastyList(tastyList: TastyList) : Result<Unit> {
+        return try {
+            val tastyRef = firebaseDB
+                .collection("tastyLists")
+                .document()
+            tastyRef.set(
+                tastyRef,
+
+            )
+            Result.success(Unit)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun fetchLatestFeeds(
+        limit: Long = paginationLimit,
+        lastFeedId: String? = null,
+    ): List<Feed> {
+        var query = firebaseDB
+            .collection("feeds")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        if (lastFeedId != null) {
+            val lastSnapshot = firebaseDB
+                .collection("feeds")
+                .document(lastFeedId)
+                .get()
+                .await()
+            query = query.startAfter(lastSnapshot)
+        }
+        return query.get().await().toObjects(Feed::class.java)
+    }
+
+    private suspend fun fetchFeedsByDistance(
+        userLat: Double? = null,
+        userLon: Double? = null,
+        radiusKm: Double = 10.0,
+        maxFetch: Long = maxFetchLimit
+    ): List<Feed> {
+        val center = GeoLocation(userLat!!, userLon!!)
+        val radiusInMeters = radiusKm * 1000
+
+        val bounds = GeoFireUtils.getGeoHashQueryBounds(center, radiusInMeters)
+
+        return bounds
+            .flatMap { bound ->
+                firebaseDB
+                    .collection("feeds")
+                    .orderBy("geohash")
+                    .startAt(bound.startHash)
+                    .endAt(bound.endHash)
+                    .get()
+                    .await()
+                    .toObjects(Feed::class.java)
+            }
+            .distinctBy { it.feedId }
+            .map { feed ->
+                feed to GeoFireUtils.getDistanceBetween(
+                    GeoLocation(feed.addressInfo.latitude, feed.addressInfo.longitude),
+                    center
+                )
+            }
+            .filter {(_, distance) ->
+                distance <= radiusInMeters // 반경 내 거리만 매핑
+            }
+            .sortedBy { (_, distance) ->  // 거리순으로 재정렬
+                distance
+            }
+            .map {(feed, _) -> // 정렬된 피드 반환
+                feed
+            }
+            .take(maxFetch.toInt()) // 상한선만큼 take
+    }
+
+
 }
+
