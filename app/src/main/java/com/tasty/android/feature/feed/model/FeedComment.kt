@@ -1,9 +1,13 @@
 package com.tasty.android.feature.feed.model
 
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
+
 data class FeedComment(
     val commentId: String = "",
     val feedId: String = "",
     val authorId: String = "",
     val content: String = "",
-    val createdAt: String = ""
+    @ServerTimestamp
+    val createdAt: Timestamp? = null
 )

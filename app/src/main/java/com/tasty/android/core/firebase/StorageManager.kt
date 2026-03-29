@@ -23,7 +23,7 @@ class StorageManager {
             FirebaseAuthInvalidUserException("","")
         )
         return try {
-            val userProfilePath = "userProfileImages/$userId/${userId}.jpg"
+            val userProfilePath = "userProfileImages/$userId/profileImage.jpg"
             val ref = storageRef.child(userProfilePath)
 
             ref.putFile(profileImageUri).await()
@@ -55,12 +55,12 @@ class StorageManager {
     }
 
     // 테이스티 리스트 썸네일 이미지 업로드 / 반환: 다운로드 Url 리스트
-    suspend fun uploadThumbnailImages(thumbImageUri: Uri, tastyListId: String): Result<String> {
+    suspend fun uploadThumbnailImages(thumbnailImageUri: Uri, tastyListId: String): Result<String> {
         return try {
             val thumbnailImagesPath = "thumbnailImages/$tastyListId"
             val ref = storageRef.child("$thumbnailImagesPath/thumbnailImage.jpg")
 
-            ref.putFile(thumbImageUri).await()
+            ref.putFile(thumbnailImageUri).await()
             val downloadUrl = ref.downloadUrl.await().toString()
 
             Result.success(downloadUrl)
