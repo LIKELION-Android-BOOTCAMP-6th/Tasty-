@@ -26,6 +26,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
+
 // 회원가입/로그인 진입 화면
 @Composable
 fun OnboardingScreen (
@@ -65,7 +67,9 @@ fun OnboardingScreen (
         Button(
             onClick = {
                 //  회원가입 클릭 이벤트 실행
-                viewmodel.onSignUpClick()
+                viewmodel.onSignUpClick{
+                    navController.navigate(Screen.AUTH_SIGN_UP_EMAIL_PWD.route)
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -100,7 +104,9 @@ fun OnboardingScreen (
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable {
                     // 로그인 클릭 이벤트 실행
-                    viewmodel.onLoginClicked()
+                    viewmodel.onLoginClicked{
+                        navController.navigate(Screen.AUTH_LOGIN.route)
+                    }
                 }
             )
         }

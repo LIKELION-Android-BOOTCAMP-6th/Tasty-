@@ -26,7 +26,10 @@ class FirestoreManager {
     // 거리순의 경우 1회 데이터 상한선
     private val maxFetchLimit: Long = 200
 
-    /*** 유저 생성&조회&수정 ***/
+    /***
+     * 회원가입/마이페이지/피드/테이스티리스트용
+     * 유저 생성&조회&수정
+     ***/
     // 유저 회원가입 정보 저장/유저 프로필 수정
     suspend fun saveUser(user: User): Result<Unit> {
         return try {
