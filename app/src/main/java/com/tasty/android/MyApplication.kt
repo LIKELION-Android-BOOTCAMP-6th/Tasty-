@@ -2,6 +2,8 @@ package com.tasty.android
 
 import android.app.Application
 import com.tasty.android.core.AppContainer
+import com.google.android.libraries.places.api.Places
+
 
 // 앱 전역에 쓰일 초기화 코드 작성 해주십쇼.(예: Manager 등등)
 class MyApplication: Application() {
@@ -10,7 +12,11 @@ class MyApplication: Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Initialize Places API
+        if(!Places.isInitialized()) {
+            Places.initialize(applicationContext, BuildConfig.PLACES_API_KEY)
+        }
         // 앱 컨테이너 late init
-        container = AppContainer()
+        container = AppContainer(context = this)
     }
 }

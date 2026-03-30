@@ -16,8 +16,10 @@ import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.mypage.tastylist.model.TastyList
+import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
 import com.tasty.android.feature.tastylist.TastySortType
-import com.tasty.android.feature.tastylist.model.TastyListLike
+import com.tasty.android.feature.tastymap.model.RestaurantInfo
+
 import kotlinx.coroutines.tasks.await
 
 
@@ -175,7 +177,10 @@ class FirestoreManager {
     // ->  피드 아이디 발급
     // -> 피드의 이미지 Uri 스토리지에 저장
     // -> 생성된 피드 아이디의 도큐먼트에 feed 객체 매핑 후 저장
+
+
     fun generateFeedId(): String = firebaseDB.collection("feeds").document().id
+
     // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
         return try {
@@ -185,15 +190,36 @@ class FirestoreManager {
                     feed.addressInfo.longitude
                 )
             )
-            firebaseDB
-                .collection("feeds")
-                .document(feed.feedId)
-                .set(
-                    feed.copy(
-                        geohash = geohash,
+            val currentFeed = feed.copy(geohash = geohash)
+
+            val restaurantRef = firebaseDB
+                .collection("restaurantInfo")
+                .document(feed.restaurantId)
+
+            firebaseDB.runTransaction { transaction ->
+                val snapshot = transaction.get(restaurantRef)
+
+                if (snapshot.exists()) {
+                    val currentCount = snapshot.getLong("feedCount") ?: 0L
+                    val currentAvg = snapshot.getDouble("ratingAvg") ?: 0.0
+
+                    val newCount = currentCount + 1
+                    val newAvg = ((currentAvg * currentCount) + currentFeed.rating) / newCount
+
+                    transaction.update(restaurantRef, "feedCount", newCount)
+                    transaction.update(restaurantRef, "ratingAvg", newAvg)
+
+
+                } else {
+                    val restaurantInfo = RestaurantInfo(
+                        restaurantId = currentFeed.restaurantId,
+                        feedCount = 1,
+                        ratingAvg = currentFeed.rating.toDouble()
                     )
-                )
-                .await()
+                    transaction.set(restaurantRef, restaurantInfo)
+                }
+            }.await()
+
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -527,6 +553,7 @@ class FirestoreManager {
             Result.failure(e)
         }
     }
+
     // 조회수 증가
     suspend fun incrementTastyListViewCount(tastyListId: String): Result<Unit> {
         return try {
