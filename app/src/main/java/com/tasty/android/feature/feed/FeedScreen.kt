@@ -1,5 +1,7 @@
 package com.tasty.android.feature.feed
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,6 +66,7 @@ import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
@@ -157,7 +160,7 @@ fun FeedScreen(
                         navController.navigate(Screen.USER_PROFILE.route)
                     },
                     onLikeClick = {
-                        viewModel.increaseLike(feedPost.id)
+                        viewModel.toggleLike(feedPost.id, feedPost.authorId)
                     }
                 )
             }

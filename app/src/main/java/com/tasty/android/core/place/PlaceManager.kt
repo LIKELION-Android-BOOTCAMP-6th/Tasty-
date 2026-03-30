@@ -74,7 +74,7 @@ class PlaceManager(private val context: Context) {
         }
     }
 
-    suspend fun getRestaurantBitmapImage(
+    suspend fun getRestaurantBitmapImages(
         photoMetaDatas: List<PhotoMetadata>?, // API에서 받은 메타데이터 배열
         maxWidth: Int = 500,
         maxHeight: Int = 500,
