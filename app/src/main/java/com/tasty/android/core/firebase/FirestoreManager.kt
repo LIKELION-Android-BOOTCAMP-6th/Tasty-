@@ -17,7 +17,7 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.mypage.tastylist.model.TastyList
 import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
-import com.tasty.android.feature.tastylist.TastySortType
+import com.tasty.android.feature.tasty.TastySortType
 import com.tasty.android.feature.tastymap.model.RestaurantInfo
 
 import kotlinx.coroutines.tasks.await
