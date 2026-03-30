@@ -59,7 +59,7 @@ fun TastyListCreateSetupScreen(
             viewModel.updateThumbnailImageUrl(it.toString())
         }
     }
-//완성
+
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
             ScaffoldConfig(
