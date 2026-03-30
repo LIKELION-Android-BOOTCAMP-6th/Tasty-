@@ -1,10 +1,15 @@
 package com.tasty.android.feature.feed.model
 
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
+
 data class Feed(
     val feedId: String = "",
     val authorId: String = "",
     val content: String = "",
-    val createdAt: String = "",
+    @ServerTimestamp
+    val createdAt: Timestamp? = null,
+    val geohash: String = "", // 위경도 기반 거리 계산용
     val imagesUrl: List<String> = emptyList(),
     val likeCount: Int = 0,
     val commentCount: Int = 0,
