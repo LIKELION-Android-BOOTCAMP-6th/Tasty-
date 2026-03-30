@@ -1,7 +1,6 @@
 package com.tasty.android.feature.tastylist
 
 import androidx.lifecycle.ViewModel
-import com.tasty.android.feature.tastylist.model.TastyFeed
 import com.tasty.android.feature.tastylist.model.TastyList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,18 +57,6 @@ class TastyListCreateSetupViewModel : ViewModel() {
         )
     }
 
-    fun buildTastyFeed(authorId: String = "tempAuthorId"): TastyFeed {
-        return TastyFeed(
-            tastyFeedId = "",
-            authorId = authorId,
-            title = _uiState.value.title.trim(),
-            regionText = "",
-            thumbnailImageId = _uiState.value.thumbnailImageUrl,
-            feedIds = TastyListCreateDraftStore.selectedFeedIds,
-            createdAt = ""
-        )
-    }
-
     fun completeCreation(): Boolean {
         val currentState = _uiState.value
 
@@ -97,17 +84,16 @@ class TastyListCreateSetupViewModel : ViewModel() {
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
 
         val tastyList = buildTastyList()
-        val tastyFeed = buildTastyFeed()
 
         // TODO:
         // Firebase Firestore 연결 후 저장
         // 1) tastyLists 컬렉션에 tastyList 저장
-        // 2) 생성된 tastyListId 하위 tastyFeeds 서브컬렉션에 tastyFeed 저장
+        // 2) 선택된 feedIds는 tastyList 문서 또는 별도 필드/서브컬렉션 구조에 맞게 저장
         // 3) 필요 시 createdAt / updatedAt / 문서 ID 반영
         // 현재는 화면만 구현하는 단계라 실제 저장은 하지 않음
 
         println(tastyList)
-        println(tastyFeed)
+        println(TastyListCreateDraftStore.selectedFeedIds)
 
         _uiState.update { it.copy(isSaving = false) }
         return true

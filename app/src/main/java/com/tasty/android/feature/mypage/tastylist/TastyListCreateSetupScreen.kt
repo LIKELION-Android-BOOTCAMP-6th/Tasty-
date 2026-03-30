@@ -1,5 +1,8 @@
 package com.tasty.android.feature.tastylist
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,10 +33,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
@@ -46,6 +51,14 @@ fun TastyListCreateSetupScreen(
     viewModel: TastyListCreateSetupViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.updateThumbnailImageUrl(it.toString())
+        }
+    }
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -89,10 +102,7 @@ fun TastyListCreateSetupScreen(
                 )
                 .background(Color.White, CircleShape)
                 .clickable {
-                    // TODO:
-                    // Firebase Storage 또는 이미지 업로드 연결 후 실제 이미지 선택/업로드 처리
-                    // 현재는 화면 동작 확인용 임시 문자열 사용
-                    viewModel.updateThumbnailImageUrl("temp_thumbnail_image_url")
+                    imagePickerLauncher.launch("image/*")
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -115,12 +125,17 @@ fun TastyListCreateSetupScreen(
                     )
                 }
             } else {
-                Text(
-                    text = "썸네일 선택 완료",
-                    color = TextColor
+                AsyncImage(
+                    model = uiState.thumbnailImageUrl,
+                    contentDescription = "선택한 썸네일",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
                 )
             }
         }
+
+
 
         Spacer(modifier = Modifier.padding(top = 24.dp))
 
