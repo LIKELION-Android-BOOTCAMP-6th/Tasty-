@@ -10,7 +10,7 @@ data class Feed(
     @ServerTimestamp
     val createdAt: Timestamp? = null,
     val geohash: String = "", // 위경도 기반 거리 계산용
-    val imagesUrl: List<String> = emptyList(),
+    val feedImageUrls: List<String> = emptyList(),
     val likeCount: Int = 0,
     val commentCount: Int = 0,
     val rating: Int = 0,
@@ -20,6 +20,6 @@ data class Feed(
     val restaurantId: String = "",
     val restaurantName: String = "",
     val restaurantPhoneNumber: String = "",
-    val restaurantThumbnailUrl: String = "",
+    val restaurantImageUrls: List<String> = emptyList(),
     val addressInfo: AddressInfo = AddressInfo()
 )

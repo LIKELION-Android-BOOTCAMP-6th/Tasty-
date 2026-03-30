@@ -1,3 +1,13 @@
+import java.util.Properties
+
+val localProperties = Properties()
+val localPropertiesFile: File = rootProject.file(
+    "local.properties"
+)
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+val placesApiKey :String = localProperties.getProperty("PLACES_API_KEY") ?: ""
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -16,6 +26,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "PLACES_API_KEY", "\"${placesApiKey}\"")
     }
 
     buildTypes {
@@ -33,7 +45,7 @@ android {
     }
     buildFeatures {
         compose = true
-        viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -74,4 +86,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     // Add the dependency for Geolocation Dependency
     implementation("com.firebase:geofire-android-common:3.2.0")
+    // Location Service Dependency
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    // Google Places SDK Dependency
+    implementation("com.google.android.libraries.places:places:3.5.0")
 }

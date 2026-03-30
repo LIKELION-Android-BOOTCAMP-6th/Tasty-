@@ -1,4 +1,4 @@
-package com.tasty.android.feature.tastylist.model
+package com.tasty.android.feature.mypage.tastylist.model
 
 data class TastyListLike(
     val likeId: String = "",

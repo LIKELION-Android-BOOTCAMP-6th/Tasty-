@@ -1,5 +1,6 @@
 package com.tasty.android.core.firebase
 
+import android.graphics.Bitmap
 import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -10,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
 import kotlin.collections.mapIndexed
 
 class StorageManager {
@@ -65,6 +67,31 @@ class StorageManager {
 
             Result.success(downloadUrl)
         } catch (e: StorageException) {
+            Result.failure(e)
+        }
+    }
+
+    // 식당 이미지 비트맵 업로드 / 반환: 다운로드 Url 리스트
+    suspend fun uploadRestaurantImages(bitmaps: List<Bitmap>, restaurantId:String): Result<List<String>> {
+        return try {
+            val restaurantImagesPath = "restaurantImages/$restaurantId"
+            val downloadUrls = coroutineScope {
+                bitmaps.mapIndexed { idx, bitmap ->
+                    async {
+                        val ref = storageRef.child("$restaurantImagesPath/restaurantImage_$idx.jpg")
+
+
+                        val byteOutput = ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteOutput)
+                        val data = byteOutput.toByteArray()
+
+                        ref.putBytes(data).await()
+                        ref.downloadUrl.await().toString()
+                    }
+                }.awaitAll()
+            }
+            Result.success(downloadUrls)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

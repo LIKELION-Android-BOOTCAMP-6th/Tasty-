@@ -46,6 +46,7 @@ import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.core.util.toFormattedDate
 import com.tasty.android.feature.feed.model.FeedComment
 
 private val Gray100 = Color(0xFFF7F7F7)
@@ -366,7 +367,7 @@ private fun CommentItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = comment.createdAt,
+                text = comment.createdAt?.toFormattedDate() ?: "",
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = Gray400
                 )
