@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.AuthManager
+import com.tasty.android.core.firebase.UserStoreManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -23,7 +24,7 @@ data class LoginUiState(
 
 class LoginViewModel(
     private val authManager: AuthManager,
-    private val firestoreManager: FirestoreManager
+    private val userStoreManager: UserStoreManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -35,7 +36,7 @@ class LoginViewModel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 LoginViewModel(
                     authManager = app.container.authManager,
-                    firestoreManager = app.container.firestoreManager
+                    userStoreManager = app.container.UserStoreManager
                 )
             }
         }
@@ -56,7 +57,7 @@ class LoginViewModel(
 
                     if (userId != null) {
                         // firestoreManager에서 유저 정보를 가져오는 함수 호출 (가정)
-                        val userData = firestoreManager.getUser(userId)
+                        val userData = userStoreManager.getUser(userId)
 
                         if (userData != null) {
                             // 3. 데이터 로드까지 모두 성공 한 경우 상태 업데이트
