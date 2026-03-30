@@ -2,12 +2,15 @@ package com.tasty.android.core.place
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.CircularBounds
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.SearchNearbyRequest
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -108,8 +111,35 @@ class PlaceManager(private val context: Context) {
     suspend fun searchNearbyRestaurants(
         latitude: Double,
         longitude: Double,
-        radiusMeters: Double = 5000.0
-    ): Result<List<Place>> {
+        radiusMeters: Double = 5000.0,
+        maxResultCount: Int = 20
+    ) : Result<List<Place>>{
+        return try {
+            val center = LatLng(
+                latitude,
+                longitude
+            )
 
+            val circle = CircularBounds.newInstance(center, radiusMeters)
+
+            val placeFields = listOf(
+                Place.Field.ID,
+                Place.Field.NAME,
+                Place.Field.LAT_LNG,
+                Place.Field.ADDRESS,
+                Place.Field.BUSINESS_STATUS
+            )
+
+            val req = SearchNearbyRequest
+                .builder(circle, placeFields)
+                .setIncludedTypes(listOf("restaurant", "cafe", "bakery"))
+                .setMaxResultCount(maxResultCount)
+                .build()
+            val res = placeClient.searchNearby(req).await()
+
+            Result.success(res.places)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
