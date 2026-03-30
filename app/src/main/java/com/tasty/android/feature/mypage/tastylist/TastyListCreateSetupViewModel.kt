@@ -1,7 +1,7 @@
 package com.tasty.android.feature.tastylist
 
 import androidx.lifecycle.ViewModel
-import com.tasty.android.feature.tastylist.model.TastyList
+import com.tasty.android.feature.mypage.tastylist.model.TastyList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,8 +52,8 @@ class TastyListCreateSetupViewModel : ViewModel() {
             thumbnailImageUrl = _uiState.value.thumbnailImageUrl,
             likeCount = 0,
             viewCount = 0,
-            createdAt = "",
-            updatedAt = ""
+            createdAt = null,
+            updatedAt = null
         )
     }
 
