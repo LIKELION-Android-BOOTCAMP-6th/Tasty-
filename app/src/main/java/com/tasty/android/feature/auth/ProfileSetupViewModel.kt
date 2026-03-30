@@ -9,7 +9,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.AuthManager
-import com.tasty.android.core.firebase.FirestoreManager
+import com.tasty.android.core.firebase.UserStoreManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -22,7 +22,7 @@ data class ProfileSetupUiState(
 )
 class ProfileSetupViewModel(
     private val authManager: AuthManager,
-    private val firestoreManager: FirestoreManager
+    private val userstoreManager: UserStoreManager
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileSetupUiState())
@@ -34,7 +34,7 @@ class ProfileSetupViewModel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 ProfileSetupViewModel(
                     authManager = app.container.authManager,
-                    firestoreManager = app.container.firestoreManager
+                    userstoreManager = app.container.UserStoreManager
                 )
             }
         }
@@ -49,13 +49,13 @@ class ProfileSetupViewModel(
 
                 if (user != null) {
                     // 1. 유저 정보 가져오기 (성공 시 데이터 반환, 실패 시 catch로 이동)
-                    val userData = firestoreManager.getUser(user.uid).getOrThrow()
+                    val userData = userstoreManager.getUser(user.uid).getOrThrow()
 
                     if (userData != null) {
                         // 2. 데이터 수정 및 저장
                         // 닉네임만 변경된 새로운 User 객체 생성 (copy 사용)
                         val updatedUser = userData.copy(nickname = nickName)
-                        firestoreManager.saveUser(updatedUser).getOrThrow()
+                        userstoreManager.saveUser(updatedUser).getOrThrow()
 
                         // 3. 모든 작업 성공 시
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }

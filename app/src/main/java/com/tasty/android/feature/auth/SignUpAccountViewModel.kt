@@ -9,7 +9,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.AuthManager
-import com.tasty.android.core.firebase.FirestoreManager
+import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +25,7 @@ data class SignUpUiState(
 
 class SignUpAccountViewmodel(
     private val authManager: AuthManager,
-    private val firestoreManager: FirestoreManager
+    private val userstoreManager: UserStoreManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SignUpUiState())
     val uiState = _uiState.asStateFlow()
@@ -36,7 +36,7 @@ class SignUpAccountViewmodel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 SignUpAccountViewmodel(
                     authManager = app.container.authManager,
-                    firestoreManager = app.container.firestoreManager
+                    userstoreManager = app.container.UserStoreManager
                 )
             }
         }
@@ -62,7 +62,7 @@ class SignUpAccountViewmodel(
                 )
 
                 // 4. Firestore에 유저 정보 저장
-                val firestoreResult = firestoreManager.saveUser(newUser)
+                val firestoreResult = userstoreManager.saveUser(newUser)
 
                 firestoreResult.onSuccess {
                     // 최종 성공: 모든 과정 완료
