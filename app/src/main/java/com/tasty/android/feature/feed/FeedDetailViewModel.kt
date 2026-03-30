@@ -67,8 +67,8 @@ class FeedDetailViewModel(
 
             val commentsResultDeferred = async { feedStoreManager.getComments(feedId) }
 
-            val isLikedDeferred = async { 
-                feedStoreManager.isLiked(FeedLike(feedId = feedId, userId = currentUserId)).getOrDefault(false) 
+            val isLikedDeferred = async {
+                feedStoreManager.isLiked(FeedLike(feedId = feedId, userId = currentUserId)).getOrDefault(false)
             }
 
             val feedResult = feedResultDeferred.await()
@@ -81,7 +81,7 @@ class FeedDetailViewModel(
             }
 
             val feed = feedResult.getOrThrow()
-            
+
             // Domain -> UI Model 맵핑
             val postUiModel = FeedDetailPostUiModel(
                 id = feed?.feedId ?: "",
@@ -152,7 +152,7 @@ class FeedDetailViewModel(
 
     fun toggleLike(feedId: String) {
         if (currentUserId.isBlank()) return
-        
+
         val currentPost = _uiState.value.post ?: return
         val isCurrentlyLiked = currentPost.isLiked
 

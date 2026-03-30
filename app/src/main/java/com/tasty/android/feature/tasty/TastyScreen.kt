@@ -1,11 +1,239 @@
 package com.tasty.android.feature.tasty
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.RemoveRedEye
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.design.theme.PrimaryColor
 
 @Composable
 fun TastyScreen(
-    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
+    onClickTastyItem: (String) -> Unit,
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: TastyViewModel = viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                title = "Tasty",
+                showTopBar = true,
+                showBottomBar = true,
+                containsBackButton = false,
+                isCenterAligned = true
+            )
+        )
+    }
+
+    TastyScreenContent(
+        uiState = uiState,
+        onSelectSort = viewModel::selectSort,
+        onClickTastyItem = onClickTastyItem,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun TastyScreenContent(
+    uiState: TastyUiState,
+    onSelectSort: (TastySortType) -> Unit,
+    onClickTastyItem: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F6F6))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        RowSortButtons(
+            selectedSort = uiState.selectedSortType,
+            onSelectSort = onSelectSort
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(bottom = 20.dp)
+        ) {
+            items(uiState.tastyList, key = { it.tastyId }) { item ->
+                TastyCard(
+                    item = item,
+                    onClick = { onClickTastyItem(item.tastyId) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowSortButtons(
+    selectedSort: TastySortType,
+    onSelectSort: (TastySortType) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        SortChip(
+            text = "최신순",
+            selected = selectedSort == TastySortType.LATEST,
+            onClick = { onSelectSort(TastySortType.LATEST) }
+        )
+        SortChip(
+            text = "조회순",
+            selected = selectedSort == TastySortType.VIEW_COUNT,
+            onClick = { onSelectSort(TastySortType.VIEW_COUNT) }
+        )
+    }
+}
+
+@Composable
+private fun SortChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = CircleShape,
+        color = if (selected) Color(0xFFD9D9D9) else Color(0xFFEAEAEA),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = Color.Black
+            ),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun TastyCard(
+    item: TastyItemUiModel,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PrimaryColor)
+            .clickable(onClick = onClick)
+            .padding(bottom = 10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = Color(0xFFFF1493),
+                    fontWeight = FontWeight.Bold
+                ),
+                maxLines = 1
+            )
+        }
+
+        AsyncImage(
+            model = item.thumbnailImageUrl,
+            contentDescription = item.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(4.dp))
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.FavoriteBorder,
+                contentDescription = "좋아요",
+                tint = Color.Black
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = formatCount(item.likeCount),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            )
+
+            Spacer(modifier = Modifier.width(18.dp))
+
+            Icon(
+                imageVector = Icons.Outlined.RemoveRedEye,
+                contentDescription = "조회수",
+                tint = Color.Black
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = formatCount(item.viewCount),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+    }
+}
+
+private fun formatCount(value: Int): String {
+    return when {
+        value >= 10000 -> {
+            val man = value / 10000.0
+            if (man % 1.0 == 0.0) "${man.toInt()}만" else "${String.format("%.1f", man)}만"
+        }
+        value >= 1000 -> {
+            val thousand = value / 1000.0
+            if (thousand % 1.0 == 0.0) "${thousand.toInt()}천" else "${String.format("%.1f", thousand)}천"
+        }
+        else -> value.toString()
+    }
 }

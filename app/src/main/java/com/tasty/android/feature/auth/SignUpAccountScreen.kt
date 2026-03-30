@@ -17,11 +17,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
+
 // 회원가입/이메일/비밀번호 입력 화면
 @Composable
 fun SignUpScreen(
     navController: NavHostController,
-    viewmodel: SignUpAccountViewmodel = viewModel(),
+    viewmodel: SignUpAccountViewmodel = viewModel(factory = SignUpAccountViewmodel .Factory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     // 스캐폴드(상단 및 하단 메뉴) 적용
@@ -32,6 +34,20 @@ fun SignUpScreen(
                 showBottomBar = false
             )
         )
+    }
+
+    // ViewModel 상태 구독
+    val uiState by viewmodel.uiState.collectAsState()
+
+    // 회원가입 성공 시 프로필 기입 화면으로 이동
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) {
+            navController.navigate(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
+                popUpTo(Screen.AUTH_SIGN_UP_EMAIL_PWD.route) {
+                    inclusive = true
+                } // 이메일, 비밀번호 기입 화면을 스택에서 제거
+            }
+        }
     }
 
     // 입력값 상태 관리
@@ -104,11 +120,28 @@ fun SignUpScreen(
             singleLine = true
         )
 
+        // 에러 메시지
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .padding(top = 4.dp, end = 4.dp)
+        ) {
+            uiState.errorMessage?.let { error ->
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(40.dp))
 
         // 다음 버튼
         Button(
-            onClick = { viewmodel.onNextClick() },
+            onClick = { viewmodel.onNextClick(email, password) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -116,12 +149,21 @@ fun SignUpScreen(
             colors = ButtonDefaults.buttonColors(containerColor = pointGreen),
             enabled = isNextButtonEnabled
         ) {
-            Text(
-                text = "다음",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            // 지연 프로그레스 UI표시
+            if (uiState.isLoading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "다음",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
         }
     }
 }
