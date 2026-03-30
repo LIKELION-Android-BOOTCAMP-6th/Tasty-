@@ -20,7 +20,6 @@ class AppContainer(private val context: Context) {
     val myPageStoreManager = MyPageStoreManager()
     val TastyStoreManager = TastyStoreManager()
     val UserStoreManager = UserStoreManager()
-    val location = LocationManager(context = context)
     val storageManager = StorageManager()
     val locationManager = LocationManager(context = context)
     val placeManager = PlaceManager(context = context)
