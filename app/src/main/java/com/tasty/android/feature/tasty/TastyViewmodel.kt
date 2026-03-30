@@ -1,4 +1,4 @@
-package com.tasty.android.feature.tastylist
+package com.tasty.android.feature.tasty
 
 import androidx.lifecycle.ViewModel
 enum class TastySortType {
