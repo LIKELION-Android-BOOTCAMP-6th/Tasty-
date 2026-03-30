@@ -16,6 +16,8 @@ import com.tasty.android.feature.feed.FeedDetailScreen
 import com.tasty.android.feature.feed.FeedScreen
 import com.tasty.android.feature.feed.FeedWriteScreen
 import com.tasty.android.feature.mypage.MyPageScreen
+import com.tasty.android.feature.tasty.TastyDetailScreen
+import com.tasty.android.feature.tasty.TastyScreen
 import com.tasty.android.feature.tastylist.TastyListCreateSelectFeedsScreen
 import com.tasty.android.feature.tastylist.TastyListCreateSetupScreen
 
@@ -92,10 +94,22 @@ fun CustomNavHost(
 
         /** Tasty **/
         composable(TabScreen.TASTY.route) {
-            // 테이스티 화면 컴포저블(TAB)
+            TastyScreen(
+                onClickTastyItem = { tastyId ->
+                    navController.navigate("${Screen.TASTY_DETAIL.route}/$tastyId")
+                },
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
-        composable(Screen.TASTY_DETAIL.route) {
-            // 테이스티 상세 화면 컴포저블
+
+        composable("${Screen.TASTY_DETAIL.route}/{tastyId}") {
+            TastyDetailScreen(
+                onBackClick = { navController.popBackStack() },
+                onClickFeed = { feedId ->
+                    // TODO: 피드 상세 이동
+                },
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
 
         /** Map **/
