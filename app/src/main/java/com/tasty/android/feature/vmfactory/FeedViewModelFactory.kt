@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
-import com.tasty.android.feature.auth.ProfileSetupViewModel
 import com.tasty.android.feature.feed.FeedViewModel
 
 val FeedViewModelFactory: ViewModelProvider.Factory =
