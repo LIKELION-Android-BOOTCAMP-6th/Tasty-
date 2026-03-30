@@ -2,8 +2,12 @@ package com.tasty.android.core
 
 import android.content.Context
 import com.tasty.android.core.firebase.AuthManager
-import com.tasty.android.core.firebase.FirestoreManager
+import com.tasty.android.core.firebase.FeedStoreManager
+import com.tasty.android.core.firebase.MapStoreManager
+import com.tasty.android.core.firebase.MyPageStoreManager
 import com.tasty.android.core.firebase.StorageManager
+import com.tasty.android.core.firebase.TastyStoreManager
+import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.location.LocationManager
 import com.tasty.android.core.place.PlaceManager
 
@@ -11,7 +15,11 @@ import com.tasty.android.core.place.PlaceManager
 class AppContainer(private val context: Context) {
     // Service (Firebase 외부 데이터 소스)
     val authManager = AuthManager()
-    val firestoreManager = FirestoreManager()
+    val feedStoreManager = FeedStoreManager()
+    val mapStoreManager = MapStoreManager()
+    val myPageStoreManager = MyPageStoreManager()
+    val TastyStoreManager = TastyStoreManager()
+    val UserStoreManager = UserStoreManager()
     val storageManager = StorageManager()
     val locationManager = LocationManager(context = context)
     val placeManager = PlaceManager(context = context)
