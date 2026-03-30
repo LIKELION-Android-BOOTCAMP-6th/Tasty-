@@ -16,6 +16,8 @@ import com.tasty.android.feature.feed.FeedDetailScreen
 import com.tasty.android.feature.feed.FeedScreen
 import com.tasty.android.feature.feed.FeedWriteScreen
 import com.tasty.android.feature.mypage.MyPageScreen
+import com.tasty.android.feature.tastylist.TastyListCreateSelectFeedsScreen
+import com.tasty.android.feature.tastylist.TastyListCreateSetupScreen
 
 @Composable
 fun CustomNavHost(
@@ -116,10 +118,16 @@ fun CustomNavHost(
             // 마이페이지 메인 화면 컴포저블(TAB)
         }
         composable(Screen.MY_PAGE_SELECT_FEEDS.route) {
-            // 마이페이지 테이스티 리스트용 피드 선택 화면 컴포저블
+            TastyListCreateSelectFeedsScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
         composable(Screen.MY_PAGE_SET_THUMBNAIL_TITLE.route) {
-            // 마이페이지 테이스티 리스트용 썸네일/제목 설정 화면 컴포저블
+            TastyListCreateSetupScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
         composable(Screen.MY_PAGE_EDIT_PROFILE.route) {
             // 마이페이지 프로필 수정 화면 컴포저블
