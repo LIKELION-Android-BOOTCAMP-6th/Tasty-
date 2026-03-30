@@ -133,7 +133,7 @@ class FeedDetailViewModel : ViewModel() {
                 feedId = "feed_1",
                 authorId = "comment_1",
                 content = "파스타가 맛있다고? 가봐야겠네",
-                createdAt = "3일전"
+                createdAt = null
             )
         ),
         "feed_2" to listOf(
@@ -142,14 +142,14 @@ class FeedDetailViewModel : ViewModel() {
                 feedId = "feed_2",
                 authorId = "brunch_day",
                 content = "여기 저도 가봤는데 괜찮았어요!",
-                createdAt = "1일전"
+                createdAt = null
             ),
             FeedComment(
                 commentId = "comment_3",
                 feedId = "feed_2",
                 authorId = "latte_cat",
                 content = "사진 찍기 좋은 곳 맞아요",
-                createdAt = "1일전"
+                createdAt = null
             )
         ),
         "feed_3" to listOf(
@@ -158,7 +158,7 @@ class FeedDetailViewModel : ViewModel() {
                 feedId = "feed_3",
                 authorId = "office_lunch",
                 content = "점심 메뉴로 저장해둬야겠다",
-                createdAt = "방금 전"
+                createdAt = null
             )
         )
     )
@@ -195,7 +195,7 @@ class FeedDetailViewModel : ViewModel() {
             feedId = feedId,
             authorId = "me",
             content = input,
-            createdAt = "방금 전"
+            createdAt = null
         )
 
         _uiState.update { currentState ->
