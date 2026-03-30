@@ -4,7 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tasty.android.core.firebase.AuthManager
-import com.tasty.android.core.firebase.FirestoreManager
+import com.tasty.android.core.firebase.TastyStoreManager
+import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
@@ -50,7 +51,10 @@ class TastyDetailViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val firestoreManager = FirestoreManager()
+    private val tastystoreManager = TastyStoreManager()
+
+    private val userstoreManager = UserStoreManager()
+
     private val authManager = AuthManager()
 
     private val tastyId: String = savedStateHandle["tastyId"] ?: ""
@@ -75,9 +79,9 @@ class TastyDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            firestoreManager.incrementTastyListViewCount(tastyId)
+            tastystoreManager.incrementTastyListViewCount(tastyId)
 
-            val tastyResult = firestoreManager.getTastyList(tastyId)
+            val tastyResult = tastystoreManager.getTastyList(tastyId)
 
             tastyResult
                 .onSuccess { tastyList ->
@@ -94,18 +98,18 @@ class TastyDetailViewModel(
                     val currentUserId = authManager.getCurrentUser()?.uid
 
                     val authorDeferred = async {
-                        firestoreManager.getUserSummary(tastyList.authorId)
+                        userstoreManager.getUserSummary(tastyList.authorId)
                     }
 
                     val feedsDeferred = async {
-                        firestoreManager.getFeedsByIDs(tastyList.feedIds)
+                        tastystoreManager.getFeedsByIDs(tastyList.feedIds)
                     }
 
                     val likeDeferred = async {
                         if (currentUserId == null) {
                             Result.success(false)
                         } else {
-                            firestoreManager.isTastyListLiked(
+                            tastystoreManager.isTastyListLiked(
                                 TastyListLike(
                                     tastyListId = tastyId,
                                     userId = currentUserId
@@ -156,9 +160,9 @@ class TastyDetailViewModel(
             )
 
             val result = if (currentState.isLiked) {
-                firestoreManager.unlikeTastyList(like)
+                tastystoreManager.unlikeTastyList(like)
             } else {
-                firestoreManager.likeTastyList(like)
+                tastystoreManager.likeTastyList(like)
             }
 
             result.onSuccess {

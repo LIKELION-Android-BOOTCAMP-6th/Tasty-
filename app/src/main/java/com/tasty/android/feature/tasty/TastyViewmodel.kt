@@ -2,7 +2,7 @@ package com.tasty.android.feature.tasty
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tasty.android.core.firebase.FirestoreManager
+import com.tasty.android.core.firebase.TastyStoreManager
 import com.tasty.android.feature.mypage.tastylist.model.TastyList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +32,7 @@ data class TastyUiState(
 
 class TastyViewModel : ViewModel() {
 
-    private val firestoreManager = FirestoreManager()
+    private val tastystoreManager = TastyStoreManager()
 
     private val _uiState = MutableStateFlow(TastyUiState())
     val uiState: StateFlow<TastyUiState> = _uiState.asStateFlow()
@@ -54,7 +54,7 @@ class TastyViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result = firestoreManager.getTastyLists(
+            val result = tastystoreManager.getTastyLists(
                 sortType = _uiState.value.selectedSortType
             )
 
