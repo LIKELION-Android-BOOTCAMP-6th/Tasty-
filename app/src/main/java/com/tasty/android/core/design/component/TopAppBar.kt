@@ -3,10 +3,12 @@ package com.tasty.android.core.design.component
 import android.accessibilityservice.GestureDescription
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,7 +30,8 @@ import com.tasty.android.core.design.theme.TextColor
 data class AppBarAction(
     val onActionClick: () -> Unit,
     val icon: ImageVector,
-    val contentDescription: String = ""
+    val contentDescription: String = "",
+    val isLoading: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,12 +88,21 @@ fun CustomTopAppBar(
             actions = {
                 actions.forEach { action ->
                     IconButton(
-                        onClick = action.onActionClick
+                        onClick = action.onActionClick,
+                        enabled = !action.isLoading
                     ) {
-                        Icon(
-                            imageVector = action.icon,
-                            contentDescription = action.contentDescription
-                        )
+                        if (action.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = TextColor,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = action.icon,
+                                contentDescription = action.contentDescription
+                            )
+                        }
                     }
                 }
             },
@@ -137,12 +149,21 @@ fun CustomTopAppBar(
             actions = {
                 actions.forEach { action ->
                     IconButton(
-                        onClick = action.onActionClick
+                        onClick = action.onActionClick,
+                        enabled = !action.isLoading
                     ) {
-                        Icon(
-                            imageVector = action.icon,
-                            contentDescription = action.contentDescription
-                        )
+                        if (action.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = TextColor,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = action.icon,
+                                contentDescription = action.contentDescription
+                            )
+                        }
                     }
                 }
             },

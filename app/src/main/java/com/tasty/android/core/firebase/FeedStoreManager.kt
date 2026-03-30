@@ -18,7 +18,7 @@ class FeedStoreManager {
 
     private val firebaseDB = Firebase.firestore
     // 페이네이션 제한 한 번에 10개씩 load
-    private val paginationLimit: Long = 10
+    private val paginationLimit: Long = 20
     // 거리순의 경우 1회 데이터 상한선
     private val maxFetchLimit: Long = 200
 
@@ -95,7 +95,7 @@ class FeedStoreManager {
     // 피드 다수 조회
     suspend fun getFeeds(
         sortType: FeedSortType = FeedSortType.LATEST,
-        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 10개씩
+        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 20개씩
         lastFeedId: String? = null, // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
         userLat: Double? = null,
         userLon: Double? = null,

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,11 +49,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
 
 private val TextColor = Color(0xFF4C4B4B)
 private val Gray100 = Color(0xFFF7F7F7)
@@ -62,10 +66,11 @@ private val Gray400 = Color(0xFFBDBDBD)
 @Composable
 fun FeedWriteScreen(
     navController: NavHostController,
-    viewModel: FeedWriteViewModel = viewModel(),
+    viewModel: FeedWriteViewModel = viewModel(factory = FeedWriteViewModelFactory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val authorId = Firebase.auth.currentUser?.uid ?: ""
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -86,68 +91,87 @@ fun FeedWriteScreen(
                 topBarActions = listOf(
                     AppBarAction(
                         onActionClick = {
-                            viewModel.submitPost {
-                                navController.popBackStack()
+                            if (uiState.canSubmit && !uiState.isSubmitting) {
+                                viewModel.submitPost(authorId = authorId) {
+                                    navController.previousBackStackEntry?.savedStateHandle?.set("refreshFeed", true)
+                                    navController.popBackStack()
+                                }
                             }
                         },
                         icon = Icons.Default.Send,
-                        contentDescription = "게시"
+                        contentDescription = "게시",
+                        isLoading = uiState.isSubmitting
                     )
                 )
             )
         )
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.White
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.White
         ) {
-            RestaurantSelectSection(
-                selectedRestaurant = uiState.selectedRestaurant,
-                onClick = {
-                    navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
-                },
-                onClearClick = {
-                    viewModel.clearRestaurant()
-                }
-            )
-
-            RatingSection(
-                rating = uiState.rating,
-                onRatingSelected = viewModel::updateRating
-            )
-
-            ContentInputSection(
-                content = uiState.content,
-                onValueChange = viewModel::updateContent
-            )
-
-            ShortReviewSection(
-                shortReview = uiState.shortReview,
-                onValueChange = viewModel::updateShortReview
-            )
-
-            PhotoSection(
-                photos = uiState.photos,
-                onAddPhotoClick = {
-                    if (uiState.photos.size < 5) {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageOnly
-                            )
-                        )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                RestaurantSelectSection(
+                    selectedRestaurant = uiState.selectedRestaurant,
+                    onClick = {
+                        navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                    },
+                    onClearClick = {
+                        viewModel.clearRestaurant()
                     }
-                },
-                onRemovePhotoClick = viewModel::removePhoto
-            )
+                )
+
+                RatingSection(
+                    rating = uiState.rating,
+                    onRatingSelected = viewModel::updateRating
+                )
+
+                ContentInputSection(
+                    content = uiState.content,
+                    onValueChange = viewModel::updateContent
+                )
+
+                ShortReviewSection(
+                    shortReview = uiState.shortReview,
+                    onValueChange = viewModel::updateShortReview
+                )
+
+                PhotoSection(
+                    photos = uiState.photos,
+                    onAddPhotoClick = {
+                        if (uiState.photos.size < 5) {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        }
+                    },
+                    onRemovePhotoClick = viewModel::removePhoto
+                )
+            }
+        }
+
+
+        if (uiState.isLoadingRestaurants) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .clickable(enabled = false) {},
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
