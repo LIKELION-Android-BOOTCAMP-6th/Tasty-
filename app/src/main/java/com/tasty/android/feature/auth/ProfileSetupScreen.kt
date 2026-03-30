@@ -14,12 +14,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
 
 // 닉네임(프로필 정보) 설정 화면
 @Composable
 fun ProfileSetupScreen(
     navController: NavHostController,
-    viewModel: ProfileSetupViewModel = viewModel(),
+    viewModel: ProfileSetupViewModel = viewModel(factory = ProfileSetupViewModel .Factory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     // 스캐폴드(상단 및 하단 메뉴) 적용
@@ -30,6 +31,21 @@ fun ProfileSetupScreen(
                 showBottomBar = false
             )
         )
+    }
+
+    // ViewModel 상태 구독
+    val uiState by viewModel.uiState.collectAsState()
+
+    // 프로필 업데이트 성공 시 홈 화면으로 이동
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) {
+            navController.navigate(Screen.FEED_DETAIL.route) {
+                // 프로필 기입 화면을 스택에서 제거
+                popUpTo(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
+                    inclusive = true
+                }
+            }
+        }
     }
 
     // 상태 관리: 입력된 닉네임
@@ -96,11 +112,28 @@ fun ProfileSetupScreen(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(60.dp))
+        // 에러 메시지
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .padding(top = 4.dp, end = 4.dp)
+        ) {
+            uiState.errorMessage?.let { error ->
+                Text(
+                    text = error,
+                    color = Color.Red,
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
 
         // 완료 버튼 영역
         Button(
-            onClick = { viewModel.onCompleteClick() },
+            onClick = { viewModel.onCompleteClick(nickname) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -108,11 +141,20 @@ fun ProfileSetupScreen(
             colors = ButtonDefaults.buttonColors(containerColor = pointGreen),
             enabled = isCompleteEnabled
         ) {
-            Text(
-                text = "완료",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            // 지연 프로그레스 UI표시
+            if (uiState.isLoading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "완료",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
