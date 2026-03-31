@@ -50,6 +50,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -92,6 +94,10 @@ fun FeedDetailScreen(
         viewModel.loadFeedDetail(feedId)
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh(feedId)
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.White
@@ -111,7 +117,12 @@ fun FeedDetailScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 18.dp)
                         ) {
-                            FeedDetailHeader(post = post)
+                            FeedDetailHeader(
+                                post = post,
+                                onProfileClick = {
+                                    navController.navigate("user_profile/${post.authorId}")
+                                }
+                            )
 
                             Spacer(modifier = Modifier.height(18.dp))
 
@@ -278,10 +289,13 @@ fun FeedDetailScreen(
 
 @Composable
 private fun FeedDetailHeader(
-    post: FeedDetailPostUiModel
+    post: FeedDetailPostUiModel,
+    onProfileClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onProfileClick() },
         verticalAlignment = Alignment.Top
     ) {
         Box(
