@@ -29,7 +29,8 @@ fun Feed.toFeedPostUiModel(
         commentCount = commentCount,
         rating = rating,
         description = content,
-        isLiked = isLiked
+        isLiked = isLiked,
+        imageUrl = feedImageUrls.firstOrNull()
     )
 }
 

@@ -41,7 +41,9 @@ data class FeedDetailUiState(
     val post: FeedDetailPostUiModel? = null,
     val comments: List<FeedComment> = emptyList(),
     val commentInput: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isLoadingMoreComments: Boolean = false,
+    val hasMoreComments: Boolean = true
 ) {
     val canSubmitComment: Boolean
         get() = commentInput.trim().isNotBlank() && !isCommentSubmitting
@@ -57,10 +59,14 @@ class FeedDetailViewModel(
     private val _uiState = MutableStateFlow(FeedDetailUiState())
     val uiState: StateFlow<FeedDetailUiState> = _uiState.asStateFlow()
 
+    private var lastCommentId: String? = null
+
+    // 피드 상세 로딩
     @RequiresApi(Build.VERSION_CODES.O)
     fun loadFeedDetail(feedId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            lastCommentId = null
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, hasMoreComments = true) }
 
 
             val feedResultDeferred = async { feedStoreManager.getFeedDetail(feedId) }
@@ -109,12 +115,46 @@ class FeedDetailViewModel(
                     createdAt = comment.createdAt
                 )
             } ?: emptyList()
+            lastCommentId = commentUiModels.lastOrNull()?.commentId
 
             _uiState.update { currentState ->
                 currentState.copy(
                     isLoading = false,
                     post = postUiModel,
-                    comments = commentUiModels
+                    comments = commentUiModels,
+                    hasMoreComments = commentUiModels.size >= 20
+                )
+            }
+        }
+    }
+
+    // 댓글 추가 로딩 (페이지네이션)
+    fun loadMoreComments(feedId: String) {
+        if (_uiState.value.isLoadingMoreComments || !_uiState.value.hasMoreComments) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMoreComments = true) }
+            val result = feedStoreManager.getComments(feedId = feedId, lastCommentId = lastCommentId)
+
+            val newComments = result.getOrNull()?.map { comment ->
+                FeedComment(
+                    commentId = comment.commentId,
+                    feedId = comment.feedId,
+                    authorId = comment.authorId,
+                    content = comment.content,
+                    createdAt = comment.createdAt
+                )
+            } ?: emptyList()
+
+            if (newComments.isNotEmpty()) {
+                lastCommentId = newComments.last().commentId
+            }
+
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isLoadingMoreComments = false,
+                    hasMoreComments = newComments.size >= 20,
+                    comments = currentState.comments + newComments
                 )
             }
         }
@@ -124,38 +164,59 @@ class FeedDetailViewModel(
         _uiState.update { it.copy(commentInput = input) }
     }
 
+    // 댓글 추가
     @RequiresApi(Build.VERSION_CODES.O)
     fun submitComment(feedId: String) {
         val input = _uiState.value.commentInput.trim()
-        if (input.isBlank() || currentUserId.isBlank()) return
+        if (input.isBlank()) return
+
+        val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
         viewModelScope.launch {
             _uiState.update { it.copy(isCommentSubmitting = true) }
 
             val newComment = Comment(
                 feedId = feedId,
-                authorId = currentUserId,
-                content = input
+                authorId = safeUserId,
+                content = input,
+                createdAt = com.google.firebase.Timestamp.now() // orderBy 누락 방지
             )
 
             feedStoreManager.addComment(newComment)
                 .onSuccess {
+                    _uiState.update { currentState ->
+                        val updatedComments = listOf(
+                            FeedComment(
+                                feedId = feedId,
+                                authorId = safeUserId,
+                                content = input,
+                                createdAt = newComment.createdAt
+                            )
+                        ) + currentState.comments
 
-                    loadFeedDetail(feedId)
-                    _uiState.update { it.copy(commentInput = "", isCommentSubmitting = false) }
+                        val updatedPost = currentState.post?.copy(
+                            commentCount = currentState.post.commentCount + 1
+                        )
+
+                        currentState.copy(
+                            commentInput = "",
+                            isCommentSubmitting = false,
+                            comments = updatedComments,
+                            post = updatedPost
+                        )
+                    }
                 }
                 .onFailure {
                     _uiState.update { it.copy(isCommentSubmitting = false, errorMessage = "댓글 작성에 실패했습니다.") }
                 }
         }
     }
-
+    // 좋아요 토글
     fun toggleLike(feedId: String) {
-        if (currentUserId.isBlank()) return
+        val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
         val currentPost = _uiState.value.post ?: return
         val isCurrentlyLiked = currentPost.isLiked
-
 
         _uiState.update { state ->
             state.copy(
@@ -166,16 +227,14 @@ class FeedDetailViewModel(
             )
         }
 
-        val feedLike = FeedLike(feedId = feedId, userId = currentUserId)
+        val feedLike = FeedLike(feedId = feedId, userId = safeUserId) // currentUserId 대신 safeUserId 사용
 
         viewModelScope.launch {
-
             val result = if (isCurrentlyLiked) {
                 feedStoreManager.unlikeFeed(feedLike)
             } else {
                 feedStoreManager.likeFeed(feedLike)
             }
-
 
             result.onFailure {
                 _uiState.update { state ->

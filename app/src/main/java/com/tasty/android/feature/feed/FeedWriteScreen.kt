@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -73,10 +74,12 @@ fun FeedWriteScreen(
     val authorId = Firebase.auth.currentUser?.uid ?: ""
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            viewModel.addPhoto(selectedUri)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(5)
+    ) {
+        uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        uris.forEach {
+            viewModel.addPhoto(it)
         }
     }
 
@@ -98,7 +101,7 @@ fun FeedWriteScreen(
                                 }
                             }
                         },
-                        icon = Icons.Default.Send,
+                        icon = if (uiState.canSubmit) Icons.Filled.Send else Icons.Outlined.Send,
                         contentDescription = "게시",
                         isLoading = uiState.isSubmitting
                     )

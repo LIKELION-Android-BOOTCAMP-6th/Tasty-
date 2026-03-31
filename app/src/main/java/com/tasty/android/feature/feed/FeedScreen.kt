@@ -23,12 +23,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
@@ -50,31 +52,44 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import com.tasty.android.core.asset.RegionData
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.feature.vmfactory.FeedViewModelFactory
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     navController: NavHostController,
-    viewModel: FeedViewModel = viewModel(),
+    viewModel: FeedViewModel = viewModel(factory = FeedViewModelFactory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // 리스트 상태 저장
+    val listState = rememberLazyListState()
+    // refresh 상태 저장
+    val currentEntry = navController.currentBackStackEntry
+    val savedStateHandle = currentEntry?.savedStateHandle
+
+    val shouldRefresh = savedStateHandle?.get<Boolean>("refreshFeed") ?: false
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
@@ -128,11 +143,28 @@ fun FeedScreen(
         )
     }
 
+    // Observer for Loading Feeds
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.distinctUntilChanged().collect {lastIdx ->
+            if (lastIdx != null && lastIdx >= uiState.feedPosts.size - 1) {
+                viewModel.loadMoreFeeds()
+            }
+        }
+    }
+    // Refresh 후에 초기값으로 복구
+    LaunchedEffect(shouldRefresh) {
+        if(shouldRefresh) {
+            viewModel.invalidateCacheAndRefresh()
+            savedStateHandle["refreshFeed"] = false
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF5F5F5)
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
@@ -154,13 +186,13 @@ fun FeedScreen(
                     post = feedPost,
                     userRegion = uiState.userRegion,
                     onCardClick = {
-                        navController.navigate(Screen.FEED_DETAIL.route)
+                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.id}")
                     },
                     onProfileClick = {
                         navController.navigate(Screen.USER_PROFILE.route)
                     },
                     onLikeClick = {
-                        viewModel.toggleLike(feedPost.id, feedPost.authorId)
+                        viewModel.toggleLike(feedPost.id)
                     }
                 )
             }
@@ -325,7 +357,7 @@ private fun FeedCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFD9D9D9))
                         .clickable { onProfileClick() }
@@ -359,10 +391,16 @@ private fun FeedCard(
                     .background(Color(0xFFBEBEBE)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "피드 이미지",
-                    color = TextColor
-                )
+                post.imageUrl?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "피드 대표 이미지",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
             Row(
@@ -375,9 +413,9 @@ private fun FeedCard(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
+                        imageVector = if(post.isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "좋아요",
-                        tint = TextColor,
+                        tint = if(post.isLiked) Color.Red else TextColor,
                         modifier = Modifier.clickable { onLikeClick() }
                     )
                     Text(

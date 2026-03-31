@@ -30,7 +30,7 @@ class FeedStoreManager {
     // -> 피드의 이미지 Uri 스토리지에 저장
     // -> 생성된 피드 아이디의 도큐먼트에 feed 객체 매핑 후 저장
 
-    fun generateFeedId(): String = firebaseDB.collection("feeds").document().id
+    fun generateFeedId(): Result<String> = Result.success(firebaseDB.collection("feeds").document().id)
 
     // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
@@ -46,6 +46,8 @@ class FeedStoreManager {
             val restaurantRef = firebaseDB
                 .collection("restaurantInfo")
                 .document(feed.restaurantId)
+
+            val feedRef = firebaseDB.collection("feeds").document(feed.feedId)
 
             firebaseDB.runTransaction { transaction ->
                 val snapshot = transaction.get(restaurantRef)
@@ -68,7 +70,9 @@ class FeedStoreManager {
                         ratingAvg = currentFeed.rating.toDouble()
                     )
                     transaction.set(restaurantRef, restaurantInfo)
+                    transaction.set(feedRef, currentFeed)
                 }
+
             }.await()
 
             Result.success(Unit)
@@ -155,7 +159,8 @@ class FeedStoreManager {
         return try {
             val batch = firebaseDB.batch()
             val likeDoc = firebaseDB
-                .collection("feeds").document(feedLike.feedId)
+                .collection("feeds")
+                .document(feedLike.feedId)
                 .collection("feedLikes")
                 .whereEqualTo("userId", feedLike.userId)
                 .get()
@@ -179,6 +184,7 @@ class FeedStoreManager {
     // 좋아요 여부 확인
     suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
         return try {
+            if (feedLike.feedId.isBlank()) return Result.success(false)
             val result = firebaseDB
                 .collection("feeds")
                 .document(feedLike.feedId)
@@ -263,7 +269,9 @@ class FeedStoreManager {
                 .await()
             query = query.startAfter(lastSnapshot)
         }
-        return query.get().await().toObjects(Feed::class.java)
+        return query.get().await().documents.mapNotNull { doc ->
+            doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
+        }
     }
 
     private suspend fun fetchFeedsByDistance(
@@ -286,7 +294,9 @@ class FeedStoreManager {
                     .endAt(bound.endHash)
                     .get()
                     .await()
-                    .toObjects(Feed::class.java)
+                    .documents.mapNotNull { doc ->
+                        doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
+                    }
             }
             .distinctBy { it.feedId }
             .map { feed ->

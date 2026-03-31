@@ -68,7 +68,8 @@ data class FeedPostUiModel(
     val likeCount: Int,
     val commentCount: Int,
     val dateText: String,
-    val isLiked: Boolean
+    val isLiked: Boolean,
+    val imageUrl: String? = null
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -141,7 +142,7 @@ class FeedViewModel(
 
                 // 원본 리스트 누적 (새로고침이면 교체, 추가 로딩이면 append)
                 originalFeedPosts = if (isRefresh) newUiModels
-                                    else originalFeedPosts + newUiModels
+                                    else (originalFeedPosts + newUiModels).distinctBy { it.id }
 
                 _uiState.update { currentState ->
                     currentState.copy(
@@ -286,10 +287,11 @@ class FeedViewModel(
     }
 
     // 좋아요 토글
-    fun toggleLike(feedId: String, userId: String) {
+    fun toggleLike(feedId: String) {
         val currentPosts = _uiState.value.feedPosts
         val currentPost = currentPosts.find { it.id == feedId } ?: return
         val isCurrentlyLiked = currentPost.isLiked
+        val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
         _uiState.update { state ->
             state.copy(
@@ -303,7 +305,7 @@ class FeedViewModel(
                 }
             )
         }
-        val feedLike = FeedLike(feedId = feedId, userId = userId)
+        val feedLike = FeedLike(feedId = feedId, userId = safeUserId)
         viewModelScope.launch {
 
             val result = if (isCurrentlyLiked) {
