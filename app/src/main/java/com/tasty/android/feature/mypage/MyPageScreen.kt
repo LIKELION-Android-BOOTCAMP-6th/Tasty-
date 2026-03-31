@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,22 +44,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.navigation.Screen
 import kotlinx.coroutines.launch
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.feature.vmfactory.MyPageViewModelFactory
 
 @Composable
 fun MyPageScreen(
     navController: NavHostController,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
-    viewModel: MyPageViewModel = viewModel()
+    viewModel: MyPageViewModel = viewModel(factory = MyPageViewModelFactory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -119,9 +126,10 @@ fun MyPageScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         MyPageProfileHeader(
-            nickname = uiState.profileInfo.nickname,
-            username = uiState.profileInfo.username,
-            intro = uiState.profileInfo.intro,
+            nickname = uiState.profileInfo?.nickname ?: "",
+            userHandle = ("@" + uiState.profileInfo?.userHandle),
+            profileImageUrl = uiState.profileInfo?.profileImageUrl, // 추가
+            bio = uiState.profileInfo?.bio ?: "",
             feedCount = uiState.feedCount,
             followerCount = uiState.followerCount,
             followingCount = uiState.followingCount
@@ -150,7 +158,16 @@ fun MyPageScreen(
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
-                0 -> MyFeedPage(feeds = uiState.myFeeds)
+                0 -> MyFeedPage(
+                    feeds = uiState.myFeeds,
+                    hasMoreFeeds = uiState.hasMoreFeeds,
+                    isLoadingMoreFeeds = uiState.isLoadingMoreFeeds,
+                    onLoadMore = { viewModel.loadMoreMyFeed() },
+                    onFeedClick = {feedId ->
+                        navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
+
+                    }
+                )
                 1 -> MyTastyListPage(tastyLists = uiState.myTastyLists)
             }
         }
@@ -160,8 +177,9 @@ fun MyPageScreen(
 @Composable
 private fun MyPageProfileHeader(
     nickname: String,
-    username: String,
-    intro: String,
+    userHandle: String,
+    profileImageUrl: String?, // 추가
+    bio: String,
     feedCount: Int,
     followerCount: Int,
     followingCount: Int
@@ -178,15 +196,25 @@ private fun MyPageProfileHeader(
             Box(
                 modifier = Modifier
                     .size(60.dp)
-                    .background(Color(0xFFE4D8F5), CircleShape),
+                    .clip(CircleShape)
+                    .background(Color(0xFFE4D8F5)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "프로필 이미지",
-                    modifier = Modifier.size(36.dp),
-                    tint = Color(0xFF6A4FA3)
-                )
+                if (profileImageUrl.isNullOrBlank()) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "기본 프로필",
+                        modifier = Modifier.size(36.dp),
+                        tint = Color(0xFF6A4FA3)
+                    )
+                } else {
+                    AsyncImage(
+                        model = profileImageUrl,
+                        contentDescription = "프로필 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(20.dp))
@@ -225,12 +253,12 @@ private fun MyPageProfileHeader(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = username,
+                text = userHandle,
                 color = TextColor
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = intro,
+                text = bio,
                 color = TextColor
             )
         }
@@ -352,33 +380,72 @@ private fun MyPageTabItem(
 }
 
 @Composable
-private fun MyFeedPage(feeds: List<MyFeedItem>) {
-    if (feeds.isEmpty()) {
+private fun MyFeedPage(
+    feeds: List<MyFeedItem>,
+    hasMoreFeeds: Boolean,
+    isLoadingMoreFeeds: Boolean,
+    onLoadMore: () -> Unit,
+    onFeedClick: (String) -> Unit
+) {
+    if (feeds.isEmpty() && !isLoadingMoreFeeds) {
         EmptyContent(
             title = "아직 작성하신 피드가 없어요.",
             description = "새로운 피드를 작성해주세요."
         )
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = WindowInsets.navigationBars.asPaddingValues()
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(feeds) { feed ->
+            items(feeds, key = {it.feedId}) { feed ->
                 Box(
                     modifier = Modifier
-                        .padding(2.dp)
                         .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(4.dp))
                         .height(120.dp)
-                        .background(PrimaryColor)
+                        .background(Color.Gray)
+                        .clickable { onFeedClick(feed.feedId) }
                 ) {
-                    Text(
-                        text = feed.title.ifBlank { "피드 ${feed.id}" },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(8.dp),
-                        color = TextColor
-                    )
+                    if (!feed.thumbnailUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = feed.thumbnailUrl,
+                            contentDescription = "피드 썸네일",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Text(
+                            text = "${feed.feedId} 이미지 없음",
+                            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                            color = TextColor
+                        )
+                    }
+                }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                if (hasMoreFeeds) {
+                    LaunchedEffect(feeds.size) {
+                        onLoadMore()
+                    }
+                }
+                if (isLoadingMoreFeeds) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = PrimaryColor,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }

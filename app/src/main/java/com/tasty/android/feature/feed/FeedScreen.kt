@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
@@ -180,19 +181,18 @@ fun FeedScreen(
 
             items(
                 items = uiState.feedPosts,
-                key = { it.id }
+                key = { it.feedId }
             ) { feedPost ->
                 FeedCard(
                     post = feedPost,
-                    userRegion = uiState.userRegion,
                     onCardClick = {
-                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.id}")
+                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
                     },
                     onProfileClick = {
                         navController.navigate(Screen.USER_PROFILE.route)
                     },
                     onLikeClick = {
-                        viewModel.toggleLike(feedPost.id)
+                        viewModel.toggleLike(feedPost.feedId)
                     }
                 )
             }
@@ -280,7 +280,7 @@ private fun FeedHeaderSection(
         ) {
             items(
                 items = tastyLists.take(4),
-                key = { it.id }
+                key = { it.tastyListId }
             ) { item ->
                 TastyListCard(item = item)
             }
@@ -330,7 +330,6 @@ private fun TastyListCard(
 @Composable
 private fun FeedCard(
     post: FeedPostUiModel,
-    userRegion: String,
     onCardClick: () -> Unit,
     onProfileClick: () -> Unit,
     onLikeClick: () -> Unit
@@ -360,8 +359,25 @@ private fun FeedCard(
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFD9D9D9))
-                        .clickable { onProfileClick() }
-                )
+                        .clickable { onProfileClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (post.authorProfileUrl.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "기본 프로필",
+                            modifier = Modifier.fillMaxSize(0.8f),
+                            tint = Color(0xFFB5B5B5)
+                        )
+                    } else {
+                        AsyncImage(
+                            model = post.authorProfileUrl,
+                            contentDescription = "프로필 이미지",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(10.dp))
 
@@ -369,16 +385,16 @@ private fun FeedCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = post.authorName,
+                        text = post.authorNickname,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextColor
                         )
                     )
                     Text(
-                        text = userRegion,
+                        text = "@${post.userHandle}",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextColor
+                            color = Color.Gray
                         )
                     )
                 }
@@ -391,7 +407,7 @@ private fun FeedCard(
                     .background(Color(0xFFBEBEBE)),
                 contentAlignment = Alignment.Center
             ) {
-                post.imageUrl?.let { url ->
+                post.thumbnailImageUrl?.let { url ->
                     AsyncImage(
                         model = url,
                         contentDescription = "피드 대표 이미지",

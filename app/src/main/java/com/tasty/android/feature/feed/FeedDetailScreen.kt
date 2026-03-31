@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -286,8 +287,26 @@ private fun FeedDetailHeader(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .background(Gray300, CircleShape)
-        )
+                .clip(CircleShape)
+                .background(Gray300),
+            contentAlignment = Alignment.Center
+        ) {
+            if (post.authorProfileUrl.isNullOrBlank()) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "기본 프로필",
+                    modifier = Modifier.fillMaxSize(0.8f),
+                    tint = Gray400
+                )
+            } else {
+                AsyncImage(
+                    model = post.authorProfileUrl,
+                    contentDescription = "프로필 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -295,7 +314,7 @@ private fun FeedDetailHeader(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = post.authorName,
+                text = post.authorNickname,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = TextColor
@@ -303,9 +322,9 @@ private fun FeedDetailHeader(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "@${post.authorId}",
+                text = "@${post.userHandle}",
                 style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextColor
+                    color = Color.Gray
                 )
             )
         }
@@ -394,21 +413,48 @@ private fun CommentItem(
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(Gray300, CircleShape)
-        )
+                .clip(CircleShape)
+                .background(Gray300),
+            contentAlignment = Alignment.Center
+        ) {
+            if (comment.authorProfileUrl.isNullOrBlank()) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "기본 프로필",
+                    modifier = Modifier.fillMaxSize(0.8f),
+                    tint = Gray400
+                )
+            } else {
+                AsyncImage(
+                    model = comment.authorProfileUrl,
+                    contentDescription = "프로필 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(10.dp))
 
         Column(
             modifier = Modifier.weight(1f)
         ) {
-            Text(
-                text = "@${comment.authorId}",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = TextColor
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = comment.authorNickname,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
                 )
-            )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "@${comment.authorHandle}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray
+                    )
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 

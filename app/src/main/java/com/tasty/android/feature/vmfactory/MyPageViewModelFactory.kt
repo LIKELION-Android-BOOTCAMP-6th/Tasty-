@@ -5,20 +5,15 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
-import com.tasty.android.core.firebase.FeedStoreManager
-import com.tasty.android.core.firebase.StorageManager
-import com.tasty.android.core.place.PlaceManager
-import com.tasty.android.feature.feed.FeedWriteViewModel
+import com.tasty.android.feature.mypage.MyPageViewModel
 
-val FeedWriteViewModelFactory: ViewModelProvider.Factory =
+val MyPageViewModelFactory: ViewModelProvider.Factory =
     viewModelFactory {
         initializer {
             val app = this[APPLICATION_KEY] as MyApplication
-            FeedWriteViewModel(
+            MyPageViewModel(
                 feedStoreManager = app.container.feedStoreManager,
-                storageManager = app.container.storageManager,
-                placeManager = app.container.placeManager,
-                locationManager = app.container.locationManager,
+                myPageStoreManager = app.container.myPageStoreManager,
                 userStoreManager = app.container.userStoreManager
             )
         }

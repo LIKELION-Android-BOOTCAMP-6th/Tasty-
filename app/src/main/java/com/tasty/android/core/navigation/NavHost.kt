@@ -36,8 +36,10 @@ fun CustomNavHost(
     modifier: Modifier = Modifier,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+
+
     // 로그인 상태 여부 확인
-    val isLoggedIn = true
+    val isLoggedIn = Firebase.auth.currentUser != null
     // 로그인 상태에 따라 첫 화면 동적으로 결정
     val startDestination = if(isLoggedIn) TabScreen.FEED.route else Screen.AUTH_ON_BOARDING.route
     NavHost(

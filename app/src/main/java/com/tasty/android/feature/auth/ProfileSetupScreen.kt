@@ -15,6 +15,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.navigation.TabScreen
 
 // 닉네임(프로필 정보) 설정 화면
 @Composable
@@ -39,9 +40,9 @@ fun ProfileSetupScreen(
     // 프로필 업데이트 성공 시 홈 화면으로 이동
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            navController.navigate(Screen.FEED_DETAIL.route) {
-                // 프로필 기입 화면을 스택에서 제거
-                popUpTo(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
+            navController.navigate(TabScreen.FEED.route) {
+                // 프로필 가입 화면/온보딩을 스택에서 제거
+                popUpTo(Screen.AUTH_ON_BOARDING.route) {
                     inclusive = true
                 }
             }

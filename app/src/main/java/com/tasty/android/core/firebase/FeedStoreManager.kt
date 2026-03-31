@@ -7,14 +7,32 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import com.tasty.android.core.model.User
 import com.tasty.android.feature.feed.FeedSortType
 import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
+import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.tastymap.model.RestaurantInfo
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.tasks.await
 
+
+// 동기화 모댈
+sealed class FeedUpdateEvent {
+    data class CommentCountChanged(val feedId: String, val newCount: Int) : FeedUpdateEvent()
+    data class LikeStatusChanged(val feedId: String, val isLiked: Boolean, val likeCount: Int) : FeedUpdateEvent()
+}
+
 class FeedStoreManager {
+
+    private val _feedUpdateEvents = MutableSharedFlow<FeedUpdateEvent>(extraBufferCapacity = 1)
+    val feedUpdateEvents = _feedUpdateEvents.asSharedFlow()
+
+    suspend fun notifyFeedUpdated(event: FeedUpdateEvent) {
+        _feedUpdateEvents.emit(event)
+    }
 
     private val firebaseDB = Firebase.firestore
     // 페이네이션 제한 한 번에 10개씩 load
@@ -199,7 +217,7 @@ class FeedStoreManager {
     }
 
     // 댓글 추가
-    suspend fun addComment(comment: Comment): Result<Unit> {
+    suspend fun addComment(comment: FeedComment): Result<Unit> {
         return try {
             val batch = firebaseDB.batch()
 
@@ -232,7 +250,7 @@ class FeedStoreManager {
         feedId: String,
         limit: Long = paginationLimit,
         lastCommentId: String? = null
-    ): Result<List<Comment>> {
+    ): Result<List<FeedComment>> {
         return try {
             var query = firebaseDB
                 .collection("feeds").document(feedId)
@@ -246,7 +264,7 @@ class FeedStoreManager {
                     .get().await()
                 query = query.startAfter(lastSnapshot)
             }
-            Result.success(query.get().await().toObjects(Comment::class.java))
+            Result.success(query.get().await().toObjects(FeedComment::class.java))
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }

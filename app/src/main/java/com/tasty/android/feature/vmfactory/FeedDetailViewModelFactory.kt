@@ -12,7 +12,8 @@ val FeedDetailViewModelFactory: ViewModelProvider.Factory =
         initializer {
             val app = this[APPLICATION_KEY] as MyApplication
             FeedDetailViewModel(
-                feedStoreManager = app.container.feedStoreManager
+                feedStoreManager = app.container.feedStoreManager,
+                userStoreManager = app.container.userStoreManager
             )
         }
     }

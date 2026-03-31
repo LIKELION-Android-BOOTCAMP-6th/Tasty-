@@ -7,6 +7,9 @@ import com.google.firebase.firestore.ServerTimestamp
 data class Feed(
     val feedId: String = "",
     val authorId: String = "",
+    val authorNickname: String = "", // 추가 (역정규화)
+    val authorHandle: String = "",   // 추가 (역정규화)
+    val authorProfileUrl: String? = null, // 추가 (역정규화) 3/31
     val content: String = "",
     @ServerTimestamp
     val createdAt: Timestamp? = null,

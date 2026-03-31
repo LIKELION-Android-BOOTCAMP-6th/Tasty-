@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.firebase.FeedStoreManager
+import com.tasty.android.core.firebase.FeedUpdateEvent
 import com.tasty.android.core.location.LocationManager
 import com.tasty.android.feature.feed.mapper.toFeedPostUiModel
 import com.tasty.android.feature.feed.model.FeedLike
@@ -42,7 +43,6 @@ data class FeedFilterUiState(
 }
 
 data class FeedUiState(
-    val userRegion: String = "",
     val tastyLists: List<TastyListUiModel> = emptyList(),
     val feedPosts: List<FeedPostUiModel> = emptyList(),
     val isLoading: Boolean = false,
@@ -52,15 +52,17 @@ data class FeedUiState(
 )
 
 data class TastyListUiModel(
-    val id: String,
+    val tastyListId: String,
     val title: String,
     val subTitle: String
 )
 
 data class FeedPostUiModel(
-    val id: String,
+    val feedId: String,
     val authorId: String,
-    val authorName: String,
+    val authorNickname: String,
+    val userHandle: String,
+    val authorProfileUrl: String? = null, // 추가
     val placeName: String,
     val address: String,
     val rating: Int,
@@ -69,7 +71,7 @@ data class FeedPostUiModel(
     val commentCount: Int,
     val dateText: String,
     val isLiked: Boolean,
-    val imageUrl: String? = null
+    val thumbnailImageUrl: String? = null
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -97,12 +99,40 @@ class FeedViewModel(
         val cachedAt: TimeSource.Monotonic.ValueTimeMark
     )
     private var distanceCache: DistanceCache? = null
-    private val cacheExpiry = 20.minutes           // 5분 후 만료
+    private val cacheExpiry = 20.minutes           // 20분 후 만료
     private val cacheInvalidateDistanceM = 3000.0  // 3km 이상 이동 시 캐시 무효화
     private val maxFetchLimit = 20
 
     init {
+        // 실시간 피드 업데이트 이벤트 구독 (댓글 수, 좋아요 상태 동기화)
+        viewModelScope.launch {
+            feedStoreManager.feedUpdateEvents.collect { event ->
+                when (event) {
+                    is FeedUpdateEvent.CommentCountChanged -> {
+                        updateFeedPostInState(event.feedId) { it.copy(commentCount = event.newCount) }
+                    }
+                    is FeedUpdateEvent.LikeStatusChanged -> {
+                        updateFeedPostInState(event.feedId) { 
+                            it.copy(isLiked = event.isLiked, likeCount = event.likeCount) 
+                        }
+                    }
+                }
+            }
+        }
         loadLatestFeeds(isRefresh = true)
+    }
+
+    private fun updateFeedPostInState(feedId: String, transform: (FeedPostUiModel) -> FeedPostUiModel) {
+        _uiState.update { state ->
+            val updatedPosts = state.feedPosts.map { 
+                if (it.feedId == feedId) transform(it) else it 
+            }
+            state.copy(feedPosts = updatedPosts)
+        }
+        // 원본 리스트도 동기화 (검색/필터링 시 일관성 유지)
+        originalFeedPosts = originalFeedPosts.map {
+            if (it.feedId == feedId) transform(it) else it
+        }
     }
 
     /** 최신순 피드 로딩**/
@@ -133,7 +163,16 @@ class FeedViewModel(
                             )
                         ).getOrDefault(false)
 
-                        feed.toFeedPostUiModel().copy(isLiked = isLiked)
+                        // 작성자 정보가 비어있을 경우(기존 데이터) 유저 정보 조회
+                        val authorNickname = feed.authorNickname.ifBlank { "작성자" }
+                        val userHandle = feed.authorHandle.ifBlank { "tastier" }
+
+                        feed.toFeedPostUiModel(
+                            authorNickname = authorNickname,
+                            userHandle = userHandle,
+                            authorProfileUrl = feed.authorProfileUrl, // 추가
+                            isLiked = isLiked
+                        )
                     }
                 }.awaitAll()
 
@@ -142,7 +181,7 @@ class FeedViewModel(
 
                 // 원본 리스트 누적 (새로고침이면 교체, 추가 로딩이면 append)
                 originalFeedPosts = if (isRefresh) newUiModels
-                                    else (originalFeedPosts + newUiModels).distinctBy { it.id }
+                                    else (originalFeedPosts + newUiModels).distinctBy { it.feedId }
 
                 _uiState.update { currentState ->
                     currentState.copy(
@@ -289,14 +328,14 @@ class FeedViewModel(
     // 좋아요 토글
     fun toggleLike(feedId: String) {
         val currentPosts = _uiState.value.feedPosts
-        val currentPost = currentPosts.find { it.id == feedId } ?: return
+        val currentPost = currentPosts.find { it.feedId == feedId } ?: return
         val isCurrentlyLiked = currentPost.isLiked
         val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
         _uiState.update { state ->
             state.copy(
                 feedPosts = state.feedPosts.map { post ->
-                    if (post.id == feedId) post.copy(
+                    if (post.feedId == feedId) post.copy(
                         isLiked = !isCurrentlyLiked,
                         likeCount = if (isCurrentlyLiked) post.likeCount - 1
                         else post.likeCount + 1
@@ -318,7 +357,7 @@ class FeedViewModel(
                 _uiState.update { state ->
                     state.copy(
                         feedPosts = state.feedPosts.map { post ->
-                            if (post.id == feedId) post.copy(
+                            if (post.feedId == feedId) post.copy(
                                 isLiked = isCurrentlyLiked,          // 원래 상태로 복구
                                 likeCount = currentPost.likeCount     // 원래 카운트로 복구
                             )

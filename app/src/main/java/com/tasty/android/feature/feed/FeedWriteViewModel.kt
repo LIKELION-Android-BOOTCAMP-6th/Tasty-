@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.StorageManager
+import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.location.LocationManager
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.core.place.RestaurantSearchItem
@@ -76,7 +77,8 @@ class FeedWriteViewModel(
     private val feedStoreManager: FeedStoreManager,
     private val storageManager: StorageManager,
     private val placeManager: PlaceManager,
-    private val locationManager: LocationManager
+    private val locationManager: LocationManager,
+    private val userStoreManager: UserStoreManager // 추가
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedWriteUiState())
@@ -296,9 +298,16 @@ class FeedWriteViewModel(
 
             val restaurantUrls = restaurantImagesDeferred.await()?.getOrNull() ?: emptyList()
 
+            // 작성자 유저 정보 가져오기
+            val userProfileResult = userStoreManager.getUser(authorId)
+            val userProfile = userProfileResult.getOrNull()
+
             val feed = Feed(
                 feedId = feedId,
                 authorId = authorId,
+                authorNickname = userProfile?.nickname ?: "익명",
+                authorHandle = userProfile?.userHandle ?: "anonymous",
+                authorProfileUrl = userProfile?.profileImageUrl,
                 content = currentState.content,
                 rating = currentState.rating,
                 shortReview = currentState.shortReview,

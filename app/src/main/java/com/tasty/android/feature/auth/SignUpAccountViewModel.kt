@@ -36,7 +36,7 @@ class SignUpAccountViewmodel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 SignUpAccountViewmodel(
                     authManager = app.container.authManager,
-                    userStoreManager = app.container.UserStoreManager
+                    userStoreManager = app.container.userStoreManager
                 )
             }
         }

@@ -36,6 +36,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.navigation.TabScreen
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -77,8 +78,8 @@ fun LoginScreen(
     // 로그인 성공 시 메인 화면으로 이동
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route) {
-                popUpTo(Screen.AUTH_LOGIN.route) { inclusive = true } // 로그인 화면을 스택에서 제거
+            navController.navigate(TabScreen.FEED.route) {
+                popUpTo(Screen.AUTH_ON_BOARDING.route) { inclusive = true } // 로그인 화면/온 보딩을 스택에서 제거
             }
         }
     }

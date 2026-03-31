@@ -34,7 +34,7 @@ class ProfileSetupViewModel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 ProfileSetupViewModel(
                     authManager = app.container.authManager,
-                    userstoreManager = app.container.UserStoreManager
+                    userstoreManager = app.container.userStoreManager
                 )
             }
         }
