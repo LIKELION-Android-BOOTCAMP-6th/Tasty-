@@ -306,7 +306,10 @@ private fun FeedHeaderSection(
                     items = tastyLists.take(4),
                     key = { it.tastyListId }
                 ) { item ->
-                    TastyListCard(item = item)
+                    TastyListCard(
+                        item = item,
+                        onClick = { onTastyListClick(item.tastyListId) }
+                    )
                 }
             }
         }
