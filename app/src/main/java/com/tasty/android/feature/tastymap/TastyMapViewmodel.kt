@@ -3,7 +3,6 @@ package com.tasty.android.feature.tastymap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -20,14 +19,18 @@ import com.tasty.android.core.location.LocationManager
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.tastymap.model.RestaurantData
-import com.tasty.android.feature.tastymap.model.RestaurantInfo
 import kotlinx.coroutines.launch
 
-enum class MapSortType {
-    DISTANCE,
-    RATING,
-    REVIEW_COUNT
-}
+// UI 상태를 하나의 데이터 클래스로 정의하여 관리의 일관성 확보
+data class TastyMapUiState(
+    val restaurants: List<RestaurantData> = emptyList(),
+    val selectedRestaurant: RestaurantData? = null,
+    val isCommentVisible: Boolean = false,
+    val restaurantFeeds: List<Feed> = emptyList(),
+    val isFeedsLoading: Boolean = false,
+    val isSearchFocused: Boolean = false,
+    val userLocation: LatLng? = null
+)
 
 class TastyMapViewmodel(
     val locationManager: LocationManager,
@@ -37,15 +40,16 @@ class TastyMapViewmodel(
     private val feedStoreManager: FeedStoreManager
 ) : ViewModel() {
 
+    var uiState by mutableStateOf(TastyMapUiState())
+        private set
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[APPLICATION_KEY] as MyApplication
                 TastyMapViewmodel(
-                    // 인스턴스 생성
                     placesManager = app.container.placeManager,
                     locationManager = app.container.locationManager,
-                    // 위치 서비스 클라이언트 초기화
                     fusedLocationClient = LocationServices.getFusedLocationProviderClient(app),
                     mapStoreManager = app.container.mapStoreManager,
                     feedStoreManager = app.container.feedStoreManager
@@ -54,58 +58,77 @@ class TastyMapViewmodel(
         }
     }
 
-    // 식당 목록
-    var restaurants by mutableStateOf<List<RestaurantData>>(emptyList())
-        private set
+    // 초기 위치 설정 로직 분리
+    fun initializeLocation(onReady: (LatLng) -> Unit) {
+        locationManager.getCurrentLocation { lat, lon ->
+            val latLng = LatLng(lat, lon)
+            uiState = uiState.copy(userLocation = latLng)
+            onReady(latLng)
+        }
+    }
 
-    // 피드 목록
-    var restaurantFeeds by mutableStateOf<List<Feed>>(emptyList())
-        private set
+    // 식당 선택 시 피드 로딩 로직 통합
+    fun selectRestaurant(restaurant: RestaurantData) {
+        val isAlreadySelected = uiState.selectedRestaurant?.id == restaurant.id
 
-    // 피드 로딩 상태
-    var isFeedsLoading by mutableStateOf(false)
-        private set
+        if (isAlreadySelected) {
+            // 이미 선택된 식당을 다시 클릭한 경우 -> 리뷰(댓글) 표시
+            uiState = uiState.copy(isCommentVisible = true)
+            if (uiState.restaurantFeeds.isEmpty()) {
+                fetchFeedsForRestaurant(restaurant.id)
+            }
+        } else {
+            // 새로운 식당을 선택한 경우 -> 해당 식당만 리스트에 노출 (리뷰는 아직 숨김)
+            uiState = uiState.copy(
+                selectedRestaurant = restaurant,
+                isCommentVisible = false,
+                restaurantFeeds = emptyList()
+            )
+        }
+    }
+
+    fun clearSelection() {
+        uiState = uiState.copy(
+            selectedRestaurant = null,
+            isCommentVisible = false
+        )
+    }
+
+    fun setSearchFocus(isFocused: Boolean) {
+        uiState = uiState.copy(isSearchFocused = isFocused)
+    }
 
     fun searchAndSyncRestaurants(location: LatLng, radius: Double) {
         placesManager.searchRestaurants(location, radius) { googleResults ->
             viewModelScope.launch {
                 val ids = googleResults.map { it.id }
-
-                // 1. Firestore에서 해당 식당들의 통계 정보 가져오기
                 val firestoreResult = mapStoreManager.getRestaurantInfoFromIds(ids)
 
-                firestoreResult.onSuccess { infoMap ->
-                    // 2. Google 데이터와 Firestore 데이터 결합
-                    restaurants = googleResults.map { rest ->
-                        val info = infoMap[rest.id]
-                        rest.copy(
-                            rating = info?.ratingAvg ?: rest.rating,
-                            feedCount = info?.feedCount ?: 0
-                        )
-                    }
-                }.onFailure {
-                    // 실패 시 Google 데이터라도 표시
-                    restaurants = googleResults
-                }
+                val mergedList = firestoreResult.fold(
+                    onSuccess = { infoMap ->
+                        googleResults.map { rest ->
+                            val info = infoMap[rest.id]
+                            rest.copy(
+                                rating = info?.ratingAvg ?: rest.rating,
+                                feedCount = info?.feedCount ?: 0
+                            )
+                        }
+                    },
+                    onFailure = { googleResults }
+                )
+                uiState = uiState.copy(restaurants = mergedList, selectedRestaurant = null)
             }
         }
     }
 
-    // 식당 ID로 피드 가져오기
-    fun fetchFeedsForRestaurant(restaurantId: String) {
+    private fun fetchFeedsForRestaurant(restaurantId: String) {
         viewModelScope.launch {
-            isFeedsLoading = true
+            uiState = uiState.copy(isFeedsLoading = true)
             val result = mapStoreManager.getFeedsByRestaurantId(restaurantId)
-            result.onSuccess { feeds ->
-                restaurantFeeds = feeds
-            }.onFailure {
-                restaurantFeeds = emptyList() // 실패 시 빈 리스트
-            }
-            isFeedsLoading = false
+            uiState = uiState.copy(
+                restaurantFeeds = result.getOrDefault(emptyList()),
+                isFeedsLoading = false
+            )
         }
-    }
-
-    fun clearFeeds() {
-        restaurantFeeds = emptyList()
     }
 }
