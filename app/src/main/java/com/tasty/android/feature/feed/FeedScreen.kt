@@ -59,10 +59,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,7 +77,6 @@ import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
-
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,44 +108,23 @@ fun FeedScreen(
                 showTopBar = true,
                 showBottomBar = true,
                 containsBackButton = false,
+                isCenterAligned = true,
                 floatingActionButton = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.navigationBarsPadding()
-                    ) {
-                        FloatingActionButton(
-                            onClick = {
-                                navController.navigate(Screen.FEED_CREATE_FEED.route)
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "게시글 작성"
-                            )
+                    com.tasty.android.core.design.component.FeedFab(
+                        onWriteClick = {
+                            navController.navigate(Screen.FEED_CREATE_FEED.route)
+                        },
+                        onFilterClick = {
+                            tempFilter = uiState.filter
+                            showFilterSheet = true
+                            showRegionSelection = false
                         }
-
-                        FloatingActionButton(
-                            onClick = {
-                                tempFilter = uiState.filter
-                                showFilterSheet = true
-                                showRegionSelection = false
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Tune,
-                                contentDescription = "필터"
-                            )
-                        }
-                    }
+                    )
                 }
             )
         )
     }
+
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
@@ -158,6 +138,7 @@ fun FeedScreen(
             }
         }
     }
+
     // Refresh 후에 초기값으로 복구
     LaunchedEffect(shouldRefresh) {
         if(shouldRefresh) {
@@ -177,7 +158,10 @@ fun FeedScreen(
         ) {
             item {
                 FeedHeaderSection(
-                    tastyLists = uiState.tastyLists
+                    tastyLists = uiState.tastyLists,
+                    onTastyListClick = { tastyListId ->
+                        navController.navigate("${Screen.TASTY_DETAIL.route}/$tastyListId")
+                    }
                 )
             }
 
@@ -259,7 +243,8 @@ fun FeedScreen(
 
 @Composable
 private fun FeedHeaderSection(
-    tastyLists: List<TastyListUiModel>
+    tastyLists: List<TastyListUiModel>,
+    onTastyListClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -282,13 +267,16 @@ private fun FeedHeaderSection(
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(
-                items = tastyLists.take(4),
+                items = tastyLists,
                 key = { it.tastyListId }
             ) { item ->
-                TastyListCard(item = item)
+                TastyListCard(
+                    item = item,
+                    onClick = { onTastyListClick(item.tastyListId) }
+                )
             }
         }
     }
@@ -296,18 +284,38 @@ private fun FeedHeaderSection(
 
 @Composable
 private fun TastyListCard(
-    item: TastyListUiModel
+    item: TastyListUiModel,
+    onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp)
+        modifier = Modifier
+            .width(72.dp)
+            .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFD9D9D9))
-        )
+                .background(Color(0xFFD9D9D9)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (item.thumbnailImageUrl.isNullOrBlank()) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle, // 임시 아이콘
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                AsyncImage(
+                    model = item.thumbnailImageUrl,
+                    contentDescription = "썸네일",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(6.dp))
 
@@ -322,9 +330,10 @@ private fun TastyListCard(
         )
 
         Text(
-            text = item.subTitle,
+            text = item.authorNickname,
             style = MaterialTheme.typography.labelSmall.copy(
-                color = TextColor
+                color = Color.Gray,
+                fontSize = 10.sp
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -11,10 +11,12 @@ import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlin.collections.emptyList
 
 data class RestaurantSearchItem(
@@ -26,10 +28,11 @@ class PlaceManager(private val context: Context) {
     private val placeClient = Places.createClient(context)
 
     // 식당 이름 검색
-    suspend fun searchPlaces(query: String, placeTypes: List<String> = emptyList()): Result<List<RestaurantSearchItem>> {
-        if (query.isBlank()) return Result.success(emptyList())
+    suspend fun searchPlaces(query: String, placeTypes: List<String> = emptyList()): Result<List<RestaurantSearchItem>> = withContext(
+        Dispatchers.IO) {
+        if (query.isBlank()) return@withContext Result.success(emptyList())
         val placeTypes = placeTypes
-        return try {
+        try {
             val req = FindAutocompletePredictionsRequest
                 .builder()
                 .setQuery(query)
@@ -53,8 +56,9 @@ class PlaceManager(private val context: Context) {
         }
     }
 
-    suspend fun getRestaurantDetails(restaurantId: String): Result<Place> {
-        return try {
+
+    suspend fun getRestaurantDetails(restaurantId: String): Result<Place> = withContext(Dispatchers.IO) {
+        try {
             val restaurantFields = listOf(
                 Place.Field.ID, // 식당 id
                 Place.Field.NAME, // 식당명
@@ -78,16 +82,17 @@ class PlaceManager(private val context: Context) {
         }
     }
 
+
     suspend fun getRestaurantBitmapImages(
         photoMetaDatas: List<PhotoMetadata>?, // API에서 받은 메타데이터 배열
         maxWidth: Int = 500,
         maxHeight: Int = 500,
         maxImageCount: Int = 5
-    ): Result<List<Bitmap>> {
-        if (photoMetaDatas.isNullOrEmpty()) return Result.success(emptyList())
+    ): Result<List<Bitmap>> = withContext(Dispatchers.IO) {
+        if (photoMetaDatas.isNullOrEmpty()) return@withContext Result.success(emptyList())
 
 
-        return try {
+        try {
             val metaDatas = photoMetaDatas.take(maxImageCount)
 
             val bitmaps = coroutineScope {
@@ -112,13 +117,14 @@ class PlaceManager(private val context: Context) {
         }
     }
 
+
     suspend fun searchNearbyRestaurants(
         latitude: Double,
         longitude: Double,
         radiusMeters: Double = 5000.0,
         maxResultCount: Int = 20
-    ) : Result<List<Place>>{
-        return try {
+    ) : Result<List<Place>> = withContext(Dispatchers.IO) {
+        try {
             val center = LatLng(
                 latitude,
                 longitude
@@ -146,4 +152,5 @@ class PlaceManager(private val context: Context) {
             Result.failure(e)
         }
     }
+
 }
