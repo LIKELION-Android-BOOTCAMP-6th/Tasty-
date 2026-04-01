@@ -1,14 +1,10 @@
 package com.tasty.android.core.design.component
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -18,9 +14,19 @@ import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.navigation.CustomNavHost
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.navigation.TabScreen
-import kotlin.collections.setOf
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Tune
+import com.tasty.android.core.design.theme.TextColor
 
-// 스캐폴드 커스텀 설정 클래스 선언
+// 스캐폴드 커스텀 설정 클래스 정의
 data class ScaffoldConfig(
     val title: String = "Tasty",
     val showTopBar: Boolean = true, // TopBar 표시 여부
@@ -32,44 +38,225 @@ data class ScaffoldConfig(
     val containerColor: Color = PrimaryColor, // 컨테이너 컬러
     val isCenterAligned: Boolean = false // 가운데 정렬 여부
 )
+
+
+private fun getPredictiveConfig(route: String?, navController: NavHostController): ScaffoldConfig {
+    if (route == null) return ScaffoldConfig()
+
+    // 경로 파라미터가 포함된 경우를 위해 matching 로직 처리
+    return when {
+        // --- Tab Screens (Bottom Bar 있음) ---
+        route == TabScreen.FEED.route -> ScaffoldConfig(
+            title = "Tasty",
+            showTopBar = true,
+            showBottomBar = true,
+            isCenterAligned = true,
+            floatingActionButton = {
+                FeedFab(
+                    onWriteClick = { navController.navigate(Screen.FEED_CREATE_FEED.route) },
+                    onFilterClick = {
+                        // 필터 시트는 Screen에서 LaunchedEffect로 Override하여 처리
+                    }
+                )
+            }
+        )
+        route == TabScreen.TASTY.route -> ScaffoldConfig(
+            title = "Tasties",
+            showTopBar = true,
+            showBottomBar = true,
+            isCenterAligned = true
+        )
+
+        route == TabScreen.MAP.route -> ScaffoldConfig(
+            title = "지도",
+            showTopBar = true,
+            showBottomBar = true,
+            isCenterAligned = true
+        )
+        route == TabScreen.MY_PAGE.route -> ScaffoldConfig(
+            title = "마이 페이지",
+            showTopBar = true,
+            showBottomBar = true,
+            isCenterAligned = true,
+            topBarActions = listOf(
+                AppBarAction(
+                    icon = Icons.Default.MoreHoriz,
+                    contentDescription = "더보기",
+                    onActionClick = {} // 상세 동작은 Screen에서 Override됨
+                )
+            )
+        )
+
+
+        route == Screen.AUTH_ON_BOARDING.route ||
+        route == Screen.AUTH_LOGIN.route ||
+        route == Screen.AUTH_SIGN_UP_EMAIL_PWD.route ||
+        route == Screen.AUTH_SIGN_UP_SET_PROFILE.route -> ScaffoldConfig(
+            showTopBar = false,
+            showBottomBar = false
+        )
+
+
+        route.startsWith(Screen.FEED_DETAIL.route) -> ScaffoldConfig(
+            title = "게시글 상세",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route == Screen.FEED_CREATE_FEED.route -> ScaffoldConfig(
+            title = "게시글 작성",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true,
+            topBarActions = listOf(
+                AppBarAction(
+                    icon = Icons.Outlined.Send,
+                    contentDescription = "게시",
+                    onActionClick = {}
+                )
+            )
+        )
+        route == Screen.FEED_SEARCH_RESTAURANT.route -> ScaffoldConfig(
+            title = "식당 검색",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route.startsWith("tasty_detail") || route.startsWith(Screen.TASTY_DETAIL.route) -> ScaffoldConfig(
+            title = "테이스티 상세",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route.startsWith("user_profile") || route.startsWith(Screen.USER_PROFILE.route.split("/")[0]) -> ScaffoldConfig(
+            title = "프로필",
+            showTopBar = true,
+            showBottomBar = true,
+            containsBackButton = true,
+            isCenterAligned = true
+        )
+        route == Screen.MY_PAGE_EDIT_PROFILE.route -> ScaffoldConfig(
+            title = "프로필 수정",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route.startsWith("edit_tasty_list") -> ScaffoldConfig(
+            title = "리스트 수정",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route == Screen.MY_PAGE_SELECT_FEEDS.route -> ScaffoldConfig(
+            title = "피드 선택",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+        route == Screen.MY_PAGE_SET_THUMBNAIL_TITLE.route -> ScaffoldConfig(
+            title = "리스트 설정",
+            showTopBar = true,
+            showBottomBar = false,
+            containsBackButton = true
+        )
+
+        else -> ScaffoldConfig()
+    }
+}
+
+@Composable
+fun FeedFab(
+    onWriteClick: () -> Unit,
+    onFilterClick: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier.navigationBarsPadding()
+    ) {
+        FloatingActionButton(
+            onClick = onWriteClick,
+            containerColor = PrimaryColor,
+            contentColor = TextColor
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "게시글 작성"
+            )
+        }
+
+        FloatingActionButton(
+            onClick = onFilterClick,
+            containerColor = PrimaryColor,
+            contentColor = TextColor
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "필터"
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomScaffold(navController: NavHostController) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-    var config by remember {
-        mutableStateOf(ScaffoldConfig())
+
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+
+    val predictiveConfig = remember(currentRoute) {
+        getPredictiveConfig(currentRoute, navController)
     }
+
+
+
+    var screenOverride by remember { mutableStateOf<ScaffoldConfig?>(null) }
+
+    LaunchedEffect(currentRoute) {
+        screenOverride = null
+    }
+
+    val activeConfig = screenOverride ?: predictiveConfig
+
     Scaffold(
-        // AppBar 숨김 여부(Config)에 따라 Modifier 동적 결정
-        modifier = if (config.showTopBar) {
+        modifier = if (activeConfig.showTopBar) {
             Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         } else Modifier,
         topBar = {
-            if (config.showTopBar) {
+            if (activeConfig.showTopBar) {
                 CustomTopAppBar(
-                    title = config.title,
-                    containsBackButton = config.containsBackButton,
-                    onBackClick = config.onBackClick,
-                    actions = config.topBarActions,
+                    title = activeConfig.title,
+                    containsBackButton = activeConfig.containsBackButton,
+                    onBackClick = activeConfig.onBackClick,
+                    actions = activeConfig.topBarActions,
                     scrollBehavior = scrollBehavior,
-                    containerColor = config.containerColor,
-                    isCenterAligned = config.isCenterAligned
+                    containerColor = activeConfig.containerColor,
+                    isCenterAligned = activeConfig.isCenterAligned
                 )
             }
         },
         bottomBar = {
-            if (config.showBottomBar) {
+            if (activeConfig.showBottomBar) {
                 CustomBottomAppBar(navController)
             }
         },
         floatingActionButton = {
-            config.floatingActionButton?.invoke()
-        }
+            activeConfig.floatingActionButton?.invoke()
+        },
+        containerColor = Color.White
     ) { innerPadding ->
+        // 하위 CustomNavHost에 콜백을 전달하여 스크린의 상세 설정을 screenOverride에 반영
         CustomNavHost(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
-            onScaffoldConfigChange = {config = it}
+            onScaffoldConfigChange = { newConfig ->
+                screenOverride = newConfig
+            }
         )
     }
 }

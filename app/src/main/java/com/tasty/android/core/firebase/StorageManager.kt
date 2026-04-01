@@ -7,10 +7,12 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.auth
 import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.storage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import kotlin.collections.mapIndexed
 
@@ -20,11 +22,11 @@ class StorageManager {
     private val storageRef = storage.reference
 
     // 유저 프로필 이미지 업로드 및 업데이트(동일한 경로인 경우에 덮어쓰기 됨다)/ 반환: 다운로드 Url
-    suspend fun uploadProfileImage(profileImageUri: Uri): Result<String> {
-        val userId = Firebase.auth.currentUser?.uid ?: return Result.failure(
+    suspend fun uploadProfileImage(profileImageUri: Uri): Result<String> = withContext(Dispatchers.IO) {
+        val userId = Firebase.auth.currentUser?.uid ?: return@withContext Result.failure(
             FirebaseAuthInvalidUserException("","")
         )
-        return try {
+        try {
             val userProfilePath = "userProfileImages/$userId/profileImage.jpg"
             val ref = storageRef.child(userProfilePath)
 
@@ -37,9 +39,10 @@ class StorageManager {
         }
     }
 
+
     // 피드 이미지 업로드 / 반환: 다운로드 Url 리스트
-    suspend fun uploadFeedImages(feedImageUris: List<Uri>, feedId: String): Result<List<String>> {
-        return try {
+    suspend fun uploadFeedImages(feedImageUris: List<Uri>, feedId: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
             val feedImagesPath = "feedImages/$feedId"
             val downloadUrls = coroutineScope {
                 feedImageUris.mapIndexed { idx, feedImageUri ->
@@ -56,9 +59,10 @@ class StorageManager {
         }
     }
 
+
     // 테이스티 리스트 썸네일 이미지 업로드 / 반환: 다운로드 Url 리스트
-    suspend fun uploadThumbnailImages(thumbnailImageUri: Uri, tastyListId: String): Result<String> {
-        return try {
+    suspend fun uploadThumbnailImages(thumbnailImageUri: Uri, tastyListId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
             val thumbnailImagesPath = "thumbnailImages/$tastyListId"
             val ref = storageRef.child("$thumbnailImagesPath/thumbnailImage.jpg")
 
@@ -71,9 +75,10 @@ class StorageManager {
         }
     }
 
+
     // 식당 이미지 비트맵 업로드 / 반환: 다운로드 Url 리스트
-    suspend fun uploadRestaurantImages(bitmaps: List<Bitmap>, restaurantId:String): Result<List<String>> {
-        return try {
+    suspend fun uploadRestaurantImages(bitmaps: List<Bitmap>, restaurantId:String): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
             val restaurantImagesPath = "restaurantImages/$restaurantId"
             val downloadUrls = coroutineScope {
                 bitmaps.mapIndexed { idx, bitmap ->
@@ -95,4 +100,5 @@ class StorageManager {
             Result.failure(e)
         }
     }
+
 }

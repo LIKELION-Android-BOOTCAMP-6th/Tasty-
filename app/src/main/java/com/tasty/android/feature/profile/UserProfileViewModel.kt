@@ -13,9 +13,11 @@ import com.tasty.android.feature.mypage.MyFeedItem
 import com.tasty.android.feature.mypage.MyPageTab
 import com.tasty.android.feature.mypage.MyProfileInfo
 import com.tasty.android.feature.mypage.MyTastyListItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class UserProfileUiState(
     val isLoading: Boolean = false,
@@ -48,6 +50,31 @@ class UserProfileViewModel(
     init {
         loadUserProfile()
         observeDataUpdates()
+        observeUserProfile()
+    }
+
+    private fun observeUserProfile() {
+        viewModelScope.launch {
+            userStoreManager.observeUser(targetUserId).collect { user ->
+                if (user != null) {
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            profileInfo = MyProfileInfo(
+                                userId = user.userId,
+                                nickname = user.nickname,
+                                userHandle = user.userHandle,
+                                bio = user.bio,
+                                profileImageUrl = user.profileImageUrl
+                            ),
+                            userHandle = user.userHandle,
+                            feedCount = user.feedCount,
+                            followerCount = user.followerCount,
+                            followingCount = user.followingCount
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private fun observeDataUpdates() {
@@ -57,6 +84,11 @@ class UserProfileViewModel(
                 when (event) {
                     is FeedUpdateEvent.LikeStatusChanged -> updateFeedStatus(event.feedId, event.isLiked, event.likeCount)
                     is FeedUpdateEvent.CommentCountChanged -> updateCommentCount(event.feedId, event.newCount)
+                    is FeedUpdateEvent.FeedCreated -> {
+                        if (event.authorId == targetUserId) {
+                             loadUserProfile()
+                        }
+                    }
                     else -> {}
                 }
             }
@@ -64,12 +96,15 @@ class UserProfileViewModel(
     }
 
     private fun updateFeedStatus(feedId: String, isLiked: Boolean, likeCount: Int) {
-        // 상세 구현 생략 (마이페이지와 유사)
+        // 프로필 그리드에서는 이미지 중심이라 상태 표시가 없더라도 
+        // 데이터 정합성을 위해 내부 상태를 리프레시하거나 관리할 수 있음
+        // 여기서는 데이터 변화가 확실할 때 리프레시를 호출하거나 필요한 필드만 업데이트
     }
 
     private fun updateCommentCount(feedId: String, newCount: Int) {
-        // 상세 구현 생략 (마이페이지와 유사)
+        // 필요 시 그리드 아이템의 댓글 수 표시 최적화
     }
+
 
     fun refresh() {
         loadUserProfile()
@@ -104,6 +139,23 @@ class UserProfileViewModel(
             val isFollowing = isFollowingResult.getOrDefault(false)
 
             if (user != null) {
+
+                val (myFeedItems, myTastyListItems) = withContext(Dispatchers.Default) {
+                    val myFeedItems = feeds.map { 
+                        MyFeedItem(it.feedId, it.feedImageUrls.firstOrNull(), it.feedImageUrls.isNotEmpty()) 
+                    }
+                    val myTastyListItems = tastyLists.map { 
+                        MyTastyListItem(
+                            tastyListId = it.tastyListId,
+                            title = it.title,
+                            thumbnailUrl = it.thumbnailImageUrl ?: "",
+                            feedCount = it.feedIds.size,
+                            viewCount = it.viewCount
+                        )
+                    }
+                    myFeedItems to myTastyListItems
+                }
+
                 _uiState.update { currentState ->
                     currentState.copy(
                         isLoading = false,
@@ -119,19 +171,12 @@ class UserProfileViewModel(
                         followerCount = user.followerCount,
                         followingCount = user.followingCount,
                         isFollowing = isFollowing,
-                        myFeeds = feeds.map { MyFeedItem(it.feedId, it.feedImageUrls.firstOrNull(), it.feedImageUrls.isNotEmpty()) },
-                        myTastyLists = tastyLists.map { 
-                            MyTastyListItem(
-                                tastyListId = it.tastyListId,
-                                title = it.title,
-                                thumbnailUrl = it.thumbnailImageUrl ?: "",
-                                feedCount = it.feedIds.size,
-                                viewCount = it.viewCount
-                            )
-                        }
+                        myFeeds = myFeedItems,
+                        myTastyLists = myTastyListItems
                     )
                 }
             }
+
         }
     }
 

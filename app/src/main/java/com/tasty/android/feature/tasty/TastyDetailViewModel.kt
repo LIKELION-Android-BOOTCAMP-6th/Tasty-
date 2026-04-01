@@ -9,12 +9,14 @@ import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.model.UserSummary
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 
 data class TastyAuthorUiModel(
     val profileImageUrl: String = "",
@@ -132,15 +134,22 @@ class TastyDetailViewModel(
                     val feeds = feedsResult.getOrNull().orEmpty()
                     val isLiked = likeResult.getOrDefault(false)
 
+                    // 복잡한 UI 모델 변환을 백그라운드 스레드에서 수행
+                    val (authorUi, feedUiList) = withContext(Dispatchers.Default) {
+                        val authorUi = author?.toUiModel() ?: TastyAuthorUiModel()
+                        val feedUiList = feeds.map { it.toUiModel() }
+                        authorUi to feedUiList
+                    }
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             title = tastyList.title,
-                            author = author?.toUiModel() ?: TastyAuthorUiModel(),
+                            author = authorUi,
                             likeCount = tastyList.likeCount,
                             viewCount = tastyList.viewCount,
                             isLiked = isLiked,
-                            feedList = feeds.map { feed -> feed.toUiModel() }
+                            feedList = feedUiList
                         )
                     }
                 }

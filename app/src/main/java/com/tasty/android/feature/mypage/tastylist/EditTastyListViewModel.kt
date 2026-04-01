@@ -6,11 +6,13 @@ import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.MyPageStoreManager
 import com.tasty.android.core.firebase.TastyStoreManager
 import com.tasty.android.feature.mypage.MyFeedItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class EditTastyListUiState(
     val isLoading: Boolean = false,
@@ -54,12 +56,15 @@ class EditTastyListViewModel(
             val feedsResult = myPageStoreManager.getMyFeeds(currentUserId)
             val feeds = feedsResult.getOrNull() ?: emptyList()
             
-            val myFeedItems = feeds.map { feed ->
-                MyFeedItem(
-                    feedId = feed.feedId,
-                    thumbnailUrl = feed.feedImageUrls.firstOrNull(),
-                    hasImages = feed.feedImageUrls.isNotEmpty()
-                )
+            // 무거운 리스트 매핑 및 변환 작업을 Default 디스패처에서 수행 (ANR 방지)
+            val myFeedItems = withContext(Dispatchers.Default) {
+                feeds.map { feed ->
+                    MyFeedItem(
+                        feedId = feed.feedId,
+                        thumbnailUrl = feed.feedImageUrls.firstOrNull(),
+                        hasImages = feed.feedImageUrls.isNotEmpty()
+                    )
+                }
             }
 
             _uiState.update { state ->
@@ -72,6 +77,7 @@ class EditTastyListViewModel(
                     isSaveEnabled = tastyList.feedIds.isNotEmpty()
                 )
             }
+
         }
     }
 
