@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.navigation.CustomNavHost
 import com.tasty.android.core.navigation.Screen
@@ -24,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Tune
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.TextColor
 
 // 스캐폴드 커스텀 설정 클래스 정의

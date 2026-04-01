@@ -120,8 +120,8 @@ class FeedViewModel(
                     }
                     is FeedUpdateEvent.LikeStatusChanged -> {
                         launch {
-                            updateFeedPostInState(event.feedId) { 
-                                it.copy(isLiked = event.isLiked, likeCount = event.likeCount) 
+                            updateFeedPostInState(event.feedId) {
+                                it.copy(isLiked = event.isLiked, likeCount = event.likeCount)
                             }
                         }
                     }
@@ -436,7 +436,7 @@ class FeedViewModel(
 
                 val uiModels = withContext(Dispatchers.Default) {
                     val nicknameMap = usersResult.getOrNull()?.associate { it.userId to it.nickname } ?: emptyMap()
-                    
+
                     tastyStoreManager.getTastyListsByUserIds(followingIds).getOrNull()?.map { item ->
                         val authorNickname = nicknameMap[item.authorId] ?: "사용자"
                         TastyListUiModel(
