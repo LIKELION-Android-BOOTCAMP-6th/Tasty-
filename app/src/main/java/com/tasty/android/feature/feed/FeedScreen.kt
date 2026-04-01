@@ -59,12 +59,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,6 +75,7 @@ import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
+
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,16 +109,39 @@ fun FeedScreen(
                 containsBackButton = false,
                 isCenterAligned = true,
                 floatingActionButton = {
-                    com.tasty.android.core.design.component.FeedFab(
-                        onWriteClick = {
-                            navController.navigate(Screen.FEED_CREATE_FEED.route)
-                        },
-                        onFilterClick = {
-                            tempFilter = uiState.filter
-                            showFilterSheet = true
-                            showRegionSelection = false
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.navigationBarsPadding()
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                navController.navigate(Screen.FEED_CREATE_FEED.route)
+                            },
+                            containerColor = PrimaryColor,
+                            contentColor = TextColor
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "게시글 작성"
+                            )
                         }
-                    )
+
+                        FloatingActionButton(
+                            onClick = {
+                                tempFilter = uiState.filter
+                                showFilterSheet = true
+                                showRegionSelection = false
+                            },
+                            containerColor = PrimaryColor,
+                            contentColor = TextColor
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "필터"
+                            )
+                        }
+                    }
                 }
             )
         )
@@ -284,7 +306,14 @@ private fun FeedHeaderSection(
                     items = tastyLists.take(4),
                     key = { it.tastyListId }
                 ) { item ->
+<<<<<<< UI-advancement
+                    TastyListCard(
+                        item = item,
+                        onClick = { onTastyListClick(item.tastyListId) }
+                    )
+=======
                     TastyListCard(item = item)
+>>>>>>> main
                 }
             }
         }
@@ -311,22 +340,26 @@ private fun TastyListCard(
                     width = 1.dp,
                     color = Color.Black.copy(alpha = 0.05f),
                     shape = CircleShape
+<<<<<<< UI-advancement
+                ),
+=======
                 )
         )
                 .background(Color(0xFFD9D9D9)),
+>>>>>>> main
             contentAlignment = Alignment.Center
         ) {
             if (item.thumbnailImageUrl.isNullOrBlank()) {
                 Icon(
-                    imageVector = Icons.Default.AccountCircle, // 임시 아이콘
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "기본 썸네일",
+                    tint = Color(0xFFB5B5B5),
+                    modifier = Modifier.fillMaxSize(0.78f)
                 )
             } else {
                 AsyncImage(
                     model = item.thumbnailImageUrl,
-                    contentDescription = "썸네일",
+                    contentDescription = "테이스티 리스트 썸네일",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
