@@ -21,7 +21,7 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.tastymap.model.RestaurantData
 import kotlinx.coroutines.launch
 
-// UI 상태를 하나의 데이터 클래스로 정의하여 관리의 일관성 확보
+// UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
     val restaurants: List<RestaurantData> = emptyList(),
     val selectedRestaurant: RestaurantData? = null,
@@ -58,7 +58,7 @@ class TastyMapViewmodel(
         }
     }
 
-    // 초기 위치 설정 로직 분리
+    // 초기 위치
     fun initializeLocation(onReady: (LatLng) -> Unit) {
         locationManager.getCurrentLocation { lat, lon ->
             val latLng = LatLng(lat, lon)
@@ -67,18 +67,18 @@ class TastyMapViewmodel(
         }
     }
 
-    // 식당 선택 시 피드 로딩 로직 통합
+    // 식당 선택
     fun selectRestaurant(restaurant: RestaurantData) {
         val isAlreadySelected = uiState.selectedRestaurant?.id == restaurant.id
 
         if (isAlreadySelected) {
-            // 이미 선택된 식당을 다시 클릭한 경우 -> 리뷰(댓글) 표시
+            // 이미 선택된 식당을 다시 클릭한 경우 -> 리뷰(피드) 표시
             uiState = uiState.copy(isCommentVisible = true)
             if (uiState.restaurantFeeds.isEmpty()) {
                 fetchFeedsForRestaurant(restaurant.id)
             }
         } else {
-            // 새로운 식당을 선택한 경우 -> 해당 식당만 리스트에 노출 (리뷰는 아직 숨김)
+            // 처음 선택 시 해당 식당으로 리스트를 필터링하고 리뷰(피드)는 숨김
             uiState = uiState.copy(
                 selectedRestaurant = restaurant,
                 isCommentVisible = false,
@@ -98,6 +98,7 @@ class TastyMapViewmodel(
         uiState = uiState.copy(isSearchFocused = isFocused)
     }
 
+    // Google Places API 결과와 Firestore의 맛집 정보를 병합
     fun searchAndSyncRestaurants(location: LatLng, radius: Double) {
         placesManager.searchRestaurants(location, radius) { googleResults ->
             viewModelScope.launch {
@@ -121,6 +122,7 @@ class TastyMapViewmodel(
         }
     }
 
+    // 특정 식당에 작성된 리뷰(피드) 목록을 가져옴
     private fun fetchFeedsForRestaurant(restaurantId: String) {
         viewModelScope.launch {
             uiState = uiState.copy(isFeedsLoading = true)

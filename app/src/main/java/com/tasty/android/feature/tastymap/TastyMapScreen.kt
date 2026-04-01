@@ -53,7 +53,7 @@ fun TastyMapScreen(
     val cameraPositionState = rememberCameraPositionState()
     val scope = rememberCoroutineScope()
 
-    // 초기 설정
+    // 화면 진입 시 위치 초기화 및 Scaffold 설정
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
             ScaffoldConfig(title = "테이스티 맵", showTopBar = false, showBottomBar = true)
@@ -63,6 +63,7 @@ fun TastyMapScreen(
         }
     }
 
+    // 선택된 식당이 변경되면 해당 위치로 지도 이동
     LaunchedEffect(uiState.selectedRestaurant) {
         uiState.selectedRestaurant?.let { restaurant ->
             val targetLatLng = LatLng(restaurant.latitude, restaurant.longitude)
@@ -73,6 +74,7 @@ fun TastyMapScreen(
         }
     }
 
+    // 바텀 시트와 지도를 포함하는 스캐폴드
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetPeekHeight = 100.dp,
@@ -88,7 +90,7 @@ fun TastyMapScreen(
         }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // 지도 영역 분리
+            // 구글 맵 렌더링 및 마커 표시
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
@@ -101,6 +103,7 @@ fun TastyMapScreen(
             ) {
                 uiState.restaurants.forEach { rest ->
                     val isSelected = uiState.selectedRestaurant == rest
+                    // 평점 기반의 커스텀 마커 생성
                     val ratingIcon = remember(rest.rating, isSelected) {
                         createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
                     }
@@ -118,7 +121,7 @@ fun TastyMapScreen(
                 }
             }
 
-            // 상단 검색 및 버튼 오버레이
+            // 검색창, 검색 버튼, 내 위치 버튼
             MapOverlayUI(
                 viewModel = viewModel,
                 cameraPositionState = cameraPositionState,
@@ -134,7 +137,7 @@ fun RestaurantListSheet(
     onItemClick: (RestaurantData) -> Unit,
     viewModel: TastyMapViewmodel
 ) {
-    // 선택된 식당이 있으면 그 식당만 보여주고, 없으면 전체 리스트를 보여줌
+    // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
 
     if (displayList.isEmpty()) {
@@ -296,6 +299,7 @@ fun formatDistance(distanceInMeters: Int): String {
     return if (distanceInMeters >= 1000) "%.1fkm".format(distanceInMeters / 1000.0) else "${distanceInMeters}m"
 }
 
+// Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
     val text = rating.toString()
     val mainColor = if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor("#A0C4FF")
