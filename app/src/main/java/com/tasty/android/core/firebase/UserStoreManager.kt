@@ -7,6 +7,9 @@ import com.google.firebase.firestore.firestore
 import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class UserStoreManager {
@@ -14,7 +17,7 @@ class UserStoreManager {
     /***
      * 유저 저장&조회&수정
      ***/
-    // 유저 회원가입 정보 저장/유저 프로필 수정
+    // 유저 회원가입 정보 저장
     suspend fun saveUser(user: User): Result<Unit> {
         return try {
             firebaseDB.collection("users")
@@ -23,6 +26,32 @@ class UserStoreManager {
                 .await()
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 프로필 정보 업데이트 (닉네임, 소개글, 프로필 이미지 URL)
+    suspend fun updateProfile(
+        userId: String,
+        nickname: String,
+        bio: String,
+        profileImageUrl: String? = null
+    ): Result<Unit> {
+        return try {
+            val userRef = firebaseDB.collection("users").document(userId)
+            val updateData = mutableMapOf<String, Any>(
+                "nickname" to nickname,
+                "bio" to bio
+            )
+            
+            // 이미지 URL이 있을 경우에만 포함
+            profileImageUrl?.let {
+                updateData["profileImageUrl"] = it
+            }
+
+            userRef.update(updateData).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -56,6 +85,24 @@ class UserStoreManager {
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
+    }
+
+    // 실시간 유저 정보 관찰
+    fun observeUser(userId: String): Flow<User?> = callbackFlow {
+        val registration = firebaseDB.collection("users")
+            .document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    trySend(snapshot.toObject(User::class.java))
+                } else {
+                    trySend(null)
+                }
+            }
+        awaitClose { registration.remove() }
     }
 
     /***

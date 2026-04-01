@@ -1,0 +1,434 @@
+package com.tasty.android.feature.profile
+
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.design.theme.PrimaryColor
+import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.navigation.TabScreen
+import com.tasty.android.feature.mypage.*
+import com.tasty.android.feature.vmfactory.UserProfileViewModelFactory
+import kotlinx.coroutines.launch
+
+@Composable
+fun UserProfileScreen(
+    navController: NavHostController,
+    targetUserId: String,
+    onScaffoldConfigChange: (ScaffoldConfig) -> Unit
+) {
+    val currentUserId = remember { Firebase.auth.currentUser?.uid ?: "" }
+    
+    // 본인 확인 시 마이페이지로 리다이렉트
+    LaunchedEffect(targetUserId) {
+        if (targetUserId == currentUserId) {
+            navController.navigate(TabScreen.MY_PAGE.route) {
+                popUpTo(Screen.USER_PROFILE.route) { inclusive = true }
+            }
+        }
+    }
+
+    if (targetUserId == currentUserId) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = PrimaryColor)
+        }
+        return
+    }
+
+    val viewModel: UserProfileViewModel = viewModel(
+        key = targetUserId,
+        factory = UserProfileViewModelFactory(targetUserId)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { 2 }
+    )
+
+    LaunchedEffect(pagerState.currentPage) {
+        when (pagerState.currentPage) {
+            0 -> viewModel.selectTab(MyPageTab.FEED)
+            1 -> viewModel.selectTab(MyPageTab.TASTY_LIST)
+        }
+    }
+
+    LaunchedEffect(uiState.userHandle) {
+        onScaffoldConfigChange(
+            ScaffoldConfig(
+                title = "@${uiState.userHandle}",
+                showTopBar = true,
+                showBottomBar = true,
+                containsBackButton = true,
+                onBackClick = { navController.popBackStack() },
+                isCenterAligned = true
+            )
+        )
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 프로필 헤더 (팔로우 버튼 포함)
+        UserProfileHeader(
+            nickname = uiState.profileInfo?.nickname ?: "",
+            userHandle = "@${uiState.userHandle}",
+            profileImageUrl = uiState.profileInfo?.profileImageUrl,
+            bio = uiState.profileInfo?.bio ?: "",
+            feedCount = uiState.feedCount,
+            followerCount = uiState.followerCount,
+            followingCount = uiState.followingCount,
+            isFollowing = uiState.isFollowing,
+            onFollowClick = { viewModel.toggleFollow() }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 탭 바 (MyPage 컴포넌트 재사용)
+        UserProfileTabBar(
+            selectedTab = uiState.selectedTab,
+            onFeedTabClick = {
+                coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                viewModel.selectTab(MyPageTab.FEED)
+            },
+            onTastyTabClick = {
+                coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                viewModel.selectTab(MyPageTab.TASTY_LIST)
+            }
+        )
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> UserFeedPage(
+                    feeds = uiState.myFeeds,
+                    onFeedClick = { feedId ->
+                        navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
+                    }
+                )
+                1 -> UserTastyListPage(
+                    tastyLists = uiState.myTastyLists,
+                    onTastyListClick = { tastyListId ->
+                        navController.navigate("tasty_detail/$tastyListId")
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserProfileHeader(
+    nickname: String,
+    userHandle: String,
+    profileImageUrl: String?,
+    bio: String,
+    feedCount: Int,
+    followerCount: Int,
+    followingCount: Int,
+    isFollowing: Boolean,
+    onFollowClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE4D8F5)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (profileImageUrl.isNullOrBlank()) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "기본 프로필",
+                        modifier = Modifier.size(36.dp),
+                        tint = Color(0xFF6A4FA3)
+                    )
+                } else {
+                    AsyncImage(
+                        model = profileImageUrl,
+                        contentDescription = "프로필 이미지",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        color = PrimaryColor,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(count = feedCount, label = "피드")
+                StatItem(count = followerCount, label = "팔로워")
+                StatItem(count = followingCount, label = "팔로잉")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 유저 정보 카드 & 팔로우 버튼
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = PrimaryColor,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(14.dp)
+        ) {
+            Text(text = nickname, fontWeight = FontWeight.Bold, color = TextColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = userHandle, color = TextColor)
+            if (bio.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = bio, color = TextColor)
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // 팔로우 버튼
+            Button(
+                onClick = onFollowClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isFollowing) Color.White else TextColor,
+                    contentColor = if (isFollowing) TextColor else Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = if (isFollowing) BorderStroke(1.dp, TextColor) else null,
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Text(
+                    text = if (isFollowing) "팔로우 취소" else "팔로우",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(count: Int, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = count.toString(),
+            fontWeight = FontWeight.Bold,
+            color = TextColor
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            color = Color.Black,
+        )
+    }
+}
+
+@Composable
+private fun UserProfileTabBar(
+    selectedTab: MyPageTab,
+    onFeedTabClick: () -> Unit,
+    onTastyTabClick: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            ProfileTabItem(
+                modifier = Modifier.weight(1f),
+                selected = selectedTab == MyPageTab.FEED,
+                icon = Icons.Default.GridOn,
+                text = "작성 피드",
+                onClick = onFeedTabClick
+            )
+            ProfileTabItem(
+                modifier = Modifier.weight(1f),
+                selected = selectedTab == MyPageTab.TASTY_LIST,
+                icon = Icons.Default.Bookmarks,
+                text = "Tasty 리스트",
+                onClick = onTastyTabClick
+            )
+        }
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray)
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Box(modifier = Modifier.weight(1f).height(2.dp).background(if (selectedTab == MyPageTab.FEED) Color(0xFFB9E2C0) else Color.Transparent))
+            Box(modifier = Modifier.weight(1f).height(2.dp).background(if (selectedTab == MyPageTab.TASTY_LIST) Color(0xFFB9E2C0) else Color.Transparent))
+        }
+    }
+}
+
+@Composable
+private fun ProfileTabItem(
+    modifier: Modifier,
+    selected: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    onClick: () -> Unit
+) {
+    val contentColor = if (selected) Color(0xFFB9E2C0) else Color.Gray
+    Row(
+        modifier = modifier.clickable(onClick = onClick).padding(vertical = 14.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(imageVector = icon, contentDescription = text, tint = contentColor)
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = text, color = contentColor, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun UserFeedPage(feeds: List<MyFeedItem>, onFeedClick: (String) -> Unit) {
+    if (feeds.isEmpty()) {
+        EmptyContent("작성한 피드가 없습니다.", "첫 피드를 기다려주세요.")
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(feeds) { feed ->
+                Box(
+                    modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(8.dp))
+                        .background(Color.LightGray).clickable { onFeedClick(feed.feedId) }
+                ) {
+                    if (!feed.thumbnailUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = feed.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    if (feed.hasImages) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(24.dp)
+                                .background(
+                                    color = Color.Black.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = "사진 포함",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserTastyListPage(
+    tastyLists: List<MyTastyListItem>,
+    onTastyListClick: (String) -> Unit
+) {
+    if (tastyLists.isEmpty()) {
+        EmptyContent("작성한 Tasty 리스트가 없습니다.", "공유된 입맛이 아직 없어요.")
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(tastyLists) { tasty ->
+                Box(
+                    modifier = Modifier.aspectRatio(1f).clip(RoundedCornerShape(12.dp))
+                        .background(PrimaryColor.copy(alpha = 0.3f))
+                        .clickable { onTastyListClick(tasty.tastyListId) }
+                ) {
+                    if (tasty.thumbnailUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = tasty.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Box(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.4f)).padding(8.dp)) {
+                        Text(text = tasty.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyContent(title: String, description: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = title, color = TextColor, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = description, color = Color.Gray, fontSize = 13.sp)
+        }
+    }
+}
