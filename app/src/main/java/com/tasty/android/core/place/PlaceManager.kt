@@ -2,15 +2,20 @@ package com.tasty.android.core.place
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.google.android.libraries.places.api.model.CircularBounds
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.Place.BusinessStatus
+import com.google.android.libraries.places.api.model.Place.Field
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.SearchNearbyRequest
+import com.tasty.android.feature.tastymap.model.RestaurantData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -153,4 +158,124 @@ class PlaceManager(private val context: Context) {
         }
     }
 
+    fun getPredictions(query: String, onResult: (List<AutocompletePrediction>) -> Unit) {
+        if (query.isBlank()) {
+            onResult(emptyList())
+            return
+        }
+
+        // 검색 요청 설정 (한국 지역 제한 등)
+        val request = FindAutocompletePredictionsRequest.builder()
+            .setQuery(query)
+            .setCountries("KR")
+            .build()
+
+        placeClient.findAutocompletePredictions(request)
+            .addOnSuccessListener { response ->
+                onResult(response.autocompletePredictions)
+            }
+            .addOnFailureListener { exception ->
+                exception.printStackTrace()
+            }
+    }
+
+    fun searchRestaurants(
+        location: LatLng,
+        radiusInMeters: Double,
+        onResult: (List<RestaurantData>) -> Unit
+    ) {
+        // 가져오고 싶은 필드 정의
+        val placeFields =
+            listOf(
+                Field.ID,
+                Field.NAME,
+                Field.ADDRESS,
+                Field.RATING,
+                Field.LAT_LNG,
+                Field.BUSINESS_STATUS,
+                Field.PHOTO_METADATAS,
+                Field.CURRENT_OPENING_HOURS,
+            )
+
+        // 검색 지역 설정 (중심점과 반경)
+        val circle = CircularBounds.newInstance(location, radiusInMeters)
+
+        // 요청 생성 (식당 타입으로 제한)
+        val searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
+            .setIncludedTypes(listOf("restaurant"))
+            .setMaxResultCount(20)
+            // 거리순으로 정렬
+            .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
+            .build()
+
+        // 데이터 요청
+        placeClient.searchNearby(searchNearbyRequest)
+            .addOnSuccessListener { response ->
+                val places = response.places
+                for (place in places) {
+                    Log.d("test", "식당 이름: ${place.name}, 평점: ${place.rating}")
+                }
+
+                // 결과 데이터를 콜백으로 전달
+                val mappedList = response.places.map { place ->
+
+                    val isCurrentlyOpen = place.isOpen ?: (place.currentOpeningHours != null)
+
+                    RestaurantData(
+                        name = place.name ?: "",
+                        address = place.address ?: "",
+                        rating = place.rating,
+                        id = place.id ?: "",
+                        latitude = place.latLng?.latitude ?: 0.0,
+                        longitude = place.latLng?.longitude ?: 0.0,
+                        businessStatus = when {
+                            // 영업 상태 우선 확인
+                            place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
+                            place.businessStatus == BusinessStatus.CLOSED_PERMANENTLY -> "폐업"
+
+                            // 현재 영업 여부 확인
+                            isCurrentlyOpen == true -> "영업 중"
+
+                            // 영업시간 정보가 아예 없는 경우
+                            else -> "영업 종료"
+                        },
+                        photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
+                    )
+                }
+                onResult(mappedList) // UI로 데이터 전달
+            }
+            .addOnFailureListener { exception ->
+                Log.e("test", "에러 발생: ${exception.message}")
+            }
+    }
+
+    fun fetchPhoto(photoMetadata: PhotoMetadata, onComplete: (Bitmap?) -> Unit) {
+        val photoRequest =
+            com.google.android.libraries.places.api.net.FetchPhotoRequest.builder(photoMetadata)
+                .setMaxWidth(300) // 비용 절감을 위해 적절한 크기 지정
+                .setMaxHeight(300) // 비용 절감을 위해 적절한 크기 지정
+                .build()
+
+        placeClient.fetchPhoto(photoRequest)
+            .addOnSuccessListener { fetchPhotoResponse ->
+                onComplete(fetchPhotoResponse.bitmap)
+            }
+            .addOnFailureListener {
+                onComplete(null)
+            }
+    }
+
+    fun getPlaceLatLng(placeId: String, onResult: (LatLng?) -> Unit) {
+        val placeFields = listOf(Field.LAT_LNG)
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+
+        placeClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                onResult(response.place.latLng)
+            }
+            .addOnFailureListener { exception ->
+                Log.e("PlacesManager", "Place not found: ${exception.message}")
+                onResult(null)
+            }
+    }
 }
