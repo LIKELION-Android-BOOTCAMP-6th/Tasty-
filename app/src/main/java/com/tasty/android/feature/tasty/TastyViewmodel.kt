@@ -50,6 +50,10 @@ class TastyViewModel : ViewModel() {
         loadTastyLists()
     }
 
+    fun refresh() {
+        loadTastyLists()
+    }
+
     fun loadTastyLists() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }

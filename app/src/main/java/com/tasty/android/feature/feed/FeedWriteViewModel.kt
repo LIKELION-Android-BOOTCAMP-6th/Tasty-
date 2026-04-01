@@ -1,11 +1,14 @@
 package com.tasty.android.feature.feed
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.StorageManager
+import com.tasty.android.core.firebase.UserStoreManager
+import com.tasty.android.core.location.LocationManager
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.core.place.RestaurantSearchItem
 import com.tasty.android.feature.feed.model.AddressInfo
@@ -23,7 +26,12 @@ data class SelectedRestaurantUiModel(
     val address: String = "",
     val lat: Double = 0.0,
     val lon: Double = 0.0,
-    val photoMetaDatas: List<PhotoMetadata> = emptyList()
+    val mainRegion: String = "",
+    val subRegion: String = "",
+    val photoMetaDatas: List<PhotoMetadata> = emptyList(),
+    val businessHours: String = "",
+    val businessStatus: String = "",
+    val restaurantPhoneNumber: String = ""
 )
 
 data class FeedPhotoUiModel(
@@ -68,7 +76,9 @@ data class FeedWriteUiState(
 class FeedWriteViewModel(
     private val feedStoreManager: FeedStoreManager,
     private val storageManager: StorageManager,
-    private val placeManager: PlaceManager
+    private val placeManager: PlaceManager,
+    private val locationManager: LocationManager,
+    private val userStoreManager: UserStoreManager // 추가
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedWriteUiState())
@@ -107,6 +117,16 @@ class FeedWriteViewModel(
             }
 
             placeManager.getRestaurantDetails(restaurantId).onSuccess { restaurant ->
+                val components = restaurant.addressComponents?.asList() ?: emptyList()
+                // 메인 Region
+                val adminArea = components.find { it.types.contains("administrative_area_level_1") }?.name ?: ""
+                // 서브 Region 추출
+                val locality = components.find { it.types.contains("locality") }?.name ?: ""
+                val subLocality = components.find { it.types.contains("sublocality_level_1") }?.name ?: ""
+
+                val extractedMainRegion = adminArea
+                val extractedSubRegion = locality.ifEmpty { subLocality }
+
                 _uiState.update { currentState ->
                     currentState.copy(
                         isLoadingRestaurants = false,
@@ -116,7 +136,12 @@ class FeedWriteViewModel(
                             address = restaurant.address ?: "",
                             lat = restaurant.latLng?.latitude ?: 0.0,
                             lon = restaurant.latLng?.longitude ?: 0.0,
-                            photoMetaDatas = restaurant.photoMetadatas ?: emptyList()
+                            mainRegion = extractedMainRegion,
+                            subRegion = extractedSubRegion,
+                            photoMetaDatas = restaurant.photoMetadatas ?: emptyList(),
+                            restaurantPhoneNumber = restaurant.phoneNumber ?: "",
+                            businessHours = restaurant.openingHours?.weekdayText.toString(),
+                            businessStatus = restaurant?.businessStatus.toString()
                         )
                     )
                 }
@@ -127,6 +152,44 @@ class FeedWriteViewModel(
                         errorMessage = "식당 정보를 불러오지 못했습니다."
                     )
                 }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun loadNearbyRestaurants() {
+        viewModelScope.launch {
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isLoadingRestaurants = true
+                )
+
+            }
+
+            val locationResult = locationManager.getCurrentLocation()
+            val location = locationResult.getOrNull()
+
+            if (location != null) {
+                placeManager.searchNearbyRestaurants(
+                    latitude = location.first,
+                    longitude = location.second
+                ).onSuccess {places ->
+                    _searchResults.value = places.map{ place ->
+                        RestaurantSearchItem(
+                            restaurantId = place.id ?: return@launch,
+                            name = place.name ?: "이름 없음"
+                        )
+
+                    }
+
+                }
+            } else {
+                _searchResults.value = emptyList()
+            }
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isLoadingRestaurants = false
+                )
             }
         }
     }
@@ -200,7 +263,7 @@ class FeedWriteViewModel(
                 it.copy(isSubmitting = true)
             }
 
-            val feedId = feedStoreManager.generateFeedId()
+            val feedId = feedStoreManager.generateFeedId().getOrNull() ?: ""
 
             val feedImagesDeferred = async {
                 storageManager.uploadFeedImages(
@@ -235,9 +298,16 @@ class FeedWriteViewModel(
 
             val restaurantUrls = restaurantImagesDeferred.await()?.getOrNull() ?: emptyList()
 
+            // 작성자 유저 정보 가져오기
+            val userProfileResult = userStoreManager.getUser(authorId)
+            val userProfile = userProfileResult.getOrNull()
+
             val feed = Feed(
                 feedId = feedId,
                 authorId = authorId,
+                authorNickname = userProfile?.nickname ?: "익명",
+                authorHandle = userProfile?.userHandle ?: "anonymous",
+                authorProfileUrl = userProfile?.profileImageUrl,
                 content = currentState.content,
                 rating = currentState.rating,
                 shortReview = currentState.shortReview,
@@ -245,10 +315,15 @@ class FeedWriteViewModel(
                 restaurantId = restaurant.restaurantId,
                 restaurantImageUrls = restaurantUrls,
                 restaurantName = restaurant.name,
+                restaurantPhoneNumber = restaurant.restaurantPhoneNumber,
+                businessHours = restaurant.businessHours,
+                businessStatus = restaurant.businessStatus,
                 addressInfo = AddressInfo(
                     roadAddress = restaurant.address,
                     latitude = restaurant.lat,
-                    longitude = restaurant.lon
+                    longitude = restaurant.lon,
+                    mainRegion = restaurant.mainRegion,
+                    subRegion = restaurant.subRegion
                 )
             )
 

@@ -18,6 +18,8 @@ val FeedWriteViewModelFactory: ViewModelProvider.Factory =
                 feedStoreManager = app.container.feedStoreManager,
                 storageManager = app.container.storageManager,
                 placeManager = app.container.placeManager,
+                locationManager = app.container.locationManager,
+                userStoreManager = app.container.userStoreManager
             )
         }
     }

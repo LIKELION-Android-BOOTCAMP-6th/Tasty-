@@ -36,7 +36,7 @@ class LoginViewModel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 LoginViewModel(
                     authManager = app.container.authManager,
-                    userStoreManager = app.container.UserStoreManager
+                    userStoreManager = app.container.userStoreManager
                 )
             }
         }

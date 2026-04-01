@@ -59,9 +59,9 @@ enum class Screen(
     FEED_DETAIL("feed_detail"), // 피드 - 세부 화면
     /** Tasty **/
     TASTY_DETAIL("tasty_detail"), // 테이스티- 세부 화면
+    EDIT_TASTY_LIST("edit_tasty_list/{tastyListId}"), // 테이스티 리스트 수정 화면
 
     /** User Profile **/
-    USER_PROFILE("user_profile") // 유저 프로필 - 다른 유저 프로필 화면
-
+    USER_PROFILE("user_profile/{userId}") // 유저 프로필 - 다른 유저 프로필 화면
 
 }

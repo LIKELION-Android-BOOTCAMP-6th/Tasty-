@@ -25,7 +25,7 @@ data class SignUpUiState(
 
 class SignUpAccountViewmodel(
     private val authManager: AuthManager,
-    private val userstoreManager: UserStoreManager
+    private val userStoreManager: UserStoreManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SignUpUiState())
     val uiState = _uiState.asStateFlow()
@@ -36,7 +36,7 @@ class SignUpAccountViewmodel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 SignUpAccountViewmodel(
                     authManager = app.container.authManager,
-                    userstoreManager = app.container.UserStoreManager
+                    userStoreManager = app.container.userStoreManager
                 )
             }
         }
@@ -62,7 +62,7 @@ class SignUpAccountViewmodel(
                 )
 
                 // 4. Firestore에 유저 정보 저장
-                val firestoreResult = userstoreManager.saveUser(newUser)
+                val firestoreResult = userStoreManager.saveUser(newUser)
 
                 firestoreResult.onSuccess {
                     // 최종 성공: 모든 과정 완료

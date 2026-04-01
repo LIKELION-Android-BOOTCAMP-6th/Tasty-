@@ -22,15 +22,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 
 // 앱바 액션 데이터 클래스 정의
 data class AppBarAction(
     val onActionClick: () -> Unit,
-    val icon: ImageVector,
+    val icon: ImageVector? = null,
+    val label: String? = null,
     val contentDescription: String = "",
+    val enabled: Boolean = true,
     val isLoading: Boolean = false
 )
 
@@ -89,7 +93,7 @@ fun CustomTopAppBar(
                 actions.forEach { action ->
                     IconButton(
                         onClick = action.onActionClick,
-                        enabled = !action.isLoading
+                        enabled = action.enabled && !action.isLoading
                     ) {
                         if (action.isLoading) {
                             CircularProgressIndicator(
@@ -97,10 +101,18 @@ fun CustomTopAppBar(
                                 color = TextColor,
                                 strokeWidth = 2.dp
                             )
-                        } else {
+                        } else if (action.icon != null) {
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = action.contentDescription
+                            )
+                        } else if (action.label != null) {
+                            Text(
+                                action.label,
+                                color = TextColor,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
                     }
@@ -150,7 +162,7 @@ fun CustomTopAppBar(
                 actions.forEach { action ->
                     IconButton(
                         onClick = action.onActionClick,
-                        enabled = !action.isLoading
+                        enabled = action.enabled && !action.isLoading
                     ) {
                         if (action.isLoading) {
                             CircularProgressIndicator(
@@ -158,10 +170,18 @@ fun CustomTopAppBar(
                                 color = TextColor,
                                 strokeWidth = 2.dp
                             )
-                        } else {
+                        } else if (action.icon != null) {
                             Icon(
                                 imageVector = action.icon,
                                 contentDescription = action.contentDescription
+                            )
+                        } else if (action.label != null) {
+                            Text(
+                                text = action.label,
+                                color = TextColor,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
                     }

@@ -23,12 +23,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
@@ -50,31 +53,46 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil3.compose.AsyncImage
 import com.tasty.android.core.asset.RegionData
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.feature.vmfactory.FeedViewModelFactory
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     navController: NavHostController,
-    viewModel: FeedViewModel = viewModel(),
+    viewModel: FeedViewModel = viewModel(factory = FeedViewModelFactory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // 리스트 상태 저장
+    val listState = rememberLazyListState()
+    // refresh 상태 저장
+    val currentEntry = navController.currentBackStackEntry
+    val savedStateHandle = currentEntry?.savedStateHandle
+
+    val shouldRefresh = savedStateHandle?.get<Boolean>("refreshFeed") ?: false
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
@@ -128,11 +146,32 @@ fun FeedScreen(
         )
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh()
+    }
+
+    // Observer for Loading Feeds
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.distinctUntilChanged().collect {lastIdx ->
+            if (lastIdx != null && lastIdx >= uiState.feedPosts.size - 1) {
+                viewModel.loadMoreFeeds()
+            }
+        }
+    }
+    // Refresh 후에 초기값으로 복구
+    LaunchedEffect(shouldRefresh) {
+        if(shouldRefresh) {
+            viewModel.invalidateCacheAndRefresh()
+            savedStateHandle["refreshFeed"] = false
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF5F5F5)
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
@@ -148,19 +187,18 @@ fun FeedScreen(
 
             items(
                 items = uiState.feedPosts,
-                key = { it.id }
+                key = { it.feedId }
             ) { feedPost ->
                 FeedCard(
                     post = feedPost,
-                    userRegion = uiState.userRegion,
                     onCardClick = {
-                        navController.navigate(Screen.FEED_DETAIL.route)
+                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
                     },
                     onProfileClick = {
-                        navController.navigate(Screen.USER_PROFILE.route)
+                        navController.navigate("user_profile/${feedPost.authorId}")
                     },
                     onLikeClick = {
-                        viewModel.toggleLike(feedPost.id, feedPost.authorId)
+                        viewModel.toggleLike(feedPost.feedId)
                     }
                 )
             }
@@ -248,7 +286,7 @@ private fun FeedHeaderSection(
         ) {
             items(
                 items = tastyLists.take(4),
-                key = { it.id }
+                key = { it.tastyListId }
             ) { item ->
                 TastyListCard(item = item)
             }
@@ -298,7 +336,6 @@ private fun TastyListCard(
 @Composable
 private fun FeedCard(
     post: FeedPostUiModel,
-    userRegion: String,
     onCardClick: () -> Unit,
     onProfileClick: () -> Unit,
     onLikeClick: () -> Unit
@@ -320,16 +357,33 @@ private fun FeedCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onProfileClick() }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFD9D9D9))
-                        .clickable { onProfileClick() }
-                )
+                        .background(Color(0xFFD9D9D9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (post.authorProfileUrl.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "기본 프로필",
+                            modifier = Modifier.fillMaxSize(0.8f),
+                            tint = Color(0xFFB5B5B5)
+                        )
+                    } else {
+                        AsyncImage(
+                            model = post.authorProfileUrl,
+                            contentDescription = "프로필 이미지",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(10.dp))
 
@@ -337,16 +391,16 @@ private fun FeedCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = post.authorName,
+                        text = post.authorNickname,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextColor
                         )
                     )
                     Text(
-                        text = userRegion,
+                        text = "@${post.userHandle}",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextColor
+                            color = Color.Gray
                         )
                     )
                 }
@@ -359,10 +413,16 @@ private fun FeedCard(
                     .background(Color(0xFFBEBEBE)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "피드 이미지",
-                    color = TextColor
-                )
+                post.thumbnailImageUrl?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "피드 대표 이미지",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
 
             Row(
@@ -375,9 +435,9 @@ private fun FeedCard(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
+                        imageVector = if(post.isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "좋아요",
-                        tint = TextColor,
+                        tint = if(post.isLiked) Color.Red else TextColor,
                         modifier = Modifier.clickable { onLikeClick() }
                     )
                     Text(

@@ -9,7 +9,17 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.mypage.tastylist.model.TastyList
 import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
 import com.tasty.android.feature.tasty.TastySortType
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.tasks.await
+
+sealed class TastyUpdateEvent {
+    data class TastyListCreated(val authorId: String) : TastyUpdateEvent()
+    data class TastyListUpdated(val tastyListId: String) : TastyUpdateEvent()
+    data class TastyListDeleted(val tastyListId: String) : TastyUpdateEvent()
+    data class ViewCountChanged(val tastyListId: String, val newCount: Int) : TastyUpdateEvent()
+}
 
 class TastyStoreManager {
 
@@ -18,6 +28,13 @@ class TastyStoreManager {
     private val paginationLimit: Long = 10
     // 거리순의 경우 1회 데이터 상한선
     private val maxFetchLimit: Long = 200
+
+    private val _tastyUpdateEvents = MutableSharedFlow<TastyUpdateEvent>(extraBufferCapacity = 1)
+    val tastyUpdateEvents: SharedFlow<TastyUpdateEvent> = _tastyUpdateEvents.asSharedFlow()
+
+    suspend fun notifyTastyUpdated(event: TastyUpdateEvent) {
+        _tastyUpdateEvents.emit(event)
+    }
 
     /*** 마이페이지&&테이스티리스트 홈/테이스티리스트 CRUD(생성/조회/수정/삭제) ***/
     // 테이스티 리스트 아이디 생성
@@ -31,6 +48,9 @@ class TastyStoreManager {
                 .document(tastyList.tastyListId)
                 .set(tastyList)
                 .await()
+            
+            notifyTastyUpdated(TastyUpdateEvent.TastyListCreated(tastyList.authorId))
+            
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -109,6 +129,10 @@ class TastyStoreManager {
                 .document(tastyListId)
                 .update(updates)
                 .await()
+            
+            // 실시간 이벤트 전파
+            notifyTastyUpdated(TastyUpdateEvent.TastyListUpdated(tastyListId))
+            
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -122,6 +146,10 @@ class TastyStoreManager {
                 .document(tastyListId)
                 .delete()
                 .await()
+            
+            // 실시간 이벤트 전파
+            notifyTastyUpdated(TastyUpdateEvent.TastyListDeleted(tastyListId))
+            
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -129,13 +157,21 @@ class TastyStoreManager {
     }
 
     // 조회수 증가
-    suspend fun incrementTastyListViewCount(tastyListId: String): Result<Unit> {
+    suspend fun incrementTastyListViewCount(tastyListId: String): Result<Int> {
         return try {
-            firebaseDB.collection("tastyLists")
-                .document(tastyListId)
-                .update("viewCount", FieldValue.increment(1))
-                .await()
-            Result.success(Unit)
+            val docRef = firebaseDB.collection("tastyLists").document(tastyListId)
+            
+            val newCount = firebaseDB.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val currentCount = snapshot.getLong("viewCount") ?: 0L
+                val nextCount = currentCount + 1
+                transaction.update(docRef, "viewCount", nextCount)
+                nextCount.toInt()
+            }.await()
+
+            notifyTastyUpdated(TastyUpdateEvent.ViewCountChanged(tastyListId, newCount))
+            
+            Result.success(newCount)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }

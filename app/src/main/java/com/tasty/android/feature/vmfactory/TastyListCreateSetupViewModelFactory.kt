@@ -5,15 +5,15 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tasty.android.MyApplication
-import com.tasty.android.feature.feed.FeedDetailViewModel
+import com.tasty.android.feature.tastylist.TastyListCreateSetupViewModel
 
-val FeedDetailViewModelFactory: ViewModelProvider.Factory =
+val TastyListCreateSetupViewModelFactory: ViewModelProvider.Factory =
     viewModelFactory {
         initializer {
             val app = this[APPLICATION_KEY] as MyApplication
-            FeedDetailViewModel(
-                feedStoreManager = app.container.feedStoreManager,
-                userStoreManager = app.container.userStoreManager
+            TastyListCreateSetupViewModel(
+                tastyStoreManager = app.container.tastyStoreManager,
+                storageManager = app.container.storageManager
             )
         }
     }
