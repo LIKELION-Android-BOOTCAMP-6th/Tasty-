@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,7 +51,8 @@ fun PlaceSearchScreen(
 
     Box(
         modifier = Modifier
-            .fillMaxSize()
+            // 1. 포커스 상태에 따라 크기 결정 (포커스 시 fillMaxSize, 미포커스 시 콘텐츠만큼만)
+            .then(if (isFocused) Modifier.fillMaxSize() else Modifier.wrapContentHeight())
             // 포커스 상태일 때만 전체 화면을 하얀색으로 덮음
             .background(if (isFocused) Color.White else Color.Transparent)
             .statusBarsPadding() // 상태바 영역 침범 방지
