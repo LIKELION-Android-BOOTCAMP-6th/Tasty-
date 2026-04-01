@@ -249,34 +249,43 @@ private fun FeedHeaderSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PrimaryColor)
-            .padding(top = 10.dp, bottom = 14.dp)
+            .background(Color(0xFFF5F5F5))
     ) {
-        Text(
-            text = "Tasty 리스트",
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = TextColor
-            )
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            color = Color(0xFF704B21),
+            thickness = 0.6.dp
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PrimaryColor)
+                .padding(top = 12.dp, bottom = 16.dp)
         ) {
-            items(
-                items = tastyLists,
-                key = { it.tastyListId }
-            ) { item ->
-                TastyListCard(
-                    item = item,
-                    onClick = { onTastyListClick(item.tastyListId) }
+            Text(
+                text = "Tasty 리스트",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextColor
                 )
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                items(
+                    items = tastyLists.take(4),
+                    key = { it.tastyListId }
+                ) { item ->
+                    TastyListCard(item = item)
+                }
             }
         }
     }
@@ -295,8 +304,15 @@ private fun TastyListCard(
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(48.dp)
                 .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.72f))
+                .border(
+                    width = 1.dp,
+                    color = Color.Black.copy(alpha = 0.05f),
+                    shape = CircleShape
+                )
+        )
                 .background(Color(0xFFD9D9D9)),
             contentAlignment = Alignment.Center
         ) {
@@ -332,8 +348,7 @@ private fun TastyListCard(
         Text(
             text = item.authorNickname,
             style = MaterialTheme.typography.labelSmall.copy(
-                color = Color.Gray,
-                fontSize = 10.sp
+                color = TextColor.copy(alpha = 0.9f)
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -355,10 +370,14 @@ private fun FeedCard(
             .padding(horizontal = 14.dp, vertical = 8.dp)
             .clickable { onCardClick() },
         colors = CardDefaults.cardColors(
-            containerColor = PrimaryColor
+            containerColor = Color.White
         ),
         shape = RoundedCornerShape(18.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color.Black.copy(alpha = 0.05f)
+        )
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -444,9 +463,9 @@ private fun FeedCard(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = if(post.isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
+                        imageVector = if (post.isLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "좋아요",
-                        tint = if(post.isLiked) Color.Red else TextColor,
+                        tint = if (post.isLiked) Color.Red else TextColor,
                         modifier = Modifier.clickable { onLikeClick() }
                     )
                     Text(
