@@ -65,10 +65,14 @@ class TastyDetailViewModel(
     val uiState: StateFlow<TastyDetailUiState> = _uiState.asStateFlow()
 
     init {
-        loadTastyDetail()
+        loadTastyDetail(shouldIncrement = true)
     }
 
-    fun loadTastyDetail() {
+    fun refresh() {
+        loadTastyDetail(shouldIncrement = false)
+    }
+
+    fun loadTastyDetail(shouldIncrement: Boolean = false) {
         if (tastyId.isBlank()) {
             _uiState.update {
                 it.copy(errorMessage = "잘못된 접근입니다.")
@@ -79,7 +83,9 @@ class TastyDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            tastystoreManager.incrementTastyListViewCount(tastyId)
+            if (shouldIncrement) {
+                tastystoreManager.incrementTastyListViewCount(tastyId)
+            }
 
             val tastyResult = tastystoreManager.getTastyList(tastyId)
 
@@ -132,7 +138,7 @@ class TastyDetailViewModel(
                             title = tastyList.title,
                             author = author?.toUiModel() ?: TastyAuthorUiModel(),
                             likeCount = tastyList.likeCount,
-                            viewCount = tastyList.viewCount + 1,
+                            viewCount = tastyList.viewCount,
                             isLiked = isLiked,
                             feedList = feeds.map { feed -> feed.toUiModel() }
                         )

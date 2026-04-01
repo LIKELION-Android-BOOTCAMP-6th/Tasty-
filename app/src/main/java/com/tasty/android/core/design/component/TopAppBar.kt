@@ -3,10 +3,12 @@ package com.tasty.android.core.design.component
 import android.accessibilityservice.GestureDescription
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,15 +22,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 
 // 앱바 액션 데이터 클래스 정의
 data class AppBarAction(
     val onActionClick: () -> Unit,
-    val icon: ImageVector,
-    val contentDescription: String = ""
+    val icon: ImageVector? = null,
+    val label: String? = null,
+    val contentDescription: String = "",
+    val enabled: Boolean = true,
+    val isLoading: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,12 +92,29 @@ fun CustomTopAppBar(
             actions = {
                 actions.forEach { action ->
                     IconButton(
-                        onClick = action.onActionClick
+                        onClick = action.onActionClick,
+                        enabled = action.enabled && !action.isLoading
                     ) {
-                        Icon(
-                            imageVector = action.icon,
-                            contentDescription = action.contentDescription
-                        )
+                        if (action.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = TextColor,
+                                strokeWidth = 2.dp
+                            )
+                        } else if (action.icon != null) {
+                            Icon(
+                                imageVector = action.icon,
+                                contentDescription = action.contentDescription
+                            )
+                        } else if (action.label != null) {
+                            Text(
+                                action.label,
+                                color = TextColor,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             },
@@ -137,12 +161,29 @@ fun CustomTopAppBar(
             actions = {
                 actions.forEach { action ->
                     IconButton(
-                        onClick = action.onActionClick
+                        onClick = action.onActionClick,
+                        enabled = action.enabled && !action.isLoading
                     ) {
-                        Icon(
-                            imageVector = action.icon,
-                            contentDescription = action.contentDescription
-                        )
+                        if (action.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = TextColor,
+                                strokeWidth = 2.dp
+                            )
+                        } else if (action.icon != null) {
+                            Icon(
+                                imageVector = action.icon,
+                                contentDescription = action.contentDescription
+                            )
+                        } else if (action.label != null) {
+                            Text(
+                                text = action.label,
+                                color = TextColor,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             },

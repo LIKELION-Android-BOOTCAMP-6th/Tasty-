@@ -59,13 +59,17 @@ class PlaceManager(private val context: Context) {
                 Place.Field.ID, // 식당 id
                 Place.Field.NAME, // 식당명
                 Place.Field.ADDRESS, // 주소
+                Place.Field.LAT_LNG, // 위경도
                 Place.Field.OPENING_HOURS, // 오픈시간
                 Place.Field.BUSINESS_STATUS, // 영업상태
                 Place.Field.PHONE_NUMBER, // 전화번호
-                Place.Field.PHOTO_METADATAS // 식당 사진들
+                Place.Field.PHOTO_METADATAS, // 식당 사진들
+                Place.Field.TYPES, // 식당 타입
+                Place.Field.ADDRESS_COMPONENTS
             )
             val req = FetchPlaceRequest.newInstance(restaurantId, restaurantFields)
             val res = placeClient.fetchPlace(req).await()
+
 
             Result.success(res.place)
 
@@ -74,7 +78,7 @@ class PlaceManager(private val context: Context) {
         }
     }
 
-    suspend fun getRestaurantBitmapImage(
+    suspend fun getRestaurantBitmapImages(
         photoMetaDatas: List<PhotoMetadata>?, // API에서 받은 메타데이터 배열
         maxWidth: Int = 500,
         maxHeight: Int = 500,

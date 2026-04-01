@@ -49,7 +49,7 @@ class MyPageStoreManager {
         return try {
             var query = firebaseDB.collection("tastyLists")
                 .whereEqualTo("authorId", userId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
+                // .orderBy("createdAt", Query.Direction.DESCENDING)
                 .limit(limit)
             if (lastTastyListId != null) {
                 val lastSnapshot = firebaseDB

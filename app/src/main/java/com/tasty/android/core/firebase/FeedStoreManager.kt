@@ -8,17 +8,35 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
 import com.tasty.android.feature.feed.FeedSortType
-import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
+import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.tastymap.model.RestaurantInfo
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.tasks.await
+
+
+// 동기화 모댈
+sealed class FeedUpdateEvent {
+    data class CommentCountChanged(val feedId: String, val newCount: Int) : FeedUpdateEvent()
+    data class LikeStatusChanged(val feedId: String, val isLiked: Boolean, val likeCount: Int) : FeedUpdateEvent()
+    data class FeedCreated(val authorId: String) : FeedUpdateEvent()
+    data class AuthorInfoChanged(val authorId: String, val newNickname: String, val newProfileUrl: String?) : FeedUpdateEvent()
+}
 
 class FeedStoreManager {
 
+    private val _feedUpdateEvents = MutableSharedFlow<FeedUpdateEvent>(extraBufferCapacity = 1)
+    val feedUpdateEvents = _feedUpdateEvents.asSharedFlow()
+
+    suspend fun notifyFeedUpdated(event: FeedUpdateEvent) {
+        _feedUpdateEvents.emit(event)
+    }
+
     private val firebaseDB = Firebase.firestore
     // 페이네이션 제한 한 번에 10개씩 load
-    private val paginationLimit: Long = 10
+    private val paginationLimit: Long = 20
     // 거리순의 경우 1회 데이터 상한선
     private val maxFetchLimit: Long = 200
 
@@ -30,7 +48,7 @@ class FeedStoreManager {
     // -> 피드의 이미지 Uri 스토리지에 저장
     // -> 생성된 피드 아이디의 도큐먼트에 feed 객체 매핑 후 저장
 
-    fun generateFeedId(): String = firebaseDB.collection("feeds").document().id
+    fun generateFeedId(): Result<String> = Result.success(firebaseDB.collection("feeds").document().id)
 
     // 피드 저장(작성)
     suspend fun saveFeed(feed: Feed): Result<Unit> {
@@ -47,20 +65,22 @@ class FeedStoreManager {
                 .collection("restaurantInfo")
                 .document(feed.restaurantId)
 
-            firebaseDB.runTransaction { transaction ->
-                val snapshot = transaction.get(restaurantRef)
+            val feedRef = firebaseDB.collection("feeds").document(feed.feedId)
+            val userRef = firebaseDB.collection("users").document(feed.authorId)
 
-                if (snapshot.exists()) {
-                    val currentCount = snapshot.getLong("feedCount") ?: 0L
-                    val currentAvg = snapshot.getDouble("ratingAvg") ?: 0.0
+            firebaseDB.runTransaction { transaction ->
+                val restaurantSnapshot = transaction.get(restaurantRef)
+
+                // 1. 식당 정보 업데이트
+                if (restaurantSnapshot.exists()) {
+                    val currentCount = restaurantSnapshot.getLong("feedCount") ?: 0L
+                    val currentAvg = restaurantSnapshot.getDouble("ratingAvg") ?: 0.0
 
                     val newCount = currentCount + 1
                     val newAvg = ((currentAvg * currentCount) + currentFeed.rating) / newCount
 
                     transaction.update(restaurantRef, "feedCount", newCount)
                     transaction.update(restaurantRef, "ratingAvg", newAvg)
-
-
                 } else {
                     val restaurantInfo = RestaurantInfo(
                         restaurantId = currentFeed.restaurantId,
@@ -69,10 +89,53 @@ class FeedStoreManager {
                     )
                     transaction.set(restaurantRef, restaurantInfo)
                 }
+
+                // 2. 유저 프로필 피드 카운트 업데이트
+                transaction.update(userRef, "feedCount", FieldValue.increment(1))
+
+                // 3. 피드 저장
+                transaction.set(feedRef, currentFeed)
+
             }.await()
+
+            // 4. 피드 생성 이벤트 전파 (마이페이지 등 동기화용)
+            notifyFeedUpdated(FeedUpdateEvent.FeedCreated(feed.authorId))
 
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 작성한 모든 피드 게시물의 작성자 정보를 일괄 업데이트
+    suspend fun syncAuthorInfoInFeeds(
+        userId: String,
+        nickname: String,
+        profileImageUrl: String?
+    ): Result<Unit> {
+        return try {
+            val feedsQuery = firebaseDB.collection("feeds")
+                .whereEqualTo("authorId", userId)
+                .get()
+                .await()
+
+            if (feedsQuery.isEmpty) return Result.success(Unit)
+
+            val batch = firebaseDB.batch()
+            feedsQuery.documents.forEach { doc ->
+                batch.update(
+                    doc.reference,
+                    "authorNickname", nickname,
+                    "authorProfileUrl", profileImageUrl
+                )
+            }
+            batch.commit().await()
+
+            // 실시간 이벤트 전파
+            notifyFeedUpdated(FeedUpdateEvent.AuthorInfoChanged(userId, nickname, profileImageUrl))
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -92,10 +155,12 @@ class FeedStoreManager {
         }
     }
 
+
+
     // 피드 다수 조회
     suspend fun getFeeds(
         sortType: FeedSortType = FeedSortType.LATEST,
-        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 10개씩
+        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 20개씩
         lastFeedId: String? = null, // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
         userLat: Double? = null,
         userLon: Double? = null,
@@ -155,7 +220,8 @@ class FeedStoreManager {
         return try {
             val batch = firebaseDB.batch()
             val likeDoc = firebaseDB
-                .collection("feeds").document(feedLike.feedId)
+                .collection("feeds")
+                .document(feedLike.feedId)
                 .collection("feedLikes")
                 .whereEqualTo("userId", feedLike.userId)
                 .get()
@@ -179,6 +245,7 @@ class FeedStoreManager {
     // 좋아요 여부 확인
     suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
         return try {
+            if (feedLike.feedId.isBlank()) return Result.success(false)
             val result = firebaseDB
                 .collection("feeds")
                 .document(feedLike.feedId)
@@ -193,7 +260,7 @@ class FeedStoreManager {
     }
 
     // 댓글 추가
-    suspend fun addComment(comment: Comment): Result<Unit> {
+    suspend fun addComment(comment: FeedComment): Result<Unit> {
         return try {
             val batch = firebaseDB.batch()
 
@@ -226,7 +293,7 @@ class FeedStoreManager {
         feedId: String,
         limit: Long = paginationLimit,
         lastCommentId: String? = null
-    ): Result<List<Comment>> {
+    ): Result<List<FeedComment>> {
         return try {
             var query = firebaseDB
                 .collection("feeds").document(feedId)
@@ -240,7 +307,7 @@ class FeedStoreManager {
                     .get().await()
                 query = query.startAfter(lastSnapshot)
             }
-            Result.success(query.get().await().toObjects(Comment::class.java))
+            Result.success(query.get().await().toObjects(FeedComment::class.java))
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
@@ -263,7 +330,9 @@ class FeedStoreManager {
                 .await()
             query = query.startAfter(lastSnapshot)
         }
-        return query.get().await().toObjects(Feed::class.java)
+        return query.get().await().documents.mapNotNull { doc ->
+            doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
+        }
     }
 
     private suspend fun fetchFeedsByDistance(
@@ -286,7 +355,9 @@ class FeedStoreManager {
                     .endAt(bound.endHash)
                     .get()
                     .await()
-                    .toObjects(Feed::class.java)
+                    .documents.mapNotNull { doc ->
+                        doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
+                    }
             }
             .distinctBy { it.feedId }
             .map { feed ->

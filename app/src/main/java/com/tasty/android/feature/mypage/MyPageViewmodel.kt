@@ -1,10 +1,22 @@
 package com.tasty.android.feature.mypage
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.tasty.android.core.firebase.FeedStoreManager
+import com.tasty.android.core.firebase.FeedUpdateEvent
+import com.tasty.android.core.firebase.TastyStoreManager
+import com.tasty.android.core.firebase.TastyUpdateEvent
+import com.tasty.android.core.firebase.AuthManager
+import com.tasty.android.core.firebase.MyPageStoreManager
+import com.tasty.android.core.firebase.UserStoreManager
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 enum class MyPageTab {
     FEED,
@@ -12,25 +24,24 @@ enum class MyPageTab {
 }
 
 data class MyFeedItem(
-    val id: Long,
-    val thumbnailUrl: String = "",
-    val title: String = "",
-    val restaurantName: String = "",
-    val rating: Float = 0f
+    val feedId: String,
+    val thumbnailUrl: String? = "",
+    val hasImages: Boolean = false
 )
 
 data class MyTastyListItem(
-    val id: Long,
-    val title: String,
+    val tastyListId: String = "",
+    val title: String = "",
     val thumbnailUrl: String = "",
-    val feedCount: Int = 0
+    val feedCount: Int = 0,
+    val viewCount: Int = 0
 )
 
 data class MyProfileInfo(
-    val userId: Long = 0L,
+    val userId: String = "",
     val nickname: String = "",
-    val username: String = "",
-    val intro: String = "",
+    val userHandle: String = "",
+    val bio: String = "",
     val profileImageUrl: String = ""
 )
 
@@ -38,17 +49,14 @@ data class MyPageUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val isLoadingMoreFeeds: Boolean = false,
+    val hasMoreFeeds: Boolean = true,
 
-    val profileInfo: MyProfileInfo = MyProfileInfo(
-        userId = 1L,
-        nickname = "길동길동11",
-        username = "@woals8888",
-        intro = "맛있는 걸 좋아합니다."
-    ),
+    val profileInfo: MyProfileInfo? = null,
 
-    val feedCount: Int = 10,
-    val followerCount: Int = 10,
-    val followingCount: Int = 10,
+    val feedCount: Int = 0,
+    val followerCount: Int = 0,
+    val followingCount: Int = 0,
 
     val selectedTab: MyPageTab = MyPageTab.FEED,
 
@@ -75,11 +83,187 @@ data class MyPageUiState(
         get() = myTastyLists.isEmpty()
 }
 
-class MyPageViewModel : ViewModel() {
-
-    private val _uiState = MutableStateFlow(createMockState())
+class MyPageViewModel(
+    private val authManager: AuthManager,
+    private val feedStoreManager: FeedStoreManager,
+    private val myPageStoreManager: MyPageStoreManager,
+    private val userStoreManager: UserStoreManager,
+    private val tastyStoreManager: TastyStoreManager
+) : ViewModel() {
+    private val currentUserId: String get() = Firebase.auth.currentUser?.uid ?: ""
+    private val _uiState = MutableStateFlow(MyPageUiState())
     val uiState: StateFlow<MyPageUiState> = _uiState.asStateFlow()
 
+    private var lastMyFeedId: String? = null
+
+    init {
+        loadMyPageData()
+        observeDataUpdates()
+        observeUserProfile()
+    }
+
+    private fun observeUserProfile() {
+        val safeUserId = currentUserId.ifBlank { return }
+        viewModelScope.launch {
+            userStoreManager.observeUser(safeUserId).collect { user ->
+                if (user != null) {
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            profileInfo = MyProfileInfo(
+                                userId = user.userId,
+                                nickname = user.nickname,
+                                userHandle = user.userHandle,
+                                bio = user.bio,
+                                profileImageUrl = user.profileImageUrl
+                            ),
+                            feedCount = user.feedCount,
+                            followingCount = user.followingCount,
+                            followerCount = user.followerCount
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeDataUpdates() {
+        // Feed 업데이트 감지
+        viewModelScope.launch {
+            feedStoreManager.feedUpdateEvents.collect { event ->
+                if (event is FeedUpdateEvent.FeedCreated && event.authorId == currentUserId) {
+                    loadMyPageData()
+                }
+            }
+        }
+        
+        // Tasty 리스트 업데이트 감지
+        viewModelScope.launch {
+            tastyStoreManager.tastyUpdateEvents.collect { event ->
+                when (event) {
+                    is TastyUpdateEvent.TastyListCreated,
+                    is TastyUpdateEvent.TastyListUpdated,
+                    is TastyUpdateEvent.TastyListDeleted -> {
+                        loadMyPageData()
+                    }
+                    is TastyUpdateEvent.ViewCountChanged -> {
+                        _uiState.update { state ->
+                            state.copy(
+                                myTastyLists = state.myTastyLists.map { item ->
+                                    if (item.tastyListId == event.tastyListId) {
+                                        item.copy(viewCount = event.newCount)
+                                    } else {
+                                        item
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fun refresh() {
+        loadMyPageData()
+    }
+
+    fun loadMyPageData() {
+        val safeUserId = currentUserId.ifBlank { "anonymous_user" }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, hasMoreFeeds = true) }
+
+            val feedsResultDeferred = async {
+                myPageStoreManager.getMyFeeds(safeUserId)
+            }
+            val tastyListsResultDeferred = async {
+                myPageStoreManager.getMyTastyLists(safeUserId)
+            }
+
+            val feedsResult = feedsResultDeferred.await()
+            val tastyListsResult = tastyListsResultDeferred.await()
+
+            if (feedsResult.isFailure) {
+                val error = feedsResult.exceptionOrNull()
+                _uiState.update { it.copy(errorMessage = "피드를 불러오지 못했습니다: ${error?.message}") }
+            }
+            if (tastyListsResult.isFailure) {
+                val error = tastyListsResult.exceptionOrNull()
+                _uiState.update { it.copy(errorMessage = "테이스티를 불러오지 못했습니다: ${error?.message}") }
+            }
+            val feeds = feedsResult.getOrNull() ?: emptyList()
+            val tastyLists = tastyListsResult.getOrNull() ?: emptyList()
+            
+            android.util.Log.d("MyPageVM", "Loading data for userId: $safeUserId")
+            android.util.Log.d("MyPageVM", "Feeds found: ${feeds.size}, TastyLists found: ${tastyLists.size}")
+
+            val myFeedItems = feeds.map {feed ->
+                MyFeedItem(
+                    feedId = feed.feedId,
+                    thumbnailUrl = feed.feedImageUrls.firstOrNull(),
+                    hasImages = feed.feedImageUrls.isNotEmpty()
+                )
+
+            }
+            lastMyFeedId = feeds.lastOrNull()?.feedId
+
+            val myTastyListItems = (tastyListsResult.getOrNull() ?: emptyList()).map { tastyList ->
+                MyTastyListItem(
+                    tastyListId = tastyList.tastyListId,
+                    title = tastyList.title,
+                    thumbnailUrl = tastyList.thumbnailImageUrl ?: "",
+                    feedCount = tastyList.feedIds.size,
+                    viewCount = tastyList.viewCount
+                )
+            }
+
+            _uiState.update {currentState ->
+                currentState.copy(
+                    isLoading = false,
+                    myFeeds = myFeedItems,
+                    myTastyLists = myTastyListItems,
+                    hasMoreFeeds = feeds.size >= 10
+                )
+            }
+        }
+    }
+
+    fun loadMoreMyFeed() {
+        if (_uiState.value.isLoadingMoreFeeds || !_uiState.value.hasMoreFeeds) return
+
+        val safeUserId: String = currentUserId.ifBlank { "anonymous_user" }
+
+        viewModelScope.launch {
+            _uiState.update {currentState ->
+                currentState.copy(
+                    isLoadingMoreFeeds = true
+                )
+            }
+            val result = myPageStoreManager.getMyFeeds(safeUserId, lastFeedId = lastMyFeedId)
+            val feeds = result.getOrNull() ?: emptyList()
+
+            if (feeds.isNotEmpty()) {
+                val newFeedItems = feeds.map {feed ->
+                    MyFeedItem(
+                        feedId = feed.feedId,
+                        thumbnailUrl = feed.feedImageUrls.firstOrNull(),
+                        hasImages = feed.feedImageUrls.isNotEmpty()
+                    )
+                }
+                lastMyFeedId = feeds.last().feedId
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isLoadingMoreFeeds = false,
+                        myFeeds = currentState.myFeeds + newFeedItems,
+                        hasMoreFeeds = feeds.size >= 10
+                    )
+
+                }
+            } else {
+                _uiState.update { it.copy(isLoadingMoreFeeds = false, hasMoreFeeds = false) }
+            }
+        }
+    }
     fun selectTab(tab: MyPageTab) {
         _uiState.update { currentState ->
             currentState.copy(selectedTab = tab)
@@ -100,15 +284,15 @@ class MyPageViewModel : ViewModel() {
 
     fun updateProfile(
         nickname: String,
-        username: String,
-        intro: String
+        profileImageUrl: String,
+        bio: String
     ) {
         _uiState.update { currentState ->
             currentState.copy(
-                profileInfo = currentState.profileInfo.copy(
+                profileInfo = currentState.profileInfo?.copy(
                     nickname = nickname,
-                    username = username,
-                    intro = intro
+                    profileImageUrl = profileImageUrl,
+                    bio = bio
                 )
             )
         }
@@ -217,7 +401,17 @@ class MyPageViewModel : ViewModel() {
         }
     }
 
-    fun addTastyList(
+    fun deleteTastyList(tastyListId: String) {
+        viewModelScope.launch {
+            tastyStoreManager.deleteTastyList(tastyListId)
+        }
+    }
+
+    fun signOut() {
+        authManager.logOut()
+    }
+
+    /*fun addTastyList(
         title: String,
         thumbnailUrl: String = ""
     ) {
@@ -238,25 +432,6 @@ class MyPageViewModel : ViewModel() {
                 selectedTab = MyPageTab.TASTY_LIST
             )
         }
-    }
+    }*/
 
-    companion object {
-        private fun createMockState(): MyPageUiState {
-            return MyPageUiState(
-                isLoading = false,
-                profileInfo = MyProfileInfo(
-                    userId = 1L,
-                    nickname = "길동길동11",
-                    username = "@woals8888",
-                    intro = "맛있는 걸 좋아합니다."
-                ),
-                feedCount = 10,
-                followerCount = 10,
-                followingCount = 10,
-                selectedTab = MyPageTab.FEED,
-                myFeeds = emptyList(),
-                myTastyLists = emptyList()
-            )
-        }
-    }
 }

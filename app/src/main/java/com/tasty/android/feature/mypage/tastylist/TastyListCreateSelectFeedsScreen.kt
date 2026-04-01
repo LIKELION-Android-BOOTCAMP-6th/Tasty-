@@ -46,12 +46,15 @@ import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+import com.tasty.android.feature.vmfactory.TastyListCreateSelectFeedsViewModelFactory
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun TastyListCreateSelectFeedsScreen(
     navController: NavHostController,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
-    viewModel: TastyListCreateSelectFeedsViewModel = viewModel()
+    viewModel: TastyListCreateSelectFeedsViewModel = viewModel(factory = TastyListCreateSelectFeedsViewModelFactory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -94,36 +97,47 @@ fun TastyListCreateSelectFeedsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            itemsIndexed(
-                items = uiState.visibleFeeds,
-                key = { _, item -> item.feedId }
-            ) { index, item ->
-                TastyListFeedSelectCard(
-                    item = item,
-                    onClick = { viewModel.toggleFeedSelection(item.feedId) }
-                )
-
-                if (index == uiState.visibleFeeds.lastIndex && uiState.hasNextPage) {
-                    viewModel.loadNextPage()
-                }
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryColor)
             }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                itemsIndexed(
+                    items = uiState.visibleFeeds,
+                    key = { _, item -> item.feedId }
+                ) { index, item ->
+                    TastyListFeedSelectCard(
+                        item = item,
+                        onClick = { viewModel.toggleFeedSelection(item.feedId) }
+                    )
 
-            if (uiState.isPagingLoading) {
-                item(span = { GridItemSpan(2) }) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = PrimaryColor)
+                    if (index == uiState.visibleFeeds.lastIndex && uiState.hasNextPage) {
+                        viewModel.loadNextPage()
+                    }
+                }
+
+                if (uiState.isPagingLoading) {
+                    item(span = { GridItemSpan(2) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PrimaryColor)
+                        }
                     }
                 }
             }
@@ -217,13 +231,22 @@ private fun TastyListFeedSelectCard(
                 .fillMaxWidth()
                 .height(100.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(PrimaryColor.copy(alpha = 0.35f))
+                .background(Color.LightGray)
         ) {
-            Text(
-                text = item.firstImageLabel,
-                color = TextColor,
-                modifier = Modifier.align(Alignment.Center)
-            )
+            if (item.thumbnailUrl != null) {
+                AsyncImage(
+                    model = item.thumbnailUrl,
+                    contentDescription = "피드 썸네일",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text(
+                    text = "이미지 없음",
+                    color = TextColor,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
 
             Box(
                 modifier = Modifier

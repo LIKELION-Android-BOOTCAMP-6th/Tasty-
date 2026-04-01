@@ -24,7 +24,7 @@ data class LoginUiState(
 
 class LoginViewModel(
     private val authManager: AuthManager,
-    private val userstoreManager: UserStoreManager
+    private val userStoreManager: UserStoreManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -36,7 +36,7 @@ class LoginViewModel(
                 val app = this[APPLICATION_KEY] as MyApplication
                 LoginViewModel(
                     authManager = app.container.authManager,
-                    userstoreManager = app.container.UserStoreManager
+                    userStoreManager = app.container.userStoreManager
                 )
             }
         }
@@ -57,7 +57,7 @@ class LoginViewModel(
 
                     if (userId != null) {
                         // firestoreManager에서 유저 정보를 가져오는 함수 호출 (가정)
-                        val userData = userstoreManager.getUser(userId)
+                        val userData = userStoreManager.getUser(userId)
 
                         if (userData != null) {
                             // 3. 데이터 로드까지 모두 성공 한 경우 상태 업데이트
