@@ -63,6 +63,8 @@ import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +137,10 @@ fun FeedScreen(
         ) {
             item {
                 FeedHeaderSection(
-                    tastyLists = uiState.tastyLists
+                    tastyLists = uiState.tastyLists,
+                    onClickTastyList = { tastyId ->
+                        navController.navigate("${Screen.TASTY_DETAIL.route}/$tastyId")
+                    }
                 )
             }
 
@@ -218,7 +223,8 @@ fun FeedScreen(
 
 @Composable
 private fun FeedHeaderSection(
-    tastyLists: List<TastyListUiModel>
+    tastyLists: List<TastyListUiModel>,
+    onClickTastyList: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -241,13 +247,16 @@ private fun FeedHeaderSection(
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             items(
-                items = tastyLists.take(4),
+                items = tastyLists,
                 key = { it.id }
             ) { item ->
-                TastyListCard(item = item)
+                TastyListCard(
+                    item = item,
+                    onClick = { onClickTastyList(item.id) }
+                )
             }
         }
     }
@@ -255,13 +264,19 @@ private fun FeedHeaderSection(
 
 @Composable
 private fun TastyListCard(
-    item: TastyListUiModel
+    item: TastyListUiModel,
+    onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp)
+        modifier = Modifier
+            .width(72.dp)
+            .clickable(onClick = onClick)
     ) {
-        Box(
+        AsyncImage(
+            model = item.thumbnailImageUrl,
+            contentDescription = item.title,
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)

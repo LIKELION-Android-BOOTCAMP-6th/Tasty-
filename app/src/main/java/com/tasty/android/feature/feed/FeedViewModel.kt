@@ -35,7 +35,8 @@ data class FeedUiState(
 data class TastyListUiModel(
     val id: String,
     val title: String,
-    val subTitle: String
+    val subTitle: String,
+    val thumbnailImageUrl: String = ""
 )
 
 data class FeedPostUiModel(
