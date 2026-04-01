@@ -12,9 +12,11 @@ val MyPageViewModelFactory: ViewModelProvider.Factory =
         initializer {
             val app = this[APPLICATION_KEY] as MyApplication
             MyPageViewModel(
+                authManager = app.container.authManager,
                 feedStoreManager = app.container.feedStoreManager,
                 myPageStoreManager = app.container.myPageStoreManager,
-                userStoreManager = app.container.userStoreManager
+                userStoreManager = app.container.userStoreManager,
+                tastyStoreManager = app.container.tastyStoreManager
             )
         }
     }
