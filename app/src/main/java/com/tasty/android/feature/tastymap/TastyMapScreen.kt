@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -100,7 +101,7 @@ fun TastyMapScreen(
     viewmodel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
     // 검색된 식당 리스트
-    var restaurants by remember { mutableStateOf<List<RestaurantData>>(emptyList()) }
+    var restaurants = viewmodel.restaurants
 
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
     val cameraPositionState = rememberCameraPositionState()
@@ -153,7 +154,7 @@ fun TastyMapScreen(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 200.dp,
+        sheetPeekHeight = 100.dp,
         sheetDragHandle = {
             Box(
                 modifier = Modifier
@@ -193,13 +194,18 @@ fun TastyMapScreen(
                             restaurant, viewmodel.placesManager, userLat, userLon,
                             // 클릭 시 해당 식당을 선택하고 시트를 최대로 확장
                             onItemClick = {
+                                // 이전 리뷰 데이터 초기화
+                                viewmodel.clearFeeds()
+
                                 selectedRestaurant = restaurant
                                 isCommentVisible = true
-                                scope.launch {
-                                    scaffoldState.bottomSheetState.expand()
-                                }
+
+                                //  피드 정보를 서버에 요청
+                                viewmodel.fetchFeedsForRestaurant(restaurant.id)
+                                scope.launch { scaffoldState.bottomSheetState.expand() }
                             },
-                            showComments = (selectedRestaurant == restaurant) && isCommentVisible
+                            showComments = (selectedRestaurant == restaurant) && isCommentVisible,
+                            viewmodel
                         )
                     }
                 }
@@ -284,13 +290,10 @@ fun TastyMapScreen(
                 Button(
                     onClick = {
                         val targetLocation = cameraPositionState.position.target
-                        viewmodel.placesManager.searchRestaurants(
-                            targetLocation,
-                            1000.0
-                        ) { result ->
-                            restaurants = result
-                            selectedRestaurant = null
-                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                        // 식당 검색 요청
+                        viewmodel.searchAndSyncRestaurants(targetLocation, 1000.0)
+                        selectedRestaurant = null
+                        scope.launch { scaffoldState.bottomSheetState.partialExpand()
                         }
                     }
                 ) {
@@ -332,7 +335,8 @@ fun RestaurantItem(
     placesManager: PlaceManager,
     userLat: Double, userLon: Double,
     onItemClick: () -> Unit, // 클릭 이벤트
-    showComments: Boolean      // 댓글 표시 여부
+    showComments: Boolean,      // 댓글 표시 여부
+    viewmodel: TastyMapViewmodel
 ) {
     Column(
         modifier = Modifier
@@ -381,7 +385,7 @@ fun RestaurantItem(
                 calculateDistance(userLat, userLon, restaurant.latitude, restaurant.longitude)
             }
             val distanceText = formatDistance(distance)
-            InfoText(text = "평점 4.6, 리뷰 55개, 거리: $distanceText")
+            InfoText(text = "평점: ${restaurant.rating}, 리뷰: ${restaurant.feedCount}개, 거리: $distanceText")
         }
 
         // 음식 사진 가로 리스트
@@ -395,7 +399,7 @@ fun RestaurantItem(
         }
 
         if (showComments) {
-            // 댓글 섹션
+            // 리뷰 섹션
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "방문자 리뷰",
@@ -403,17 +407,21 @@ fun RestaurantItem(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 샘플 댓글 데이터
-            val dummyComments = listOf(
-                "음식이 정말 맛있어요! 재방문 의사 100%입니다.",
-                "분위기가 너무 좋아서 데이트 코스로 딱이에요.",
-                "직원분들이 친절하시고 주차도 편합니다.",
-                "가성비는 조금 아쉽지만 맛은 확실하네요."
-            )
-
-            dummyComments.forEach { comment ->
-                CommentItem(comment)
-                Spacer(modifier = Modifier.height(12.dp))
+            // 로딩 중일 때 표시 (선택 사항)
+            if (viewmodel.isFeedsLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else if (viewmodel.restaurantFeeds.isEmpty()) {
+                // 데이터가 없을 때
+                Text(
+                    text = "아직 작성된 리뷰가 없습니다.",
+                    style = TextStyle(color = Color.Gray, fontSize = 14.sp)
+                )
+            } else{
+                viewmodel.restaurantFeeds.forEach { feed ->
+                    // 리뷰표시 화면에 피드 내용 전달
+                    CommentItem(comment = feed.content)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
         }
     }

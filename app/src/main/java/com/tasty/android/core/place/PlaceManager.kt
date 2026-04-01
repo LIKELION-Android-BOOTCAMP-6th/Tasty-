@@ -190,7 +190,6 @@ class PlaceManager(private val context: Context) {
                 Field.ID,
                 Field.NAME,
                 Field.ADDRESS,
-                Field.RATING,
                 Field.LAT_LNG,
                 Field.BUSINESS_STATUS,
                 Field.PHOTO_METADATAS,
@@ -224,7 +223,6 @@ class PlaceManager(private val context: Context) {
                     RestaurantData(
                         name = place.name ?: "",
                         address = place.address ?: "",
-                        rating = place.rating,
                         id = place.id ?: "",
                         latitude = place.latLng?.latitude ?: 0.0,
                         longitude = place.latLng?.longitude ?: 0.0,

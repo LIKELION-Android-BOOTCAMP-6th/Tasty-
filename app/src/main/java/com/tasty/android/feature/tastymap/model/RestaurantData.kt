@@ -6,10 +6,11 @@ import com.google.android.libraries.places.api.model.PhotoMetadata
 data class RestaurantData(
     val name: String,
     val address: String,
-    val rating: Double?,
+    val rating: Double? = 0.0,
     val id: String,
     val latitude: Double,
     val longitude: Double,
     val businessStatus: String,
-    val photoMetadata: List<PhotoMetadata>
+    val photoMetadata: List<PhotoMetadata>,
+    val feedCount: Int = 0
 )
