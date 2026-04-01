@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.firebase.MyPageStoreManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -78,17 +80,21 @@ class TastyListCreateSelectFeedsViewModel(
 
             val feeds = result.getOrNull() ?: emptyList()
 
-            val selectionItems = feeds.map { feed ->
-                TastyListFeedSelectionItem(
-                    feedId = feed.feedId,
-                    restaurantName = feed.restaurantName,
-                    thumbnailUrl = feed.feedImageUrls.firstOrNull(),
-                    oneLineReview = feed.shortReview,
-                    createdAt = feed.createdAt?.toDate()?.let {
-                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
-                    } ?: ""
-                )
+            // 무거운 리스트 매핑 작업을 Default 디스패처에서 수행 (ANR 방지)
+            val selectionItems = withContext(Dispatchers.Default) {
+                feeds.map { feed ->
+                    TastyListFeedSelectionItem(
+                        feedId = feed.feedId,
+                        restaurantName = feed.restaurantName,
+                        thumbnailUrl = feed.feedImageUrls.firstOrNull(),
+                        oneLineReview = feed.shortReview,
+                        createdAt = feed.createdAt?.toDate()?.let {
+                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
+                        } ?: ""
+                    )
+                }
             }
+
 
             lastFeedId = feeds.lastOrNull()?.feedId
 
@@ -104,33 +110,41 @@ class TastyListCreateSelectFeedsViewModel(
     }
 
     fun toggleFeedSelection(feedId: String) {
-        _uiState.update { currentState ->
+        viewModelScope.launch {
+            val currentState = _uiState.value
             val selected = currentState.selectedFeedIds.toMutableSet()
 
             if (selected.contains(feedId)) {
                 selected.remove(feedId)
             } else {
                 if (selected.size >= 10) {
-                    return@update currentState.copy(
-                        errorMessage = "피드는 최대 10개까지 선택할 수 있어요."
-                    )
+                    _uiState.update { it.copy(errorMessage = "피드는 최대 10개까지 선택할 수 있어요.") }
+                    return@launch
                 }
                 selected.add(feedId)
             }
 
-            currentState.copy(
-                selectedFeedIds = selected,
-                errorMessage = null,
-                visibleFeeds = currentState.visibleFeeds.map { item ->
+            // 리스트 상태 업데이트를 Default 디스패처에서 수행 (ANR 방지)
+            val updatedVisibleFeeds = withContext(Dispatchers.Default) {
+                currentState.visibleFeeds.map { item ->
                     if (item.feedId == feedId) {
                         item.copy(isSelected = selected.contains(feedId))
                     } else {
                         item.copy(isSelected = selected.contains(item.feedId))
                     }
                 }
-            )
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    selectedFeedIds = selected,
+                    errorMessage = null,
+                    visibleFeeds = updatedVisibleFeeds
+                )
+            }
         }
     }
+
 
     fun loadNextPage() {
         val currentState = _uiState.value
@@ -159,18 +173,22 @@ class TastyListCreateSelectFeedsViewModel(
             val feeds = result.getOrNull() ?: emptyList()
 
             if (feeds.isNotEmpty()) {
-                val newItems = feeds.map { feed ->
-                    TastyListFeedSelectionItem(
-                        feedId = feed.feedId,
-                        restaurantName = feed.restaurantName,
-                        thumbnailUrl = feed.feedImageUrls.firstOrNull(),
-                        oneLineReview = feed.shortReview,
-                        createdAt = feed.createdAt?.toDate()?.let {
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
-                        } ?: "",
-                        isSelected = currentState.selectedFeedIds.contains(feed.feedId)
-                    )
+                // 리스트 매핑 작업을 Default 디스패처에서 수행 (ANR 방지)
+                val newItems = withContext(Dispatchers.Default) {
+                    feeds.map { feed ->
+                        TastyListFeedSelectionItem(
+                            feedId = feed.feedId,
+                            restaurantName = feed.restaurantName,
+                            thumbnailUrl = feed.feedImageUrls.firstOrNull(),
+                            oneLineReview = feed.shortReview,
+                            createdAt = feed.createdAt?.toDate()?.let {
+                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
+                            } ?: "",
+                            isSelected = currentState.selectedFeedIds.contains(feed.feedId)
+                        )
+                    }
                 }
+
 
                 lastFeedId = feeds.last().feedId
 

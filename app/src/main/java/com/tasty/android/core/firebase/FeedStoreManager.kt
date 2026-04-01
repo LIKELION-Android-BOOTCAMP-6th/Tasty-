@@ -12,9 +12,11 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.feed.model.FeedLike
 import com.tasty.android.feature.tastymap.model.RestaurantInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 
 // 동기화 모댈
@@ -51,8 +53,8 @@ class FeedStoreManager {
     fun generateFeedId(): Result<String> = Result.success(firebaseDB.collection("feeds").document().id)
 
     // 피드 저장(작성)
-    suspend fun saveFeed(feed: Feed): Result<Unit> {
-        return try {
+    suspend fun saveFeed(feed: Feed): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val geohash = GeoFireUtils.getGeoHashForLocation( // hash값 발급
                 GeoLocation(
                     feed.addressInfo.latitude,
@@ -107,19 +109,20 @@ class FeedStoreManager {
         }
     }
 
+
     // 작성한 모든 피드 게시물의 작성자 정보를 일괄 업데이트
     suspend fun syncAuthorInfoInFeeds(
         userId: String,
         nickname: String,
         profileImageUrl: String?
-    ): Result<Unit> {
-        return try {
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val feedsQuery = firebaseDB.collection("feeds")
                 .whereEqualTo("authorId", userId)
                 .get()
                 .await()
 
-            if (feedsQuery.isEmpty) return Result.success(Unit)
+            if (feedsQuery.isEmpty) return@withContext Result.success(Unit)
 
             val batch = firebaseDB.batch()
             feedsQuery.documents.forEach { doc ->
@@ -140,9 +143,10 @@ class FeedStoreManager {
         }
     }
 
+
     // 피드 상세 조회(피드 상세)
-    suspend fun getFeedDetail(feedId: String): Result<Feed?> {
-        return try {
+    suspend fun getFeedDetail(feedId: String): Result<Feed?> = withContext(Dispatchers.IO) {
+        try {
             val snapshot = firebaseDB
                 .collection("feeds")
                 .document(feedId)
@@ -155,25 +159,55 @@ class FeedStoreManager {
         }
     }
 
+    // 식당 ID로 피드 목록 조회
+    suspend fun getFeedsByRestaurantId(
+        restaurantId: String,
+        limit: Long = paginationLimit,
+        lastFeedId: String? = null
+    ): Result<List<Feed>> = withContext(Dispatchers.IO) {
+        try {
+            var query = firebaseDB.collection("feeds")
+                .whereEqualTo("restaurantId", restaurantId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(limit)
+
+            if (lastFeedId != null) {
+                val lastSnapshot = firebaseDB.collection("feeds")
+                    .document(lastFeedId)
+                    .get()
+                    .await()
+                query = query.startAfter(lastSnapshot)
+            }
+
+            val snapshot = query.get().await()
+            val feeds = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
+            }
+            Result.success(feeds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 
 
     // 피드 다수 조회
     suspend fun getFeeds(
         sortType: FeedSortType = FeedSortType.LATEST,
-        limit: Long = paginationLimit, // 페이지네이션 상수 기본: 20개씩
-        lastFeedId: String? = null, // 마지막 피드 기준(마지막 피드 기준으로 다음 피드들을 불러오면 됨다)
+        limit: Long = paginationLimit,
+        lastFeedId: String? = null,
         userLat: Double? = null,
         userLon: Double? = null,
         radiusKm: Double = 10.0,
         maxFetch: Long = maxFetchLimit
-    ): Result<List<Feed>> {
-        return try {
+    ): Result<List<Feed>> = withContext(Dispatchers.IO) {
+        try {
             val feeds = when (sortType) {
-                FeedSortType.LATEST -> { // 최신순
-                    fetchLatestFeeds(limit,lastFeedId)
+                FeedSortType.LATEST -> {
+                    fetchLatestFeeds(limit, lastFeedId)
                 }
-                FeedSortType.DISTANCE -> { // 거리순
-                    if (userLat == null || userLon == null) return Result.failure(Exception("유저 위/경도 필요"))
+                FeedSortType.DISTANCE -> {
+                    if (userLat == null || userLon == null) return@withContext Result.failure(Exception("유저 위/경도 필요"))
                     fetchFeedsByDistance(
                         userLat,
                         userLon,
@@ -191,8 +225,8 @@ class FeedStoreManager {
     /*** 피드 좋아요/댓글 ***/
 
     // 좋아요 추가
-    suspend fun likeFeed(feedLike: FeedLike) : Result<Unit> {
-        return try {
+    suspend fun likeFeed(feedLike: FeedLike) : Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val batch = firebaseDB.batch()
 
             val likeRef = firebaseDB
@@ -215,9 +249,10 @@ class FeedStoreManager {
         }
     }
 
+
     // 좋아요 취소
-    suspend fun unlikeFeed(feedLike: FeedLike) : Result<Unit> {
-        return try {
+    suspend fun unlikeFeed(feedLike: FeedLike) : Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val batch = firebaseDB.batch()
             val likeDoc = firebaseDB
                 .collection("feeds")
@@ -226,7 +261,7 @@ class FeedStoreManager {
                 .whereEqualTo("userId", feedLike.userId)
                 .get()
                 .await()
-                .documents.firstOrNull() ?: return Result.failure(Exception("좋아요 상태 아님"))
+                .documents.firstOrNull() ?: return@withContext Result.failure(Exception("좋아요 상태 아님"))
 
             batch.delete(likeDoc.reference)
             batch.update(
@@ -242,10 +277,11 @@ class FeedStoreManager {
         }
     }
 
+
     // 좋아요 여부 확인
-    suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> {
-        return try {
-            if (feedLike.feedId.isBlank()) return Result.success(false)
+    suspend fun isLiked(feedLike: FeedLike) : Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            if (feedLike.feedId.isBlank()) return@withContext Result.success(false)
             val result = firebaseDB
                 .collection("feeds")
                 .document(feedLike.feedId)
@@ -260,8 +296,8 @@ class FeedStoreManager {
     }
 
     // 댓글 추가
-    suspend fun addComment(comment: FeedComment): Result<Unit> {
-        return try {
+    suspend fun addComment(comment: FeedComment): Result<String> = withContext(Dispatchers.IO) {
+        return@withContext try {
             val batch = firebaseDB.batch()
 
             val commentRef = firebaseDB
@@ -270,9 +306,10 @@ class FeedStoreManager {
                 .collection("comments")
                 .document()
 
+            val generatedId = commentRef.id
             batch.set(
                 commentRef,
-                comment.copy(commentId = commentRef.id)
+                comment.copy(commentId = generatedId)
             )
 
             batch.update(
@@ -282,19 +319,21 @@ class FeedStoreManager {
                 "commentCount", FieldValue.increment(1)
             )
             batch.commit().await()
-            Result.success(Unit)
+            Result.success(generatedId)
         } catch(e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
+
+
 
     // 댓글 목록 조회
     suspend fun getComments(
         feedId: String,
         limit: Long = paginationLimit,
         lastCommentId: String? = null
-    ): Result<List<FeedComment>> {
-        return try {
+    ): Result<List<FeedComment>> = withContext(Dispatchers.IO) {
+        try {
             var query = firebaseDB
                 .collection("feeds").document(feedId)
                 .collection("comments")
@@ -307,16 +346,21 @@ class FeedStoreManager {
                     .get().await()
                 query = query.startAfter(lastSnapshot)
             }
-            Result.success(query.get().await().toObjects(FeedComment::class.java))
+            val snapshot = query.get().await()
+            val comments = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(FeedComment::class.java)?.copy(commentId = doc.id)
+            }
+            Result.success(comments)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
     }
 
+
     private suspend fun fetchLatestFeeds(
         limit: Long = paginationLimit,
         lastFeedId: String? = null,
-    ): List<Feed> {
+    ): List<Feed> = withContext(Dispatchers.IO) {
         var query = firebaseDB
             .collection("feeds")
             .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -330,7 +374,7 @@ class FeedStoreManager {
                 .await()
             query = query.startAfter(lastSnapshot)
         }
-        return query.get().await().documents.mapNotNull { doc ->
+        return@withContext query.get().await().documents.mapNotNull { doc ->
             doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
         }
     }
@@ -340,13 +384,13 @@ class FeedStoreManager {
         userLon: Double? = null,
         radiusKm: Double = 10.0,
         maxFetch: Long = maxFetchLimit
-    ): List<Feed> {
+    ): List<Feed> = withContext(Dispatchers.IO) {
         val center = GeoLocation(userLat!!, userLon!!)
         val radiusInMeters = radiusKm * 1000
 
         val bounds = GeoFireUtils.getGeoHashQueryBounds(center, radiusInMeters)
 
-        return bounds
+        return@withContext bounds
             .flatMap { bound ->
                 firebaseDB
                     .collection("feeds")

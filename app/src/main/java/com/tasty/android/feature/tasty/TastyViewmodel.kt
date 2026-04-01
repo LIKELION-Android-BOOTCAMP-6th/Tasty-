@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tasty.android.core.firebase.TastyStoreManager
 import com.tasty.android.feature.mypage.tastylist.model.TastyList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class TastySortType {
     LATEST,
@@ -64,13 +66,16 @@ class TastyViewModel : ViewModel() {
 
             result
                 .onSuccess { tastyLists ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            tastyList = tastyLists.map { tastyList ->
-                                tastyList.toUiModel()
-                            }
-                        )
+                    viewModelScope.launch {
+                        val uiModels = withContext(Dispatchers.Default) {
+                            tastyLists.map { it.toUiModel() }
+                        }
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                tastyList = uiModels
+                            )
+                        }
                     }
                 }
                 .onFailure { throwable ->
