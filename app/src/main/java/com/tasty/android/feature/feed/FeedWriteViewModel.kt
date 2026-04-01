@@ -256,6 +256,10 @@ class FeedWriteViewModel(
         val restaurant = currentState.selectedRestaurant ?: return
 
         viewModelScope.launch {
+            // 측정 시작 시각
+            val startTime = System.currentTimeMillis()
+            android.util.Log.d("FeedUpload", "업로드 시작")
+
             _uiState.update {
                 it.copy(isSubmitting = true)
             }
@@ -271,7 +275,15 @@ class FeedWriteViewModel(
                 )
             }
 
-            val feedImageUrls = feedImagesDeferred.await().getOrElse {
+            val userProfileDeferred = async {
+                userStoreManager.getUser(authorId)
+            }
+
+            val feedImageUrlsResult = feedImagesDeferred.await()
+
+            val userProfileResult = userProfileDeferred.await()
+
+            val feedImageUrls = feedImageUrlsResult.getOrElse {
                 _uiState.update {currentState ->
                     currentState.copy(
                         isSubmitting = false,
@@ -281,10 +293,7 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-
-
             // 작성자 유저 정보 가져오기
-            val userProfileResult = userStoreManager.getUser(authorId)
             val userProfile = userProfileResult.getOrNull()
 
             val feed = Feed(
@@ -309,6 +318,11 @@ class FeedWriteViewModel(
             )
 
             feedStoreManager.saveFeed(feed).onSuccess {
+                // 측정 종료 시각 기록 및 계산
+                val endTime = System.currentTimeMillis()
+                val totalTime = (endTime - startTime) / 1000.0
+                android.util.Log.d("FeedUpload", "업로드 성공 총 소요 시간: ${totalTime}초")
+
                 _uiState.update { currentState -> currentState.copy(isSubmitting = false) }
                 onSuccess()
             }.onFailure {
