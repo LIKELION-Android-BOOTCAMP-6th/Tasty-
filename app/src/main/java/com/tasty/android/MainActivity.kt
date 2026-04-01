@@ -1,9 +1,11 @@
 package com.tasty.android
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -31,6 +33,7 @@ import com.tasty.android.core.navigation.TabScreen
 class MainActivity : ComponentActivity() {
 
     // CustomScaffold 공통 스케폴드 구조 내에서 화면 정의
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

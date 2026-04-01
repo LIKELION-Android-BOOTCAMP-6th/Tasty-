@@ -1,9 +1,11 @@
 package com.tasty.android.core.location
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
 import androidx.annotation.RequiresPermission
+import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationToken
@@ -14,6 +16,19 @@ class LocationManager(private val context: Context) {
     // 로케이션 클라이언트 선언
     private val locationClient = LocationServices.getFusedLocationProviderClient(context)
 
+    @SuppressLint("MissingPermission")
+    // Remove fusedLocationClient from parameters here
+    fun getCurrentLocation(onLocationRetrieved: (Double, Double) -> Unit) {
+        // Use the internal locationClient instead
+        locationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        ).addOnSuccessListener { location ->
+            if (location != null) {
+                onLocationRetrieved(location.latitude, location.longitude)
+            }
+        }
+    }
 
     // 현재 위치 get 반환 : latitude, longitude
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])

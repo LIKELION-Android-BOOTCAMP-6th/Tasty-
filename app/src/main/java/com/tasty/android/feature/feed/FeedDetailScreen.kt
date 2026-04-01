@@ -255,9 +255,13 @@ fun FeedDetailScreen(
                 item {
                     if (uiState.hasMoreComments) {
                         LaunchedEffect(uiState.comments.size) {
-                            viewModel.loadMoreComments(feedId)
+                            // 로딩 중이 아닐 때만 다음 페이지 요청 (무한 루프 방지 핵심)
+                            if (!uiState.isLoadingMoreComments) {
+                                viewModel.loadMoreComments(feedId)
+                            }
                         }
                     }
+
                     if (uiState.isLoadingMoreComments) {
                         Box(
                             modifier = Modifier
