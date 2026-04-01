@@ -5,13 +5,17 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.google.android.gms.location.LocationServices
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.location.LocationManager
+import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.auth.LoginScreen
 import com.tasty.android.feature.auth.OnboardingScreen
 import com.tasty.android.feature.auth.OnboardingViewModel
@@ -31,6 +35,7 @@ import com.tasty.android.feature.tastylist.TastyListCreateSetupScreen
 import com.tasty.android.feature.mypage.tastylist.EditTastyListScreen
 import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
 import com.tasty.android.feature.profile.UserProfileScreen
+import com.tasty.android.feature.tastymap.TastyMapScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -151,6 +156,10 @@ fun CustomNavHost(
         /** Map **/
         composable(TabScreen.MAP.route){
             // 맵 화면 컴포저블(TAB)
+            TastyMapScreen(
+                navController = navController,
+                onScaffoldConfigChange
+            )
         }
         composable(Screen.MAP_SEARCH_LOCATION.route){
             // 맵 지역 검색 화면 컴포저블

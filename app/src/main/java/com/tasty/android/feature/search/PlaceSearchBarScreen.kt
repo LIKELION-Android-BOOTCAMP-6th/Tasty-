@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,101 +30,121 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.tasty.android.core.place.PlaceManager
 
-//@Composable
-//fun PlaceSearchScreen(placesManager: PlacesManager, labelText: String) {
-//
-//    // 포커스 상태를 저장하는 변수
-//    val focusManager = LocalFocusManager.current
-//    var isFocused by remember { mutableStateOf(false) }
-//
-//    var searchQuery by remember { mutableStateOf("") }
-//    var predictions by remember { mutableStateOf(emptyList<AutocompletePrediction>()) }
-//
-//    Box(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            // 포커스 상태일 때만 전체 화면을 하얀색으로 덮음
-//            .background(if (isFocused) Color.White else Color.Transparent)
-//            .clickable(
-//                onClick = { focusManager.clearFocus() },
-//            )
-//    ) {
-//        Column(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(16.dp)
-//                .statusBarsPadding()
-//        )
-//        {
-//            // 검색창
-//            OutlinedTextField(
-//                value = searchQuery,
-//                onValueChange = {
-//                    searchQuery = it
-//                    // 글자를 지웠을 때 리스트 비워줌
-//                    if (it.isBlank()) {
-//                        predictions = emptyList()
-//                        isFocused = false
-//                    } else {
-//                        placesManager.getPredictions(it) { res ->
-//                            predictions = res
-//                        }
-//                    }
-//                },
-//                label = { Text(labelText) },
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .onFocusChanged { focusState ->
-//                        // 포커스 여부에 따라 상태 업데이트
-//                        isFocused = focusState.isFocused
-//                        // 포커스를 잃었을 때
-//                        if(!focusState.isFocused)
-//                        {
-//                            searchQuery = ""
-//                            predictions = emptyList()
-//                            isFocused = false
-//                        }
-//                    },
-//                singleLine = true
-//            )
-//
-//            Spacer(modifier = Modifier.height(8.dp))
-//
-//            // 결과 리스트
-//            LazyColumn {
-//                items(predictions) { prediction ->
-//                    PredictionItem(prediction) {
-//                        // 배경을 다시 투명하게
-//                        focusManager.clearFocus()
-//
-//                        // 클릭 시 검색창 텍스트를 전체 주소로 바꾸고 리스트 닫기
-//                        searchQuery = prediction.getFullText(null).toString()
-//
-//                        // TODO: 여기서 placeId를 이용해 상세 좌표(LatLng)를 가져오는 로직을 추가
-//                        val placeId = prediction.placeId
-//                        Log.d("test", "선택된 장소 ID: $placeId")
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//@Composable
-//fun PredictionItem(prediction: AutocompletePrediction, onClick: () -> Unit) {
-//    Column(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .clickable(onClick = onClick)
-//            .padding(12.dp)
-//    ) {
-//        Text(text = prediction.getPrimaryText(null).toString(), fontWeight = FontWeight.Bold)
-//        Text(
-//            text = prediction.getSecondaryText(null).toString(),
-//            fontSize = 12.sp,
-//            color = Color.Gray
-//        )
-//        HorizontalDivider(modifier = Modifier.padding(top = 8.dp), thickness = 0.5.dp)
-//    }
-//}
+@Composable
+fun PlaceSearchScreen(
+    placesManager: PlaceManager,
+    labelText: String,
+    onPlaceSelected: (LatLng) -> Unit // 추가: 좌표를 전달할 콜백
+) {
+    // 포커스 상태를 저장하는 변수
+    val focusManager = LocalFocusManager.current
+    var isFocused by remember { mutableStateOf(false) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var predictions by remember { mutableStateOf(emptyList<AutocompletePrediction>()) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // 포커스 상태일 때만 전체 화면을 하얀색으로 덮음
+            .background(if (isFocused) Color.White else Color.Transparent)
+            .statusBarsPadding() // 상태바 영역 침범 방지
+            .clickable(
+                onClick = { focusManager.clearFocus() },
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .statusBarsPadding()
+        )
+        {
+            // 검색창
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    // 글자를 지웠을 때 리스트 비워줌
+                    if (it.isBlank()) {
+                        predictions = emptyList()
+                        isFocused = false
+                    } else {
+                        placesManager.getPredictions(it) { res ->
+                            predictions = res
+                        }
+                    }
+                },
+                label = { Text(labelText) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        // 포커스 여부에 따라 상태 업데이트
+                        isFocused = focusState.isFocused
+                        // 포커스를 잃었을 때
+                        if (!focusState.isFocused) {
+                            searchQuery = ""
+                            predictions = emptyList()
+                            isFocused = false
+                        }
+                    },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,   // 포커스 되었을 때 배경 흰색
+                    unfocusedContainerColor = Color.White, // 포커스 없을 때 배경 흰색
+                    focusedBorderColor = Color.Gray,
+                    unfocusedBorderColor = Color.LightGray
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 결과 리스트
+            LazyColumn {
+                items(predictions) { prediction ->
+                    PredictionItem(prediction) {
+                        // 배경을 다시 투명하게
+                        focusManager.clearFocus()
+
+                        // 클릭 시 검색창 텍스트를 전체 주소로 바꾸고 리스트 닫기
+                        searchQuery = prediction.getFullText(null).toString()
+
+                        val placeId = prediction.placeId
+                        Log.d("test", "선택된 장소 ID: $placeId")
+
+                        // 검색 결과 반영
+                        placesManager.getPlaceLatLng(placeId) { latLng ->
+                            latLng?.let {
+                                onPlaceSelected(it) // 찾은 좌표를 전달
+                                searchQuery = "" // 검색창 초기화
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PredictionItem(prediction: AutocompletePrediction, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Text(text = prediction.getPrimaryText(null).toString(), fontWeight = FontWeight.Bold)
+        Text(
+            text = prediction.getSecondaryText(null).toString(),
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp), thickness = 0.5.dp)
+    }
+}
