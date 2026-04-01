@@ -22,12 +22,15 @@ import com.tasty.android.feature.feed.FeedScreen
 import com.tasty.android.feature.feed.FeedSearchRestaurantScreen
 import com.tasty.android.feature.feed.FeedWriteScreen
 import com.tasty.android.feature.feed.FeedWriteViewModel
+import com.tasty.android.feature.mypage.EditProfileScreen
 import com.tasty.android.feature.mypage.MyPageScreen
 import com.tasty.android.feature.tasty.TastyDetailScreen
 import com.tasty.android.feature.tasty.TastyScreen
 import com.tasty.android.feature.tastylist.TastyListCreateSelectFeedsScreen
 import com.tasty.android.feature.tastylist.TastyListCreateSetupScreen
+import com.tasty.android.feature.mypage.tastylist.EditTastyListScreen
 import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
+import com.tasty.android.feature.profile.UserProfileScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -134,11 +137,12 @@ fun CustomNavHost(
             )
         }
 
-        composable("${Screen.TASTY_DETAIL.route}/{tastyId}") {
+        composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
+            val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
             TastyDetailScreen(
                 onBackClick = { navController.popBackStack() },
                 onClickFeed = { feedId ->
-                    // TODO: 피드 상세 이동
+                    navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
                 },
                 onScaffoldConfigChange = onScaffoldConfigChange
             )
@@ -176,12 +180,28 @@ fun CustomNavHost(
             )
         }
         composable(Screen.MY_PAGE_EDIT_PROFILE.route) {
-            // 마이페이지 프로필 수정 화면 컴포저블
+            EditProfileScreen(
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
+        }
+        composable(Screen.EDIT_TASTY_LIST.route) { backStackEntry ->
+            val tastyListId = backStackEntry.arguments?.getString("tastyListId") ?: ""
+            EditTastyListScreen(
+                tastyListId = tastyListId,
+                navController = navController,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
 
         /** User Profile **/
-        composable(Screen.USER_PROFILE.route) {
-            // 유저 프로필 화면 컴포저블
+        composable(Screen.USER_PROFILE.route) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            UserProfileScreen(
+                navController = navController,
+                targetUserId = userId,
+                onScaffoldConfigChange = onScaffoldConfigChange
+            )
         }
     }
 }
