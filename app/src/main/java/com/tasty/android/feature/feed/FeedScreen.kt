@@ -337,11 +337,11 @@ private fun TastyListCard(
                     width = 1.dp,
                     color = Color.Black.copy(alpha = 0.05f),
                     shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-            )
 
-        {
+                )
+                .background(Color(0xFFD9D9D9)),
+            contentAlignment = Alignment.Center
+        ) {
             if (item.thumbnailImageUrl.isNullOrBlank()) {
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
