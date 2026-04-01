@@ -306,10 +306,14 @@ private fun FeedHeaderSection(
                     items = tastyLists.take(4),
                     key = { it.tastyListId }
                 ) { item ->
+<<<<<<< UI-advancement
                     TastyListCard(
                         item = item,
                         onClick = { onTastyListClick(item.tastyListId) }
                     )
+=======
+                    TastyListCard(item = item)
+>>>>>>> main
                 }
             }
         }
@@ -336,7 +340,13 @@ private fun TastyListCard(
                     width = 1.dp,
                     color = Color.Black.copy(alpha = 0.05f),
                     shape = CircleShape
+<<<<<<< UI-advancement
                 ),
+=======
+                )
+        )
+                .background(Color(0xFFD9D9D9)),
+>>>>>>> main
             contentAlignment = Alignment.Center
         ) {
             if (item.thumbnailImageUrl.isNullOrBlank()) {
