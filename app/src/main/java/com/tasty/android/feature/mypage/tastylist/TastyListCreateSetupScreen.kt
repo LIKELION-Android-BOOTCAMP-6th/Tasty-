@@ -42,13 +42,15 @@ import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.feature.vmfactory.TastyListCreateSetupViewModelFactory
 import com.tasty.android.core.navigation.TabScreen
+import androidx.compose.material3.CircularProgressIndicator
 
 @Composable
 fun TastyListCreateSetupScreen(
     navController: NavHostController,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
-    viewModel: TastyListCreateSetupViewModel = viewModel()
+    viewModel: TastyListCreateSetupViewModel = viewModel(factory = TastyListCreateSetupViewModelFactory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -57,6 +59,17 @@ fun TastyListCreateSetupScreen(
     ) { uri: Uri? ->
         uri?.let {
             viewModel.updateThumbnailImageUrl(it.toString())
+        }
+    }
+
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            navController.navigate(TabScreen.MY_PAGE.route) {
+                popUpTo(TabScreen.MY_PAGE.route) {
+                    inclusive = false
+                }
+                launchSingleTop = true
+            }
         }
     }
 
@@ -186,16 +199,7 @@ fun TastyListCreateSetupScreen(
 
         Button(
             onClick = {
-                val isSuccess = viewModel.completeCreation()
-                if (isSuccess) {
-                    viewModel.clearDraft()
-                    navController.navigate(TabScreen.MY_PAGE.route) {
-                        popUpTo(TabScreen.MY_PAGE.route) {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
-                }
+                viewModel.completeCreation()
             },
             enabled = uiState.canComplete,
             colors = ButtonDefaults.buttonColors(
