@@ -9,7 +9,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthEmailException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.auth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlin.math.log
 
 class AuthManager {
@@ -23,8 +25,8 @@ class AuthManager {
     fun getCurrentUser() = auth.currentUser
 
     // 회원가입 / 반환: uid
-    suspend fun signUp(email: String, password: String): Result<String> {
-        return try {
+    suspend fun signUp(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             Result.success(result.user!!.uid)
         } catch (e: FirebaseAuthException) {
@@ -34,8 +36,8 @@ class AuthManager {
 
 
     // 로그인 / 반환: uid
-    suspend fun signIn(email: String, password: String): Result<String> {
-        return try {
+    suspend fun signIn(email: String, password: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             Result.success(result.user!!.uid)
         } catch (e: FirebaseAuthException) {

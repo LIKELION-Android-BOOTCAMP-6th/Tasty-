@@ -7,10 +7,12 @@ import com.google.firebase.firestore.firestore
 import com.tasty.android.core.model.Follow
 import com.tasty.android.core.model.User
 import com.tasty.android.core.model.UserSummary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class UserStoreManager {
     private val firebaseDB = Firebase.firestore
@@ -18,8 +20,8 @@ class UserStoreManager {
      * 유저 저장&조회&수정
      ***/
     // 유저 회원가입 정보 저장
-    suspend fun saveUser(user: User): Result<Unit> {
-        return try {
+    suspend fun saveUser(user: User): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             firebaseDB.collection("users")
                 .document(user.userId)
                 .set(user)
@@ -30,14 +32,15 @@ class UserStoreManager {
         }
     }
 
+
     // 프로필 정보 업데이트 (닉네임, 소개글, 프로필 이미지 URL)
     suspend fun updateProfile(
         userId: String,
         nickname: String,
         bio: String,
         profileImageUrl: String? = null
-    ): Result<Unit> {
-        return try {
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val userRef = firebaseDB.collection("users").document(userId)
             val updateData = mutableMapOf<String, Any>(
                 "nickname" to nickname,
@@ -55,9 +58,10 @@ class UserStoreManager {
             Result.failure(e)
         }
     }
+
     // 단일 유저 전체 정보 조회
-    suspend fun getUser(userId: String): Result<User?> {
-        return try {
+    suspend fun getUser(userId: String): Result<User?> = withContext(Dispatchers.IO) {
+        try {
             val snapshot = firebaseDB
                 .collection("users")
                 .document(userId)
@@ -71,8 +75,8 @@ class UserStoreManager {
         }
     }
     // 단일 유저 요약 정보 조회
-    suspend fun getUserSummary(userId: String): Result<UserSummary?> {
-        return try {
+    suspend fun getUserSummary(userId: String): Result<UserSummary?> = withContext(Dispatchers.IO) {
+        try {
             // 유저 요약 정보 get
             val snapshot = firebaseDB
                 .collection("users")
@@ -111,8 +115,8 @@ class UserStoreManager {
     // 팔로우/팔로잉 increment
     suspend fun followUser(
         follow: Follow
-    ) : Result<Unit> {
-        return try {
+    ) : Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val batch = firebaseDB.batch()
 
             val followRef = firebaseDB
@@ -142,11 +146,12 @@ class UserStoreManager {
         }
     }
 
+
     // 언팔로우/언팔로잉 decrement
     suspend fun unfollowUser(
         follow: Follow
-    ) : Result<Unit> {
-        return try {
+    ) : Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             val batch = firebaseDB.batch()
 
             val followDoc = firebaseDB
@@ -154,7 +159,7 @@ class UserStoreManager {
                 .whereEqualTo("followerUserId", follow.followerUserId)
                 .whereEqualTo("followingUserId", follow.followingUserId)
                 .get().await()
-                .documents.firstOrNull() ?: return Result.failure(Exception("팔로잉 관계 아님"))
+                .documents.firstOrNull() ?: return@withContext Result.failure(Exception("팔로잉 관계 아님"))
 
             batch.delete(followDoc.reference)
 
@@ -180,9 +185,10 @@ class UserStoreManager {
         }
     }
 
+
     // 팔로우 여부 확인
-    suspend fun isFollowing(follow:Follow): Result<Boolean> {
-        return try {
+    suspend fun isFollowing(follow:Follow): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
             val result = firebaseDB
                 .collection("follows")
                 .whereEqualTo("followerUserId", follow.followerUserId)
@@ -190,6 +196,41 @@ class UserStoreManager {
                 .get()
                 .await()
             Result.success(!result.isEmpty)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+
+    // 팔로잉 중인 유저 ID 목록 조회
+    suspend fun getFollowingUserIds(userId: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val result = firebaseDB
+                .collection("follows")
+                .whereEqualTo("followerUserId", userId)
+                .get()
+                .await()
+            val followingIds = result.documents.mapNotNull { it.getString("followingUserId") }
+            Result.success(followingIds)
+        } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 다수 유저 정보 일괄 조회 (whereIn 사용, 최대 30개 제한)
+    suspend fun getUsers(userIds: List<String>): Result<List<User>> = withContext(Dispatchers.IO) {
+        if (userIds.isEmpty()) return@withContext Result.success(emptyList())
+        
+        try {
+            // whereIn은 최대 30개까지만 가능하므로 필요 시 나누어 처리해야 함
+            val limitedIds = userIds.take(30)
+            val result = firebaseDB
+                .collection("users")
+                .whereIn("userId", limitedIds)
+                .get()
+                .await()
+            val users = result.toObjects(User::class.java)
+            Result.success(users)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }

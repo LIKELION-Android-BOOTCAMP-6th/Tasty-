@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 import com.tasty.android.core.firebase.FeedUpdateEvent
 import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.feature.feed.mapper.toFeedDetailPostUiModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.collections.emptyList
 
 
@@ -130,31 +132,35 @@ class FeedDetailViewModel(
 
             val feed = feedResult.getOrThrow()
 
-            // 작성자 정보 확인 (비어있을 경우 조회)
-            val authorNickname = feed?.authorNickname?.ifBlank { "작성자" } ?: "작성자"
-            val userHandle = feed?.authorHandle?.ifBlank { "abcd" } ?: "abcd"
 
-            // Mapper 사용
-            val postUiModel = feed?.toFeedDetailPostUiModel(
-                authorNickname = authorNickname,
-                userHandle = userHandle,
-                authorProfileUrl = feed.authorProfileUrl, // 추가
-                isLiked = isLiked
-            )
+            val (postUiModel, commentUiModels) = withContext(Dispatchers.Default) {
 
+                val authorNickname = feed?.authorNickname?.ifBlank { "작성자" } ?: "작성자"
+                val userHandle = feed?.authorHandle?.ifBlank { "abcd" } ?: "abcd"
 
-            val commentUiModels = commentsResult.getOrNull()?.map { comment ->
-                FeedComment(
-                    commentId = comment.commentId,
-                    feedId = comment.feedId,
-                    authorId = comment.authorId,
-                    authorNickname = comment.authorNickname,
-                    authorHandle = comment.authorHandle,
-                    authorProfileUrl = comment.authorProfileUrl,
-                    content = comment.content,
-                    createdAt = comment.createdAt
+                val postUiModel = feed?.toFeedDetailPostUiModel(
+                    authorNickname = authorNickname,
+                    userHandle = userHandle,
+                    authorProfileUrl = feed.authorProfileUrl,
+                    isLiked = isLiked
                 )
-            } ?: emptyList()
+
+                val commentUiModels = commentsResult.getOrNull()?.map { comment ->
+                    FeedComment(
+                        commentId = comment.commentId,
+                        feedId = comment.feedId,
+                        authorId = comment.authorId,
+                        authorNickname = comment.authorNickname,
+                        authorHandle = comment.authorHandle,
+                        authorProfileUrl = comment.authorProfileUrl,
+                        content = comment.content,
+                        createdAt = comment.createdAt
+                    )
+                } ?: emptyList()
+                
+                postUiModel to commentUiModels
+            }
+
             lastCommentId = commentUiModels.lastOrNull()?.commentId
 
             _uiState.update { currentState ->
@@ -165,6 +171,7 @@ class FeedDetailViewModel(
                     hasMoreComments = commentUiModels.size >= 20
                 )
             }
+
         }
     }
 
@@ -193,13 +200,20 @@ class FeedDetailViewModel(
                 lastCommentId = newComments.last().commentId
             }
 
+
+            val combinedComments = withContext(Dispatchers.Default) {
+                (uiState.value.comments + newComments).distinctBy { it.commentId }
+            }
+
             _uiState.update { currentState ->
                 currentState.copy(
                     isLoadingMoreComments = false,
                     hasMoreComments = newComments.size >= 20,
-                    comments = currentState.comments + newComments
+                    comments = combinedComments
                 )
             }
+
+
         }
     }
 
@@ -231,39 +245,44 @@ class FeedDetailViewModel(
             )
 
             feedStoreManager.addComment(newComment)
-                .onSuccess {
-                    _uiState.update { currentState ->
-                        val updatedComments = listOf(
-                            FeedComment(
-                                commentId = newComment.commentId,
-                                feedId = feedId,
-                                authorId = safeUserId,
-                                authorNickname = newComment.authorNickname,
-                                authorHandle = newComment.authorHandle,
-                                authorProfileUrl = newComment.authorProfileUrl, // 추가
-                                content = input,
-                                createdAt = newComment.createdAt
-                            )
-                        ) + currentState.comments
+                .onSuccess { serverCommentId ->
+                    viewModelScope.launch {
 
-                        val newCount = (currentState.post?.commentCount ?: 0) + 1
-                        val updatedPost = currentState.post?.copy(commentCount = newCount)
-
-                        // 다른 화면에도 알림
-                        viewModelScope.launch {
-                            feedStoreManager.notifyFeedUpdated(
-                                FeedUpdateEvent.CommentCountChanged(feedId, newCount)
-                            )
+                        val updatedComments = withContext(Dispatchers.Default) {
+                            (listOf(
+                                FeedComment(
+                                    commentId = serverCommentId, // 서버에서 발급된 실제 ID 사용
+                                    feedId = feedId,
+                                    authorId = safeUserId,
+                                    authorNickname = newComment.authorNickname,
+                                    authorHandle = newComment.authorHandle,
+                                    authorProfileUrl = newComment.authorProfileUrl,
+                                    content = input,
+                                    createdAt = newComment.createdAt
+                                )
+                            ) + _uiState.value.comments).distinctBy { it.commentId }
                         }
 
-                        currentState.copy(
-                            commentInput = "",
-                            isCommentSubmitting = false,
-                            comments = updatedComments,
-                            post = updatedPost
+                        val newCount = (_uiState.value.post?.commentCount ?: 0) + 1
+                        val updatedPost = _uiState.value.post?.copy(commentCount = newCount)
+
+                        // 다른 화면에도 알림
+                        feedStoreManager.notifyFeedUpdated(
+                            FeedUpdateEvent.CommentCountChanged(feedId, newCount)
                         )
+
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                commentInput = "",
+                                isCommentSubmitting = false,
+                                comments = updatedComments,
+                                post = updatedPost
+                            )
+                        }
                     }
                 }
+
+
                 .onFailure {
                     _uiState.update { it.copy(isCommentSubmitting = false, errorMessage = "댓글 작성에 실패했습니다.") }
                 }
