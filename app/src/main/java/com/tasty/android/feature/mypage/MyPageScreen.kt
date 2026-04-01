@@ -8,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -30,21 +31,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.InsertPhoto
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -60,8 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -75,7 +78,6 @@ import com.tasty.android.core.design.component.TastyConfirmDialog
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
-import com.tasty.android.core.navigation.TabScreen
 import com.tasty.android.feature.vmfactory.MyPageViewModelFactory
 import kotlinx.coroutines.launch
 
@@ -98,10 +100,10 @@ fun MyPageScreen(
         initialPage = initialPage,
         pageCount = { 2 }
     )
-    
+
     var showBottomSheet by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    
+
     var selectedTastyListId by remember { mutableStateOf<String?>(null) }
     var showTastyListOptions by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -141,7 +143,7 @@ fun MyPageScreen(
                             contentColor = TextColor
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -163,21 +165,21 @@ fun MyPageScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Color(0xFFFAFAFA))
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
         MyPageProfileHeader(
             nickname = uiState.profileInfo?.nickname ?: "",
-            userHandle = ("@" + uiState.profileInfo?.userHandle),
-            profileImageUrl = uiState.profileInfo?.profileImageUrl, // 추가
+            userHandle = "@" + (uiState.profileInfo?.userHandle ?: ""),
+            profileImageUrl = uiState.profileInfo?.profileImageUrl,
             bio = uiState.profileInfo?.bio ?: "",
             feedCount = uiState.feedCount,
             followerCount = uiState.followerCount,
             followingCount = uiState.followingCount
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         MyPageTabBar(
             selectedTab = uiState.selectedTab,
@@ -195,6 +197,8 @@ fun MyPageScreen(
             }
         )
 
+        Spacer(modifier = Modifier.height(6.dp))
+
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -205,11 +209,11 @@ fun MyPageScreen(
                     hasMoreFeeds = uiState.hasMoreFeeds,
                     isLoadingMoreFeeds = uiState.isLoadingMoreFeeds,
                     onLoadMore = { viewModel.loadMoreMyFeed() },
-                    onFeedClick = {feedId ->
+                    onFeedClick = { feedId ->
                         navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
-
                     }
                 )
+
                 1 -> MyTastyListPage(
                     tastyLists = uiState.myTastyLists,
                     isLoading = uiState.isLoading,
@@ -223,17 +227,20 @@ fun MyPageScreen(
                 )
             }
         }
+    }
 
-        if (!uiState.errorMessage.isNullOrBlank()) {
+    if (!uiState.errorMessage.isNullOrBlank()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFF1F1))
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+        ) {
             Text(
                 text = uiState.errorMessage.orEmpty(),
-                color = Color.Red,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(Color.Red.copy(alpha = 0.1f))
-                    .padding(8.dp),
-                fontWeight = FontWeight.Medium
+                color = Color(0xFFD32F2F),
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp
             )
         }
     }
@@ -258,6 +265,7 @@ fun MyPageScreen(
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.White)
                 )
+
                 ListItem(
                     headlineContent = { Text("로그아웃", color = Color.Red) },
                     modifier = Modifier.clickable {
@@ -302,11 +310,14 @@ fun MyPageScreen(
                     modifier = Modifier.clickable {
                         showTastyListOptions = false
                         selectedTastyListId?.let { id ->
-                            navController.navigate("${Screen.EDIT_TASTY_LIST.route.replace("{tastyListId}", id)}")
+                            navController.navigate(
+                                Screen.EDIT_TASTY_LIST.route.replace("{tastyListId}", id)
+                            )
                         }
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.White)
                 )
+
                 ListItem(
                     headlineContent = { Text("리스트 삭제", color = Color.Red) },
                     modifier = Modifier.clickable {
@@ -344,88 +355,99 @@ fun MyPageScreen(
 private fun MyPageProfileHeader(
     nickname: String,
     userHandle: String,
-    profileImageUrl: String?, // 추가
+    profileImageUrl: String?,
     bio: String,
     feedCount: Int,
     followerCount: Int,
     followingCount: Int
 ) {
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        shadowElevation = 6.dp,
+        tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+        Column(
+            modifier = Modifier.padding(20.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE4D8F5)),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (profileImageUrl.isNullOrBlank()) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "기본 프로필",
-                        modifier = Modifier.size(36.dp),
-                        tint = Color(0xFF6A4FA3)
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE4D8F5)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (profileImageUrl.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "기본 프로필",
+                            modifier = Modifier.size(42.dp),
+                            tint = Color(0xFF6A4FA3)
+                        )
+                    } else {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "프로필 이미지",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = nickname.ifBlank { "이름 없음" },
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF181818),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                } else {
-                    AsyncImage(
-                        model = profileImageUrl,
-                        contentDescription = "프로필 이미지",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = userHandle.ifBlank { "@user" },
+                        fontSize = 13.sp,
+                        color = Color(0xFF7A7A7A),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        color = PrimaryColor,
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    .padding(vertical = 12.dp),
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(PrimaryColor.copy(alpha = 0.30f))
+                    .padding(vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(count = feedCount, label = "피드")
                 StatItem(count = followerCount, label = "팔로워")
                 StatItem(count = followingCount, label = "팔로잉")
             }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = PrimaryColor,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(14.dp)
-        ) {
             Text(
-                text = nickname,
-                fontWeight = FontWeight.Bold,
-                color = TextColor
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = userHandle,
-                color = TextColor
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = bio,
-                color = TextColor
+                text = if (bio.isBlank()) "소개가 아직 없어요." else bio,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = if (bio.isBlank()) Color(0xFF9A9A9A) else Color(0xFF2A2A2A)
             )
         }
     }
@@ -441,13 +463,17 @@ private fun StatItem(
     ) {
         Text(
             text = count.toString(),
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = TextColor
+            color = Color(0xFF181818)
         )
-        Spacer(modifier = Modifier.height(2.dp))
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             text = label,
-            color = Color.Black
+            fontSize = 12.sp,
+            color = Color(0xFF7A7A7A)
         )
     }
 }
@@ -458,89 +484,67 @@ private fun MyPageTabBar(
     onFeedTabClick: () -> Unit,
     onTastyTabClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF3F4F6))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            MyPageTabItem(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == MyPageTab.FEED,
-                icon = Icons.Default.GridOn,
-                text = "내 피드",
-                onClick = onFeedTabClick
-            )
-
-            MyPageTabItem(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == MyPageTab.TASTY_LIST,
-                icon = Icons.Default.Bookmarks,
-                text = "Tasty 리스트",
-                onClick = onTastyTabClick
-            )
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            color = Color.LightGray,
-            thickness = 1.dp
+        MyPageTabButton(
+            modifier = Modifier.weight(1f),
+            selected = selectedTab == MyPageTab.FEED,
+            icon = Icons.Default.GridOn,
+            text = "내 피드",
+            onClick = onFeedTabClick
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(2.dp)
-                    .background(
-                        if (selectedTab == MyPageTab.FEED) Color(0xFFB9E2C0) else Color.Transparent
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(2.dp)
-                    .background(
-                        if (selectedTab == MyPageTab.TASTY_LIST) Color(0xFFB9E2C0) else Color.Transparent
-                    )
-            )
-        }
+        MyPageTabButton(
+            modifier = Modifier.weight(1f),
+            selected = selectedTab == MyPageTab.TASTY_LIST,
+            icon = Icons.Default.Bookmarks,
+            text = "Tasty 리스트",
+            onClick = onTastyTabClick
+        )
     }
 }
 
 @Composable
-private fun MyPageTabItem(
+private fun MyPageTabButton(
     modifier: Modifier = Modifier,
     selected: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
     onClick: () -> Unit
 ) {
-    val contentColor = if (selected) Color(0xFFB9E2C0) else Color.Gray
+    val containerColor = if (selected) PrimaryColor else Color.Transparent
+    val contentColor = if (selected) TextColor else Color(0xFF6F6F6F)
 
     Row(
         modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = contentColor
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
         )
+
         Spacer(modifier = Modifier.width(6.dp))
+
         Text(
             text = text,
             color = contentColor,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp
         )
     }
 }
@@ -555,63 +559,27 @@ private fun MyFeedPage(
 ) {
     if (feeds.isEmpty() && !isLoadingMoreFeeds) {
         EmptyContent(
-            title = "아직 작성하신 피드가 없어요.",
-            description = "새로운 피드를 작성해주세요."
+            title = "아직 작성한 피드가 없어요",
+            description = "첫 번째 피드를 작성해보세요"
         )
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            contentPadding = WindowInsets.navigationBars.asPaddingValues(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = 14.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(feeds, key = {it.feedId}) { feed ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(4.dp))
-                        .height(120.dp)
-                        .background(Color.Gray)
-                        .clickable { onFeedClick(feed.feedId) }
-                ) {
-                    if (!feed.thumbnailUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = feed.thumbnailUrl,
-                            contentDescription = "피드 썸네일",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Text(
-                            text = "${feed.feedId} 이미지 없음",
-                            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
-                            color = TextColor
-                        )
-                    }
-
-                    if (feed.hasImages) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(24.dp)
-                                .background(
-                                    color = Color.Black.copy(alpha = 0.5f),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Layers,
-                                contentDescription = "사진 포함",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
+            items(feeds, key = { it.feedId }) { feed ->
+                FeedThumbnailCard(
+                    feed = feed,
+                    onClick = { onFeedClick(feed.feedId) }
+                )
             }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -620,9 +588,12 @@ private fun MyFeedPage(
                         onLoadMore()
                     }
                 }
+
                 if (isLoadingMoreFeeds) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
@@ -632,13 +603,78 @@ private fun MyFeedPage(
                         )
                     }
                 } else {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
     }
 }
 
+@Composable
+private fun FeedThumbnailCard(
+    feed: MyFeedItem,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFFF1F3F5))
+            .clickable(onClick = onClick)
+    ) {
+        if (!feed.thumbnailUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = feed.thumbnailUrl,
+                contentDescription = "피드 썸네일",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PrimaryColor.copy(alpha = 0.08f)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.InsertPhoto,
+                    contentDescription = "이미지 없음",
+                    tint = PrimaryColor,
+                    modifier = Modifier.size(30.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "이미지 없음",
+                    color = Color(0xFF777777),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        if (feed.hasImages) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = "여러 장 이미지",
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MyTastyListPage(
     tastyLists: List<MyTastyListItem>,
@@ -647,64 +683,114 @@ private fun MyTastyListPage(
     onTastyListLongClick: (String) -> Unit
 ) {
     if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator(color = PrimaryColor)
         }
     } else if (tastyLists.isEmpty()) {
         EmptyContent(
-            title = "아직 작성하신 Tasty 리스트가 없어요.",
-            description = "새로운 Tasty 리스트를 작성해주세요."
+            title = "아직 만든 Tasty 리스트가 없어요",
+            description = "새로운 리스트를 만들어보세요"
         )
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2), // 2개로 조정 (피드와 맞춤)
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            contentPadding = WindowInsets.navigationBars.asPaddingValues(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            columns = GridCells.Fixed(2),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(
+                top = 14.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(tastyLists, key = { it.tastyListId }) { tastyItem ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(PrimaryColor.copy(alpha = 0.3f))
-                        .combinedClickable(
-                            onClick = { onTastyListClick(tastyItem.tastyListId) },
-                            onLongClick = { onTastyListLongClick(tastyItem.tastyListId) }
-                        )
-                ) {
-                    if (tastyItem.thumbnailUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = tastyItem.thumbnailUrl,
-                            contentDescription = "썸네일",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.4f))
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = tastyItem.title,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "피드 ${tastyItem.feedCount}개 · 조회 ${tastyItem.viewCount}",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = TextStyle(fontSize = 8.sp)
-                        )
-                    }
-                }
+                TastyListThumbnailCard(
+                    item = tastyItem,
+                    onClick = { onTastyListClick(tastyItem.tastyListId) },
+                    onLongClick = { onTastyListLongClick(tastyItem.tastyListId) }
+                )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TastyListThumbnailCard(
+    item: MyTastyListItem,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFFF1F3F5))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    ) {
+        if (item.thumbnailUrl.isNotBlank()) {
+            AsyncImage(
+                model = item.thumbnailUrl,
+                contentDescription = "테이스티 리스트 썸네일",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PrimaryColor.copy(alpha = 0.10f)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bookmarks,
+                    contentDescription = "리스트 기본 이미지",
+                    tint = PrimaryColor,
+                    modifier = Modifier.size(30.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Tasty List",
+                    color = Color(0xFF6F6F6F),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.42f))
+                .padding(horizontal = 10.dp, vertical = 9.dp)
+        ) {
+            Text(
+                text = item.title.ifBlank { "제목 없는 리스트" },
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = "피드 ${item.feedCount}개 · 조회 ${item.viewCount}",
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = 11.sp,
+                maxLines = 1
+            )
         }
     }
 }
@@ -716,21 +802,45 @@ private fun EmptyContent(
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.padding(top = 110.dp),
+            modifier = Modifier.padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryColor.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = "빈 상태",
+                    tint = PrimaryColor,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = title,
-                color = TextColor,
-                fontWeight = FontWeight.SemiBold
+                color = Color(0xFF1F1F1F),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = description,
-                color = Color.Black
+                color = Color(0xFF7A7A7A),
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 19.sp
             )
         }
     }

@@ -3,7 +3,6 @@ package com.tasty.android.feature.profile
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -170,95 +169,100 @@ private fun UserProfileHeader(
     isFollowing: Boolean,
     onFollowClick: () -> Unit
 ) {
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
+        shadowElevation = 6.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
+        Column(
+            modifier = Modifier.padding(20.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE4D8F5)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (profileImageUrl.isNullOrBlank()) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "기본 프로필",
-                        modifier = Modifier.size(36.dp),
-                        tint = Color(0xFF6A4FA3)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                //프로필 이미지
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE4D8F5)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (profileImageUrl.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF6A4FA3),
+                            modifier = Modifier.size(42.dp)
+                        )
+                    } else {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = nickname,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
                     )
-                } else {
-                    AsyncImage(
-                        model = profileImageUrl,
-                        contentDescription = "프로필 이미지",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                    Text(
+                        text = userHandle,
+                        color = Color.Gray,
+                        fontSize = 13.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
+            //통계
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .background(
-                        color = PrimaryColor,
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    .padding(vertical = 12.dp),
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(PrimaryColor.copy(alpha = 0.30f))
+                    .padding(vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(count = feedCount, label = "피드")
-                StatItem(count = followerCount, label = "팔로워")
-                StatItem(count = followingCount, label = "팔로잉")
+                StatItem(feedCount, "피드")
+                StatItem(followerCount, "팔로워")
+                StatItem(followingCount, "팔로잉")
             }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-        // 유저 정보 카드 & 팔로우 버튼
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = PrimaryColor,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(14.dp)
-        ) {
-            Text(text = nickname, fontWeight = FontWeight.Bold, color = TextColor)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = userHandle, color = TextColor)
-            if (bio.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(text = bio, color = TextColor)
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
+            // bio
+            Text(
+                text = if (bio.isBlank()) "소개가 아직 없어요." else bio,
+                fontSize = 14.sp,
+                color = if (bio.isBlank()) Color.Gray else Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // 팔로우 버튼
             Button(
                 onClick = onFollowClick,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFollowing) Color.White else TextColor,
-                    contentColor = if (isFollowing) TextColor else Color.White
+                    containerColor = PrimaryColor,
+                    contentColor = TextColor
                 ),
-                shape = RoundedCornerShape(8.dp),
-                border = if (isFollowing) BorderStroke(1.dp, TextColor) else null,
-                contentPadding = PaddingValues(vertical = 8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     text = if (isFollowing) "팔로우 취소" else "팔로우",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -289,48 +293,68 @@ private fun UserProfileTabBar(
     onFeedTabClick: () -> Unit,
     onTastyTabClick: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            ProfileTabItem(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == MyPageTab.FEED,
-                icon = Icons.Default.GridOn,
-                text = "작성 피드",
-                onClick = onFeedTabClick
-            )
-            ProfileTabItem(
-                modifier = Modifier.weight(1f),
-                selected = selectedTab == MyPageTab.TASTY_LIST,
-                icon = Icons.Default.Bookmarks,
-                text = "Tasty 리스트",
-                onClick = onTastyTabClick
-            )
-        }
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray)
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Box(modifier = Modifier.weight(1f).height(2.dp).background(if (selectedTab == MyPageTab.FEED) Color(0xFFB9E2C0) else Color.Transparent))
-            Box(modifier = Modifier.weight(1f).height(2.dp).background(if (selectedTab == MyPageTab.TASTY_LIST) Color(0xFFB9E2C0) else Color.Transparent))
-        }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF1F1F1))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ProfileTabButton(
+            modifier = Modifier.weight(1f),
+            selected = selectedTab == MyPageTab.FEED,
+            icon = Icons.Default.GridOn,
+            text = "내 피드",
+            onClick = onFeedTabClick
+        )
+
+        ProfileTabButton(
+            modifier = Modifier.weight(1f),
+            selected = selectedTab == MyPageTab.TASTY_LIST,
+            icon = Icons.Default.Bookmarks,
+            text = "Tasty 리스트",
+            onClick = onTastyTabClick
+        )
     }
 }
 
 @Composable
-private fun ProfileTabItem(
-    modifier: Modifier,
+private fun ProfileTabButton(
+    modifier: Modifier = Modifier,
     selected: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
     onClick: () -> Unit
 ) {
-    val contentColor = if (selected) Color(0xFFB9E2C0) else Color.Gray
+    val containerColor = if (selected) PrimaryColor else Color.Transparent
+    val contentColor = if (selected) TextColor else Color(0xFF6F6F6F)
+
     Row(
-        modifier = modifier.clickable(onClick = onClick).padding(vertical = 14.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = text, tint = contentColor)
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
+        )
+
         Spacer(modifier = Modifier.width(6.dp))
-        Text(text = text, color = contentColor, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+
+        Text(
+            text = text,
+            color = contentColor,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp
+        )
     }
 }
 
