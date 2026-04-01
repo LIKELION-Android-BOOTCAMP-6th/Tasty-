@@ -63,6 +63,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -144,6 +146,10 @@ fun FeedScreen(
         )
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh()
+    }
+
     // Observer for Loading Feeds
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.distinctUntilChanged().collect {lastIdx ->
@@ -189,7 +195,7 @@ fun FeedScreen(
                         navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
                     },
                     onProfileClick = {
-                        navController.navigate(Screen.USER_PROFILE.route)
+                        navController.navigate("user_profile/${feedPost.authorId}")
                     },
                     onLikeClick = {
                         viewModel.toggleLike(feedPost.feedId)
@@ -351,6 +357,7 @@ private fun FeedCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onProfileClick() }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -358,8 +365,7 @@ private fun FeedCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFD9D9D9))
-                        .clickable { onProfileClick() },
+                        .background(Color(0xFFD9D9D9)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (post.authorProfileUrl.isNullOrBlank()) {

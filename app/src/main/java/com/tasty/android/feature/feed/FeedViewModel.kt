@@ -116,6 +116,10 @@ class FeedViewModel(
                             it.copy(isLiked = event.isLiked, likeCount = event.likeCount) 
                         }
                     }
+                    is FeedUpdateEvent.AuthorInfoChanged -> {
+                        updateAuthorInfoInState(event.authorId, event.newNickname, event.newProfileUrl)
+                    }
+                    else -> {}
                 }
             }
         }
@@ -132,6 +136,34 @@ class FeedViewModel(
         // 원본 리스트도 동기화 (검색/필터링 시 일관성 유지)
         originalFeedPosts = originalFeedPosts.map {
             if (it.feedId == feedId) transform(it) else it
+        }
+    }
+
+    private fun updateAuthorInfoInState(authorId: String, newNickname: String, newProfileUrl: String?) {
+        _uiState.update { state ->
+            val updatedPosts = state.feedPosts.map { post ->
+                if (post.authorId == authorId) {
+                    post.copy(authorNickname = newNickname, authorProfileUrl = newProfileUrl)
+                } else {
+                    post
+                }
+            }
+            state.copy(feedPosts = updatedPosts)
+        }
+        originalFeedPosts = originalFeedPosts.map { post ->
+            if (post.authorId == authorId) {
+                post.copy(authorNickname = newNickname, authorProfileUrl = newProfileUrl)
+            } else {
+                post
+            }
+        }
+    }
+
+    fun refresh() {
+        // 거리순 혹은 최신순에 맞게 리프레시
+        when (_uiState.value.filter.sortType) {
+            FeedSortType.LATEST -> loadLatestFeeds(isRefresh = true)
+            FeedSortType.DISTANCE -> loadDistanceFeeds()
         }
     }
 

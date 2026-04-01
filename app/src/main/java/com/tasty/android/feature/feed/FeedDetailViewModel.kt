@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import com.tasty.android.core.firebase.FeedUpdateEvent
 import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.feature.feed.mapper.toFeedDetailPostUiModel
+import kotlin.collections.emptyList
 
 
 data class FeedDetailPostUiModel(
@@ -89,9 +90,17 @@ class FeedDetailViewModel(
                             } else state
                         }
                     }
+                    else -> {
+
+                    }
                 }
             }
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun refresh(feedId: String) {
+        loadFeedDetail(feedId)
     }
 
     // 피드 상세 로딩

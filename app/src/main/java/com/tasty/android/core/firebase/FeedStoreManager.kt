@@ -7,9 +7,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
-import com.tasty.android.core.model.User
 import com.tasty.android.feature.feed.FeedSortType
-import com.tasty.android.feature.feed.model.Comment
 import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.feed.model.FeedLike
@@ -23,6 +21,8 @@ import kotlinx.coroutines.tasks.await
 sealed class FeedUpdateEvent {
     data class CommentCountChanged(val feedId: String, val newCount: Int) : FeedUpdateEvent()
     data class LikeStatusChanged(val feedId: String, val isLiked: Boolean, val likeCount: Int) : FeedUpdateEvent()
+    data class FeedCreated(val authorId: String) : FeedUpdateEvent()
+    data class AuthorInfoChanged(val authorId: String, val newNickname: String, val newProfileUrl: String?) : FeedUpdateEvent()
 }
 
 class FeedStoreManager {
@@ -66,21 +66,21 @@ class FeedStoreManager {
                 .document(feed.restaurantId)
 
             val feedRef = firebaseDB.collection("feeds").document(feed.feedId)
+            val userRef = firebaseDB.collection("users").document(feed.authorId)
 
             firebaseDB.runTransaction { transaction ->
-                val snapshot = transaction.get(restaurantRef)
+                val restaurantSnapshot = transaction.get(restaurantRef)
 
-                if (snapshot.exists()) {
-                    val currentCount = snapshot.getLong("feedCount") ?: 0L
-                    val currentAvg = snapshot.getDouble("ratingAvg") ?: 0.0
+                // 1. 식당 정보 업데이트
+                if (restaurantSnapshot.exists()) {
+                    val currentCount = restaurantSnapshot.getLong("feedCount") ?: 0L
+                    val currentAvg = restaurantSnapshot.getDouble("ratingAvg") ?: 0.0
 
                     val newCount = currentCount + 1
                     val newAvg = ((currentAvg * currentCount) + currentFeed.rating) / newCount
 
                     transaction.update(restaurantRef, "feedCount", newCount)
                     transaction.update(restaurantRef, "ratingAvg", newAvg)
-
-
                 } else {
                     val restaurantInfo = RestaurantInfo(
                         restaurantId = currentFeed.restaurantId,
@@ -88,13 +88,54 @@ class FeedStoreManager {
                         ratingAvg = currentFeed.rating.toDouble()
                     )
                     transaction.set(restaurantRef, restaurantInfo)
-                    transaction.set(feedRef, currentFeed)
                 }
+
+                // 2. 유저 프로필 피드 카운트 업데이트
+                transaction.update(userRef, "feedCount", FieldValue.increment(1))
+
+                // 3. 피드 저장
+                transaction.set(feedRef, currentFeed)
 
             }.await()
 
+            // 4. 피드 생성 이벤트 전파 (마이페이지 등 동기화용)
+            notifyFeedUpdated(FeedUpdateEvent.FeedCreated(feed.authorId))
+
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
+            Result.failure(e)
+        }
+    }
+
+    // 작성한 모든 피드 게시물의 작성자 정보를 일괄 업데이트
+    suspend fun syncAuthorInfoInFeeds(
+        userId: String,
+        nickname: String,
+        profileImageUrl: String?
+    ): Result<Unit> {
+        return try {
+            val feedsQuery = firebaseDB.collection("feeds")
+                .whereEqualTo("authorId", userId)
+                .get()
+                .await()
+
+            if (feedsQuery.isEmpty) return Result.success(Unit)
+
+            val batch = firebaseDB.batch()
+            feedsQuery.documents.forEach { doc ->
+                batch.update(
+                    doc.reference,
+                    "authorNickname", nickname,
+                    "authorProfileUrl", profileImageUrl
+                )
+            }
+            batch.commit().await()
+
+            // 실시간 이벤트 전파
+            notifyFeedUpdated(FeedUpdateEvent.AuthorInfoChanged(userId, nickname, profileImageUrl))
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -113,6 +154,8 @@ class FeedStoreManager {
             Result.failure(e)
         }
     }
+
+
 
     // 피드 다수 조회
     suspend fun getFeeds(
