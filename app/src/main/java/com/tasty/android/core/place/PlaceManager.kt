@@ -69,10 +69,6 @@ class PlaceManager(private val context: Context) {
                 Place.Field.NAME, // 식당명
                 Place.Field.ADDRESS, // 주소
                 Place.Field.LAT_LNG, // 위경도
-                Place.Field.OPENING_HOURS, // 오픈시간
-                Place.Field.BUSINESS_STATUS, // 영업상태
-                Place.Field.PHONE_NUMBER, // 전화번호
-                Place.Field.PHOTO_METADATAS, // 식당 사진들
                 Place.Field.TYPES, // 식당 타입
                 Place.Field.ADDRESS_COMPONENTS
             )

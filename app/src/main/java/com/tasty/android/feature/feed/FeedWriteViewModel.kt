@@ -28,10 +28,6 @@ data class SelectedRestaurantUiModel(
     val lon: Double = 0.0,
     val mainRegion: String = "",
     val subRegion: String = "",
-    val photoMetaDatas: List<PhotoMetadata> = emptyList(),
-    val businessHours: String = "",
-    val businessStatus: String = "",
-    val restaurantPhoneNumber: String = ""
 )
 
 data class FeedPhotoUiModel(
@@ -143,10 +139,6 @@ class FeedWriteViewModel(
                             lon = restaurant.latLng?.longitude ?: 0.0,
                             mainRegion = extractedMainRegion,
                             subRegion = extractedSubRegion,
-                            photoMetaDatas = restaurant.photoMetadatas ?: emptyList(),
-                            restaurantPhoneNumber = restaurant.phoneNumber ?: "",
-                            businessHours = restaurant.openingHours?.weekdayText.toString(),
-                            businessStatus = restaurant?.businessStatus.toString()
                         )
                     )
                 }
@@ -278,18 +270,6 @@ class FeedWriteViewModel(
                     }
                 )
             }
-            val restaurantImagesDeferred = async {
-                val bitmapResult = placeManager.getRestaurantBitmapImages(
-                    photoMetaDatas = restaurant.photoMetaDatas
-                )
-                bitmapResult.getOrNull()?.let {bimaps ->
-                    storageManager.uploadRestaurantImages(
-                        bitmaps = bimaps,
-                        restaurantId = restaurant.restaurantId
-                    )
-
-                }
-            }
 
             val feedImageUrls = feedImagesDeferred.await().getOrElse {
                 _uiState.update {currentState ->
@@ -301,7 +281,7 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-            val restaurantUrls = restaurantImagesDeferred.await()?.getOrNull() ?: emptyList()
+
 
             // 작성자 유저 정보 가져오기
             val userProfileResult = userStoreManager.getUser(authorId)
@@ -318,11 +298,7 @@ class FeedWriteViewModel(
                 shortReview = currentState.shortReview,
                 feedImageUrls = feedImageUrls,
                 restaurantId = restaurant.restaurantId,
-                restaurantImageUrls = restaurantUrls,
                 restaurantName = restaurant.name,
-                restaurantPhoneNumber = restaurant.restaurantPhoneNumber,
-                businessHours = restaurant.businessHours,
-                businessStatus = restaurant.businessStatus,
                 addressInfo = AddressInfo(
                     roadAddress = restaurant.address,
                     latitude = restaurant.lat,
