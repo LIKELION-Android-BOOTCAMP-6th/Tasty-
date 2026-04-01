@@ -104,6 +104,7 @@ fun TastyMapScreen(
     val cameraPositionState = rememberCameraPositionState()
     var userLat by remember { mutableDoubleStateOf(0.0) }
     var userLon by remember { mutableDoubleStateOf(0.0) }
+    var isSearchFocused by remember { mutableStateOf(false) } // 포커스 상태 저장 변수
 
     val scope = rememberCoroutineScope()
 
@@ -218,26 +219,10 @@ fun TastyMapScreen(
                 }
             }
 
-            // 식당 검색 버튼 클릭 시 호출
-            Button(
-                onClick = {
-                    val targetLocation = cameraPositionState.position.target
-                    viewmodel.placesManager.searchRestaurants(targetLocation, 1000.0) { result ->
-                        restaurants = result
-                        // 결과가 오면 바텀 시트를 부분 확장 상태로 올림
-                        scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 120.dp)
-            ) {
-                Text("이 지역 식당 검색")
-            }
-
             PlaceSearchScreen(
                 placesManager = viewmodel.placesManager,
                 labelText = "장소 및 음식점 검색",
+                onFocusChange = { isSearchFocused = it }, // 상태 업데이트
                 onPlaceSelected = { latLng ->
                     // 검색된 위치로 카메라 이동
                     scope.launch {
@@ -248,6 +233,26 @@ fun TastyMapScreen(
                     }
                 }
             )
+
+            // 식당 검색 버튼
+            AnimatedVisibility(
+                visible = !isSearchFocused, // 포커스가 없을 때만 보임
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 120.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val targetLocation = cameraPositionState.position.target
+                        viewmodel.placesManager.searchRestaurants(targetLocation, 1000.0) { result ->
+                            restaurants = result
+                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                        }
+                    }
+                ) {
+                    Text("이 지역 식당 검색")
+                }
+            }
 
             // 커스텀 버튼 배치(카메라 현재 위치로 이동)
             FloatingActionButton(

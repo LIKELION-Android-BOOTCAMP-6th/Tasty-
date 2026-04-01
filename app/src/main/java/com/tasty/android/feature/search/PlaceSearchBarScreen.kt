@@ -38,6 +38,7 @@ import com.tasty.android.core.place.PlaceManager
 fun PlaceSearchScreen(
     placesManager: PlaceManager,
     labelText: String,
+    onFocusChange: (Boolean) -> Unit,
     onPlaceSelected: (LatLng) -> Unit // 추가: 좌표를 전달할 콜백
 ) {
     // 포커스 상태를 저장하는 변수
@@ -85,11 +86,12 @@ fun PlaceSearchScreen(
                     .onFocusChanged { focusState ->
                         // 포커스 여부에 따라 상태 업데이트
                         isFocused = focusState.isFocused
+                        // 포커스 상태 콜백으로 전달
+                        onFocusChange(focusState.isFocused)
                         // 포커스를 잃었을 때
                         if (!focusState.isFocused) {
                             searchQuery = ""
                             predictions = emptyList()
-                            isFocused = false
                         }
                     },
                 singleLine = true,
