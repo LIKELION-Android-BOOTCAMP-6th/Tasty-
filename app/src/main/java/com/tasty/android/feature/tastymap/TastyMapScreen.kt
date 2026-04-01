@@ -46,7 +46,8 @@ import kotlin.math.*
 fun TastyMapScreen(
     navController: NavController,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
-    viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
+    viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory),
+    initialRestaurantId: String? = null
 ) {
     val uiState = viewModel.uiState
     val scaffoldState = rememberBottomSheetScaffoldState()
@@ -60,6 +61,10 @@ fun TastyMapScreen(
         )
         viewModel.initializeLocation { latLng ->
             cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+
+            // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
+            initialRestaurantId?.let { id ->
+                viewModel.selectRestaurantById(id)
         }
     }
 

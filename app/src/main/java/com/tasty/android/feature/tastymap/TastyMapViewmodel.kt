@@ -133,4 +133,19 @@ class TastyMapViewmodel(
             )
         }
     }
+
+    // id로 식당을 찾음
+    fun selectRestaurantById(restaurantId: String) {
+        viewModelScope.launch {
+            // 이미 리스트에 데이터가 있는지 확인
+            val target = uiState.restaurants.find { it.id == restaurantId }
+
+            if (target != null) {
+                selectRestaurant(target)
+            } else {
+                // places api를 통해 식당 정보 가져와서
+                // restaurants 리스트에 추가하고 선택 처리하는 로직 필요
+            }
+        }
+    }
 }
