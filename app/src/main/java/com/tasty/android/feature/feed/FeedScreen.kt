@@ -323,8 +323,25 @@ private fun TastyListCard(
                     width = 1.dp,
                     color = Color.Black.copy(alpha = 0.05f),
                     shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (item.thumbnailImageUrl.isNullOrBlank()) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "기본 썸네일",
+                    tint = Color(0xFFB5B5B5),
+                    modifier = Modifier.fillMaxSize(0.78f)
                 )
-        )
+            } else {
+                AsyncImage(
+                    model = item.thumbnailImageUrl,
+                    contentDescription = "테이스티 리스트 썸네일",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(6.dp))
 

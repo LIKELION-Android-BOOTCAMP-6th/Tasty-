@@ -306,7 +306,7 @@ private fun UserProfileTabBar(
             modifier = Modifier.weight(1f),
             selected = selectedTab == MyPageTab.FEED,
             icon = Icons.Default.GridOn,
-            text = "내 피드",
+            text = "피드",
             onClick = onFeedTabClick
         )
 
