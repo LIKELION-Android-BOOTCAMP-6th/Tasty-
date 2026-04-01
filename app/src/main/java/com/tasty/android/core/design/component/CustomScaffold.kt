@@ -1,5 +1,7 @@
 package com.tasty.android.core.design.component
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -13,12 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.navigation.CustomNavHost
-import com.tasty.android.core.navigation.Screen
-import com.tasty.android.core.navigation.TabScreen
-import kotlin.collections.setOf
 
 // 스캐폴드 커스텀 설정 클래스 선언
 data class ScaffoldConfig(
@@ -32,6 +30,7 @@ data class ScaffoldConfig(
     val containerColor: Color = PrimaryColor, // 컨테이너 컬러
     val isCenterAligned: Boolean = false // 가운데 정렬 여부
 )
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomScaffold(navController: NavHostController) {
