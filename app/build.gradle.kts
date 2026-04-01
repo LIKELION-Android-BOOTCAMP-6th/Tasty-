@@ -91,4 +91,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     // Google Places SDK Dependency
     implementation("com.google.android.libraries.places:places:3.5.0")
+    // Maps Compose 라이브러리
+    implementation("com.google.maps.android:maps-compose:4.3.3")
 }

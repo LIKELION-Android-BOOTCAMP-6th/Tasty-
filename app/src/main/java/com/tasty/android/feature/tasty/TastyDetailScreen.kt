@@ -18,10 +18,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -151,9 +153,12 @@ private fun TastyDetailHeader(
                     model = author.profileImageUrl,
                     contentDescription = author.nickname,
                     contentScale = ContentScale.Crop,
+                    placeholder = rememberVectorPainter(Icons.Default.AccountCircle),
+                    error = rememberVectorPainter(Icons.Default.AccountCircle),
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
+                        .background(Color.LightGray)
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))

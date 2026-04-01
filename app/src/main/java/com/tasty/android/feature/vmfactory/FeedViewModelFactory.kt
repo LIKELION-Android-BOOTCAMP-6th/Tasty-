@@ -17,6 +17,8 @@ val FeedViewModelFactory: ViewModelProvider.Factory =
             FeedViewModel(
                 locationManager = app.container.locationManager,
                 feedStoreManager = app.container.feedStoreManager,
+                userStoreManager = app.container.userStoreManager,
+                tastyStoreManager = app.container.tastyStoreManager
             )
         }
     }

@@ -107,6 +107,7 @@ fun FeedScreen(
                 showTopBar = true,
                 showBottomBar = true,
                 containsBackButton = false,
+                isCenterAligned = true,
                 floatingActionButton = {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -146,6 +147,7 @@ fun FeedScreen(
         )
     }
 
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -158,6 +160,7 @@ fun FeedScreen(
             }
         }
     }
+
     // Refresh 후에 초기값으로 복구
     LaunchedEffect(shouldRefresh) {
         if(shouldRefresh) {
@@ -177,7 +180,10 @@ fun FeedScreen(
         ) {
             item {
                 FeedHeaderSection(
-                    tastyLists = uiState.tastyLists
+                    tastyLists = uiState.tastyLists,
+                    onTastyListClick = { tastyListId ->
+                        navController.navigate("${Screen.TASTY_DETAIL.route}/$tastyListId")
+                    }
                 )
             }
 
@@ -259,7 +265,8 @@ fun FeedScreen(
 
 @Composable
 private fun FeedHeaderSection(
-    tastyLists: List<TastyListUiModel>
+    tastyLists: List<TastyListUiModel>,
+    onTastyListClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -308,11 +315,14 @@ private fun FeedHeaderSection(
 
 @Composable
 private fun TastyListCard(
-    item: TastyListUiModel
+    item: TastyListUiModel,
+    onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp)
+        modifier = Modifier
+            .width(72.dp)
+            .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
@@ -356,7 +366,7 @@ private fun TastyListCard(
         )
 
         Text(
-            text = item.subTitle,
+            text = item.authorNickname,
             style = MaterialTheme.typography.labelSmall.copy(
                 color = TextColor.copy(alpha = 0.9f)
             ),

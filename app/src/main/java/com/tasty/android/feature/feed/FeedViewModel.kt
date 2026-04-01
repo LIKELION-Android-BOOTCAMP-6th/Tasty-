@@ -3,15 +3,20 @@ package com.tasty.android.feature.feed
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.FeedUpdateEvent
+import com.tasty.android.core.firebase.TastyStoreManager
+import com.tasty.android.core.firebase.TastyUpdateEvent
+import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.location.LocationManager
 import com.tasty.android.feature.feed.mapper.toFeedPostUiModel
 import com.tasty.android.feature.feed.model.FeedLike
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,10 +24,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeSource
-
-
 
 enum class FeedSortType {
     LATEST,
@@ -54,8 +58,8 @@ data class FeedUiState(
 data class TastyListUiModel(
     val tastyListId: String,
     val title: String,
-    val subTitle: String,
-    val thumbnailImageUrl: String = ""
+    val authorNickname: String,
+    val thumbnailImageUrl: String? = null
 )
 
 data class FeedPostUiModel(
@@ -63,7 +67,7 @@ data class FeedPostUiModel(
     val authorId: String,
     val authorNickname: String,
     val userHandle: String,
-    val authorProfileUrl: String? = null, // 추가
+    val authorProfileUrl: String? = null,
     val placeName: String,
     val address: String,
     val rating: Int,
@@ -78,7 +82,9 @@ data class FeedPostUiModel(
 @RequiresApi(Build.VERSION_CODES.O)
 class FeedViewModel(
     private val feedStoreManager: FeedStoreManager,
-    private val locationManager: LocationManager
+    private val locationManager: LocationManager,
+    private val userStoreManager: UserStoreManager,
+    private val tastyStoreManager: TastyStoreManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedUiState())
@@ -110,37 +116,49 @@ class FeedViewModel(
             feedStoreManager.feedUpdateEvents.collect { event ->
                 when (event) {
                     is FeedUpdateEvent.CommentCountChanged -> {
-                        updateFeedPostInState(event.feedId) { it.copy(commentCount = event.newCount) }
+                        launch { updateFeedPostInState(event.feedId) { it.copy(commentCount = event.newCount) } }
                     }
                     is FeedUpdateEvent.LikeStatusChanged -> {
-                        updateFeedPostInState(event.feedId) { 
-                            it.copy(isLiked = event.isLiked, likeCount = event.likeCount) 
+                        launch {
+                            updateFeedPostInState(event.feedId) { 
+                                it.copy(isLiked = event.isLiked, likeCount = event.likeCount) 
+                            }
                         }
                     }
                     is FeedUpdateEvent.AuthorInfoChanged -> {
-                        updateAuthorInfoInState(event.authorId, event.newNickname, event.newProfileUrl)
+                        launch { updateAuthorInfoInState(event.authorId, event.newNickname, event.newProfileUrl) }
                     }
                     else -> {}
                 }
             }
         }
+
+        // 테이스티 리스트 업데이트 이벤트 구독
+        viewModelScope.launch {
+            tastyStoreManager.tastyUpdateEvents.collect { event ->
+                if (event is TastyUpdateEvent.TastyListCreated) {
+                    loadFollowingTastyLists()
+                }
+            }
+        }
+
         loadLatestFeeds(isRefresh = true)
+        loadFollowingTastyLists()
     }
 
-    private fun updateFeedPostInState(feedId: String, transform: (FeedPostUiModel) -> FeedPostUiModel) {
+    private suspend fun updateFeedPostInState(feedId: String, transform: (FeedPostUiModel) -> FeedPostUiModel) = withContext(Dispatchers.Default) {
         _uiState.update { state ->
             val updatedPosts = state.feedPosts.map { 
                 if (it.feedId == feedId) transform(it) else it 
             }
             state.copy(feedPosts = updatedPosts)
         }
-        // 원본 리스트도 동기화 (검색/필터링 시 일관성 유지)
         originalFeedPosts = originalFeedPosts.map {
             if (it.feedId == feedId) transform(it) else it
         }
     }
 
-    private fun updateAuthorInfoInState(authorId: String, newNickname: String, newProfileUrl: String?) {
+    private suspend fun updateAuthorInfoInState(authorId: String, newNickname: String, newProfileUrl: String?) = withContext(Dispatchers.Default) {
         _uiState.update { state ->
             val updatedPosts = state.feedPosts.map { post ->
                 if (post.authorId == authorId) {
@@ -161,24 +179,21 @@ class FeedViewModel(
     }
 
     fun refresh() {
-        // 거리순 혹은 최신순에 맞게 리프레시
         when (_uiState.value.filter.sortType) {
             FeedSortType.LATEST -> loadLatestFeeds(isRefresh = true)
             FeedSortType.DISTANCE -> loadDistanceFeeds()
         }
     }
 
-    /** 최신순 피드 로딩**/
     @RequiresApi(Build.VERSION_CODES.O)
     private fun loadLatestFeeds(isRefresh: Boolean = false) {
         viewModelScope.launch {
             if (isRefresh) {
-                // 새로고침: 커서 초기화 + 전체 로딩 상태
                 lastFeedId = null
                 originalFeedPosts = emptyList()
                 _uiState.update { it.copy(isLoading = true, hasMore = true) }
+                loadFollowingTastyLists()
             } else {
-                // 추가 로딩: 더 불러올 데이터가 없으면 중단
                 if (!_uiState.value.hasMore) return@launch
                 _uiState.update { it.copy(isLoadingMore = true) }
             }
@@ -187,54 +202,56 @@ class FeedViewModel(
                 sortType = FeedSortType.LATEST,
                 lastFeedId = lastFeedId
             ).onSuccess { feeds ->
-                val newUiModels = feeds.map { feed ->
-                    async {
-                        val isLiked = feedStoreManager.isLiked(
-                            FeedLike(
-                                feedId = feed.feedId,
-                                userId = currentUserId ?: ""
+                // 데이터 변환 및 필터링 작업을 백그라운드 스레드에서 수행
+                val newUiModels = withContext(Dispatchers.Default) {
+                    feeds.map { feed ->
+                        async {
+                            val isLiked = feedStoreManager.isLiked(
+                                FeedLike(
+                                    feedId = feed.feedId,
+                                    userId = currentUserId ?: ""
+                                )
+                            ).getOrDefault(false)
+
+                            val authorNickname = feed.authorNickname.ifBlank { "작성자" }
+                            val userHandle = feed.authorHandle.ifBlank { "tastier" }
+
+                            feed.toFeedPostUiModel(
+                                authorNickname = authorNickname,
+                                userHandle = userHandle,
+                                authorProfileUrl = feed.authorProfileUrl,
+                                isLiked = isLiked
                             )
-                        ).getOrDefault(false)
+                        }
+                    }.awaitAll()
+                }
 
-                        // 작성자 정보가 비어있을 경우(기존 데이터) 유저 정보 조회
-                        val authorNickname = feed.authorNickname.ifBlank { "작성자" }
-                        val userHandle = feed.authorHandle.ifBlank { "tastier" }
-
-                        feed.toFeedPostUiModel(
-                            authorNickname = authorNickname,
-                            userHandle = userHandle,
-                            authorProfileUrl = feed.authorProfileUrl, // 추가
-                            isLiked = isLiked
-                        )
-                    }
-                }.awaitAll()
-
-                // 커서 업데이트 (마지막 피드 ID 저장)
                 lastFeedId = feeds.lastOrNull()?.feedId
 
-                // 원본 리스트 누적 (새로고침이면 교체, 추가 로딩이면 append)
-                originalFeedPosts = if (isRefresh) newUiModels
-                                    else (originalFeedPosts + newUiModels).distinctBy { it.feedId }
+                // 대규모 리스트 병합 및 필터링을 백그라운드에서 처리
+                val updatedOriginalPosts = withContext(Dispatchers.Default) {
+                    if (isRefresh) newUiModels
+                    else (originalFeedPosts + newUiModels).distinctBy { it.feedId }
+                }
+                originalFeedPosts = updatedOriginalPosts
 
                 _uiState.update { currentState ->
                     currentState.copy(
                         isLoading = false,
                         isLoadingMore = false,
-                        // 가져온 수 < limit 이면 마지막 페이지
                         hasMore = feeds.size.toLong() >= maxFetchLimit,
-                        feedPosts = applyRegionFilter(originalFeedPosts, currentState.filter)
+                        feedPosts = updatedOriginalPosts
                     )
                 }
+
+                applyFilter(uiState.value.filter)
+
             }.onFailure {
                 _uiState.update { it.copy(isLoading = false, isLoadingMore = false) }
             }
-
-
         }
     }
 
-
-    /** 거리순 cached 피드 로딩**/
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.O)
     private fun loadDistanceFeeds() {
@@ -243,11 +260,8 @@ class FeedViewModel(
             val myLat = location.first
             val myLng = location.second
 
-
             val cache = distanceCache
             if (cache != null && isCacheValid(cache, myLat, myLng)) {
-
-                originalFeedPosts = cache.feeds
                 _uiState.update { currentState ->
                     currentState.copy(
                         feedPosts = applyRegionFilter(cache.feeds, currentState.filter)
@@ -256,7 +270,6 @@ class FeedViewModel(
                 return@launch
             }
 
-
             _uiState.update { it.copy(isLoading = true) }
 
             feedStoreManager.getFeeds(
@@ -264,9 +277,11 @@ class FeedViewModel(
                 userLat = myLat,
                 userLon = myLng
             ).onSuccess { feeds ->
-                val uiModels = feeds.map { it.toFeedPostUiModel() }
+                // 리스트 매핑을 백그라운드에서 수행
+                val uiModels = withContext(Dispatchers.Default) {
+                    feeds.map { it.toFeedPostUiModel() }
+                }
 
-                // 초기화 시점
                 distanceCache = DistanceCache(
                     feeds = uiModels,
                     cachedLat = myLat,
@@ -287,7 +302,6 @@ class FeedViewModel(
         }
     }
 
-    // 캐시 유효성 판단 (20분 이내 && 3km 이내)
     private fun isCacheValid(
         cache: DistanceCache,
         lat: Double,
@@ -304,46 +318,49 @@ class FeedViewModel(
         return isNotExpired && isNearby
     }
 
-
-    /** 필터 적용 **/
     @RequiresApi(Build.VERSION_CODES.O)
     fun applyFilter(newFilter: FeedFilterUiState) {
-        val currentSort = _uiState.value.filter.sortType
+        viewModelScope.launch {
+            val currentSort = _uiState.value.filter.sortType
 
-        if (newFilter.sortType != currentSort) {
-            _uiState.update { it.copy(filter = newFilter) }
-            when (newFilter.sortType) {
-                FeedSortType.LATEST -> loadLatestFeeds(isRefresh = true)
-                FeedSortType.DISTANCE -> loadDistanceFeeds()
+            if (newFilter.sortType != currentSort) {
+                _uiState.update { it.copy(filter = newFilter) }
+                when (newFilter.sortType) {
+                    FeedSortType.LATEST -> loadLatestFeeds(isRefresh = true)
+                    FeedSortType.DISTANCE -> loadDistanceFeeds()
+                }
+                return@launch
             }
-            return
-        }
 
-        _uiState.update { it.copy(
-            filter = newFilter,
-            feedPosts = applyRegionFilter(originalFeedPosts, newFilter)
-        )}
+            // 필터링 작업을 백그라운드 스레드에서 수행
+            val filteredPosts = withContext(Dispatchers.Default) {
+                applyRegionFilter(originalFeedPosts, newFilter)
+            }
+
+            _uiState.update { it.copy(
+                filter = newFilter,
+                feedPosts = filteredPosts
+            )}
+        }
     }
 
-    // 지역 필터링
     private fun applyRegionFilter(
         feeds: List<FeedPostUiModel>,
         filter: FeedFilterUiState
     ): List<FeedPostUiModel> {
         return feeds
-            .let { // 상위 지역 필터
+            .let {
                 if (filter.mainRegion.isBlank()) it else it.filter { feed ->
                     feed.address.contains(filter.mainRegion)
                 }
             }
-            .let {// 하위 지역 필터
+            .let {
                 if (filter.subRegion.isBlank()) it else it.filter { feed ->
                     feed.address.contains(filter.subRegion)
                 }
             }
     }
 
-    // 무한 스크롤 (최신순 전용)
     @RequiresApi(Build.VERSION_CODES.O)
     fun loadMoreFeeds() {
         if (_uiState.value.filter.sortType != FeedSortType.LATEST) return
@@ -351,23 +368,21 @@ class FeedViewModel(
         loadLatestFeeds(isRefresh = false)
     }
 
-    // 피드 작성 완료 후 → 캐시 무효화 + 최신순 재조회
     @RequiresApi(Build.VERSION_CODES.O)
     fun invalidateCacheAndRefresh() {
         distanceCache = null
         loadLatestFeeds(isRefresh = true)
     }
 
-    // 좋아요 토글
     fun toggleLike(feedId: String) {
         val currentPosts = _uiState.value.feedPosts
         val currentPost = currentPosts.find { it.feedId == feedId } ?: return
         val isCurrentlyLiked = currentPost.isLiked
         val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
-        _uiState.update { state ->
-            state.copy(
-                feedPosts = state.feedPosts.map { post ->
+        viewModelScope.launch {
+            val updatedPosts = withContext(Dispatchers.Default) {
+                _uiState.value.feedPosts.map { post ->
                     if (post.feedId == feedId) post.copy(
                         isLiked = !isCurrentlyLiked,
                         likeCount = if (isCurrentlyLiked) post.likeCount - 1
@@ -375,15 +390,19 @@ class FeedViewModel(
                     )
                     else post
                 }
-            )
+            }
+
+            _uiState.update { state ->
+                state.copy(feedPosts = updatedPosts)
+            }
         }
+
         val feedLike = FeedLike(feedId = feedId, userId = safeUserId)
         viewModelScope.launch {
-
             val result = if (isCurrentlyLiked) {
-                feedStoreManager.unlikeFeed(feedLike) // 좋아요 취소
+                feedStoreManager.unlikeFeed(feedLike)
             } else {
-                feedStoreManager.likeFeed(feedLike)   // 좋아요 추가
+                feedStoreManager.likeFeed(feedLike)
             }
 
             result.onFailure {
@@ -391,13 +410,45 @@ class FeedViewModel(
                     state.copy(
                         feedPosts = state.feedPosts.map { post ->
                             if (post.feedId == feedId) post.copy(
-                                isLiked = isCurrentlyLiked,          // 원래 상태로 복구
-                                likeCount = currentPost.likeCount     // 원래 카운트로 복구
+                                isLiked = isCurrentlyLiked,
+                                likeCount = currentPost.likeCount
                             )
                             else post
                         }
                     )
                 }
+            }
+        }
+    }
+
+    private fun loadFollowingTastyLists() {
+        viewModelScope.launch {
+            if (currentUserId.isBlank()) return@launch
+
+            userStoreManager.getFollowingUserIds(currentUserId).onSuccess { followingIds ->
+                Log.d("FeedViewModel", "Following User IDs: $followingIds")
+                if (followingIds.isEmpty()) {
+                    _uiState.update { it.copy(tastyLists = emptyList()) }
+                    return@launch
+                }
+
+                val usersResult = userStoreManager.getUsers(followingIds)
+
+                val uiModels = withContext(Dispatchers.Default) {
+                    val nicknameMap = usersResult.getOrNull()?.associate { it.userId to it.nickname } ?: emptyMap()
+                    
+                    tastyStoreManager.getTastyListsByUserIds(followingIds).getOrNull()?.map { item ->
+                        val authorNickname = nicknameMap[item.authorId] ?: "사용자"
+                        TastyListUiModel(
+                            tastyListId = item.tastyListId,
+                            title = item.title,
+                            authorNickname = authorNickname,
+                            thumbnailImageUrl = item.thumbnailImageUrl
+                        )
+                    } ?: emptyList()
+                }
+
+                _uiState.update { it.copy(tastyLists = uiModels) }
             }
         }
     }
