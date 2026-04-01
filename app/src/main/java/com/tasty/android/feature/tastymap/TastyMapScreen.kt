@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -97,14 +99,19 @@ fun TastyMapScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
     viewmodel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
-
     // 검색된 식당 리스트
     var restaurants by remember { mutableStateOf<List<RestaurantData>>(emptyList()) }
+
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
     val cameraPositionState = rememberCameraPositionState()
+
     var userLat by remember { mutableDoubleStateOf(0.0) }
     var userLon by remember { mutableDoubleStateOf(0.0) }
+
     var isSearchFocused by remember { mutableStateOf(false) } // 포커스 상태 저장 변수
+
+    var selectedRestaurant by remember { mutableStateOf<RestaurantData?>(null) }
+    var isCommentVisible by remember { mutableStateOf(false) } // 댓글 노출 여부
 
     val scope = rememberCoroutineScope()
 
@@ -120,7 +127,7 @@ fun TastyMapScreen(
         onScaffoldConfigChange(
             ScaffoldConfig(
                 title = "테이스티 맵",
-                showTopBar = true,
+                showTopBar = false,
                 showBottomBar = true,
                 containsBackButton = false,
                 isCenterAligned = true
@@ -158,8 +165,13 @@ fun TastyMapScreen(
         },
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = {
+            val displayList = if (selectedRestaurant != null) {
+                listOf(selectedRestaurant!!)
+            } else {
+                restaurants
+            }
             // 결과가 있을 때만 리스트 표시
-            if (restaurants.isEmpty()) {
+            if (displayList.isEmpty()) {
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -175,8 +187,20 @@ fun TastyMapScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    items(restaurants) { restaurant ->
-                        RestaurantItem(restaurant, viewmodel.placesManager, userLat, userLon)
+                    isCommentVisible = false
+                    items(displayList) { restaurant ->
+                        RestaurantItem(
+                            restaurant, viewmodel.placesManager, userLat, userLon,
+                            // 클릭 시 해당 식당을 선택하고 시트를 최대로 확장
+                            onItemClick = {
+                                selectedRestaurant = restaurant
+                                isCommentVisible = true
+                                scope.launch {
+                                    scaffoldState.bottomSheetState.expand()
+                                }
+                            },
+                            showComments = (selectedRestaurant == restaurant) && isCommentVisible
+                        )
                     }
                 }
             }
@@ -188,6 +212,14 @@ fun TastyMapScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
+                onMapClick = {
+                    // 지도 빈 곳 클릭 시 선택 해제
+                    selectedRestaurant = null
+                    scope.launch {
+                        // 부분 확장 상태로 변경
+                        scaffoldState.bottomSheetState.partialExpand()
+                    }
+                },
                 // 지도에 내 위치 파란 점 표시
                 properties = MapProperties(isMyLocationEnabled = currentUserLocation != null),
                 uiSettings = MapUiSettings(
@@ -199,10 +231,15 @@ fun TastyMapScreen(
                 restaurants.forEach { rest ->
                     val restaurantLocation = LatLng(rest.latitude, rest.longitude)
 
-                    // 평점 데이터(rest.rating)를 사용하여 커스텀 아이콘 생성
-                    // 파란색 배경에 평점이 적힌 마커
-                    val ratingIcon = remember(rest.rating) {
-                        createSimpleRatingMarker(rating = rest.rating ?: 0.0)
+                    // 선택 여부에 따른 색상 결정
+                    val isSelected = selectedRestaurant == rest
+
+                    // 선택 상태가 바뀔 때마다 아이콘을 다시 생성(re-compose)
+                    val ratingIcon = remember(rest.rating, isSelected) {
+                        createSimpleRatingMarker(
+                            rating = rest.rating ?: 0.0,
+                            isSelected = isSelected
+                        )
                     }
 
                     Marker(
@@ -211,9 +248,12 @@ fun TastyMapScreen(
                         // 0.5f(가로 중앙), 1.0f(세로 최하단)을 기준으로 위치를 잡는다
                         anchor = Offset(0.5f, 1.0f),
                         onClick = {
-                            // 클릭 시 바텀 시트를 올리는 등의 로직
-                            scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                            true
+                            selectedRestaurant = rest
+                            // 클릭 시 바텀 시트 활성화
+                            scope.launch {
+                                scaffoldState.bottomSheetState.expand()
+                            }
+                            false
                         }
                     )
                 }
@@ -244,8 +284,12 @@ fun TastyMapScreen(
                 Button(
                     onClick = {
                         val targetLocation = cameraPositionState.position.target
-                        viewmodel.placesManager.searchRestaurants(targetLocation, 1000.0) { result ->
+                        viewmodel.placesManager.searchRestaurants(
+                            targetLocation,
+                            1000.0
+                        ) { result ->
                             restaurants = result
+                            selectedRestaurant = null
                             scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                         }
                     }
@@ -286,9 +330,17 @@ fun TastyMapScreen(
 fun RestaurantItem(
     restaurant: RestaurantData,
     placesManager: PlaceManager,
-    userLat: Double, userLon: Double
+    userLat: Double, userLon: Double,
+    onItemClick: () -> Unit, // 클릭 이벤트
+    showComments: Boolean      // 댓글 표시 여부
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onItemClick()
+            }
+    ) {
         // 이름 및 영업 상태
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -340,6 +392,53 @@ fun RestaurantItem(
             items(restaurant.photoMetadata) { metadata ->
                 RestaurantPhotoItem(metadata, placesManager)
             }
+        }
+
+        if (showComments) {
+            // 댓글 섹션
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "방문자 리뷰",
+                style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 샘플 댓글 데이터
+            val dummyComments = listOf(
+                "음식이 정말 맛있어요! 재방문 의사 100%입니다.",
+                "분위기가 너무 좋아서 데이트 코스로 딱이에요.",
+                "직원분들이 친절하시고 주차도 편합니다.",
+                "가성비는 조금 아쉽지만 맛은 확실하네요."
+            )
+
+            dummyComments.forEach { comment ->
+                CommentItem(comment)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun CommentItem(comment: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFF9F9F9))
+            .padding(12.dp)
+    ) {
+        // 프로필 아이콘 형태
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color.LightGray)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(text = "익명 사용자", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(text = comment, fontSize = 14.sp, color = Color.DarkGray)
         }
     }
 }
@@ -410,10 +509,13 @@ fun formatDistance(distanceInMeters: Int): String {
 }
 
 // 평점 포함한 식당 마커 아이콘 생성
-fun createSimpleRatingMarker(rating: Double): BitmapDescriptor {
+fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
     // 1. 초기 데이터 및 색상 설정
     val text = rating.toString()
-    val mainColor = android.graphics.Color.parseColor("#3B7CFF") // 마커 배경색 (푸른색)
+    val mainColor =
+        if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
+            "#A0C4FF"
+        )
     val shadowColor = android.graphics.Color.parseColor("#40000000") // 그림자색 (25% 투명도 검정)
     val strokeColor = android.graphics.Color.WHITE // 테두리색 (흰색)
 
