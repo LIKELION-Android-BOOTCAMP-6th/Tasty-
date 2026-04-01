@@ -62,12 +62,17 @@ data class FeedWriteUiState(
     val isRatingValid: Boolean
         get() = rating in 1..5
 
+    val hasPhoto: Boolean
+        get() = !photos.isEmpty()
+
     val canSubmit: Boolean
         get() = isRestaurantSelected &&
                 isRatingValid &&
                 isShortReviewValid &&
                 isContentValid &&
-                !isSubmitting
+                !isSubmitting &&
+                hasPhoto
+
 }
 
 

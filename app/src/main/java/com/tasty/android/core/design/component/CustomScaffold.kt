@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Tune
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.TextColor
 
 // 스캐폴드 커스텀 설정 클래스 정의

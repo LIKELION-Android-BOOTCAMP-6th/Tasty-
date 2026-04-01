@@ -93,4 +93,6 @@ dependencies {
     implementation("com.google.android.libraries.places:places:3.5.0")
     // Maps Compose 라이브러리
     implementation("com.google.maps.android:maps-compose:4.3.3")
+    // 스플래시 화면 라이브러리
+    implementation("androidx.core:core-splashscreen:1.2.0")
 }

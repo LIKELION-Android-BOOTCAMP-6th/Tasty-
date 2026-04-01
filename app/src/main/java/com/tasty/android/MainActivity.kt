@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.tasty.android.core.design.component.AppBarAction
@@ -29,13 +31,24 @@ import com.tasty.android.core.design.component.CustomTopAppBar
 import com.tasty.android.core.design.theme.MyApplicationTheme
 import com.tasty.android.core.navigation.CustomNavHost
 import com.tasty.android.core.navigation.TabScreen
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     // CustomScaffold 공통 스케폴드 구조 내에서 화면 정의
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        var keepSplash = true
+        splashScreen.setKeepOnScreenCondition {
+            keepSplash
+        }
+        lifecycleScope.launch {
+            delay(2000)
+            keepSplash = false
+        }
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
