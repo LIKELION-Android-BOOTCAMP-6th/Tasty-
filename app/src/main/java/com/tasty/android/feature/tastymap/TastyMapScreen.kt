@@ -64,7 +64,7 @@ fun TastyMapScreen(
 
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             initialRestaurantId?.let { id ->
-                viewModel.selectRestaurantById(id)
+                viewModel.selectRestaurantById(id)}
         }
     }
 
