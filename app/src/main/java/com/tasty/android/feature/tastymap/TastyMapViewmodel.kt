@@ -21,15 +21,19 @@ import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.tastymap.model.RestaurantData
 import kotlinx.coroutines.launch
 
+enum class SortType { DISTANCE, RATING }
+
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val sortType: SortType = SortType.DISTANCE,
     val restaurants: List<RestaurantData> = emptyList(),
     val selectedRestaurant: RestaurantData? = null,
     val isCommentVisible: Boolean = false,
     val restaurantFeeds: List<Feed> = emptyList(),
     val isFeedsLoading: Boolean = false,
     val isSearchFocused: Boolean = false,
-    val userLocation: LatLng? = null
+    val userLocation: LatLng? = null,
+    val isSearching: Boolean = false,
 )
 
 class TastyMapViewmodel(
@@ -99,7 +103,9 @@ class TastyMapViewmodel(
     }
 
     // Google Places API 결과와 Firestore의 맛집 정보를 병합
-    fun searchAndSyncRestaurants(location: LatLng, radius: Double) {
+    fun searchAndSyncRestaurants(location: LatLng, radius: Double, onComplete: () -> Unit) {
+        uiState = uiState.copy(isSearching = true)
+
         placesManager.searchRestaurants(location, radius) { googleResults ->
             viewModelScope.launch {
                 val ids = googleResults.map { it.id }
@@ -117,7 +123,13 @@ class TastyMapViewmodel(
                     },
                     onFailure = { googleResults }
                 )
-                uiState = uiState.copy(restaurants = mergedList, selectedRestaurant = null)
+                uiState = uiState.copy(
+                    restaurants = mergedList,
+                    selectedRestaurant = null,
+                    isSearching = false
+                )
+
+                onComplete()
             }
         }
     }
@@ -135,7 +147,7 @@ class TastyMapViewmodel(
     }
 
     // id로 식당을 찾음
-    fun selectRestaurantById(restaurantId: String) {
+    fun selectRestaurantById(restaurantId: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             // 이미 리스트에 데이터가 있는지 확인
             val target = uiState.restaurants.find { it.id == restaurantId }
@@ -151,6 +163,8 @@ class TastyMapViewmodel(
                     },
                     onFailure = { /* 에러 처리 */ })
             }
+
+            onComplete()
         }
     }
 
@@ -176,5 +190,37 @@ class TastyMapViewmodel(
                 selectedRestaurant = finalData
             )
         }
+    }
+
+    fun setSortType(sortType: SortType) {
+        val currentRestaurants = uiState.restaurants
+        val userLoc = uiState.userLocation
+
+        val sortedList = when (sortType) {
+            SortType.DISTANCE -> {
+                // 유저 위치가 있을 때만 거리순 정렬, 없으면 그대로 유지
+                if (userLoc != null) {
+                    currentRestaurants.sortedBy { rest ->
+                        // 위도/경도 차이를 이용한 단순 거리 비교 (정교한 계산이 필요하면 calculateDistance 사용)
+                        val latDiff = rest.latitude - userLoc.latitude
+                        val lngDiff = rest.longitude - userLoc.longitude
+                        latDiff * latDiff + lngDiff * lngDiff
+                    }
+                } else {
+                    currentRestaurants
+                }
+            }
+
+            SortType.RATING -> {
+                // 평점 높은 순 정렬 (null일 경우 0.0 처리)
+                currentRestaurants.sortedByDescending { it.rating ?: 0.0 }
+            }
+        }
+
+        // uiState 업데이트
+        uiState = uiState.copy(
+            sortType = sortType,
+            restaurants = sortedList
+        )
     }
 }

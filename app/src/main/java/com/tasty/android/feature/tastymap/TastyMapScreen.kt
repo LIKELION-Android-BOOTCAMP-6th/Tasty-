@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,15 +27,18 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.google.maps.android.compose.*
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.search.PlaceSearchScreen
 import com.tasty.android.feature.tastymap.model.RestaurantData
@@ -62,14 +67,21 @@ fun TastyMapScreen(
     // 화면 진입 시 위치 초기화 및 Scaffold 설정
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
-            ScaffoldConfig(title = "테이스티 맵", showTopBar = false, showBottomBar = true)
+            ScaffoldConfig(showTopBar = false, showBottomBar = true)
         )
         viewModel.initializeLocation { latLng ->
             cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
 
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             initialRestaurantId?.let { id ->
-                viewModel.selectRestaurantById(id)}
+                viewModel.selectRestaurantById(id, {
+                    scope.launch {
+                        scaffoldState.bottomSheetState.show()
+                        scaffoldState.bottomSheetState.expand()
+                    }
+                }
+                )
+            }
         }
     }
 
@@ -95,7 +107,8 @@ fun TastyMapScreen(
                     viewModel.selectRestaurant(restaurant)
                     scope.launch { scaffoldState.bottomSheetState.expand() }
                 },
-                viewModel = viewModel
+                viewModel = viewModel,
+                navController
             )
         }
     ) {
@@ -109,7 +122,10 @@ fun TastyMapScreen(
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
                 properties = MapProperties(isMyLocationEnabled = uiState.userLocation != null),
-                uiSettings = MapUiSettings(myLocationButtonEnabled = false, zoomControlsEnabled = false)
+                uiSettings = MapUiSettings(
+                    myLocationButtonEnabled = false,
+                    zoomControlsEnabled = false
+                )
             ) {
                 uiState.restaurants.forEach { rest ->
                     val isSelected = uiState.selectedRestaurant == rest
@@ -135,7 +151,8 @@ fun TastyMapScreen(
             MapOverlayUI(
                 viewModel = viewModel,
                 cameraPositionState = cameraPositionState,
-                uiState = uiState
+                uiState = uiState,
+                scaffoldState
             )
         }
     }
@@ -145,21 +162,69 @@ fun TastyMapScreen(
 fun RestaurantListSheet(
     uiState: TastyMapUiState,
     onItemClick: (RestaurantData) -> Unit,
-    viewModel: TastyMapViewmodel
+    viewModel: TastyMapViewmodel,
+    navController: NavController
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
 
     if (displayList.isEmpty()) {
-        Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(200.dp), contentAlignment = Alignment.Center
+        ) {
             Text("주변에 식당이 없습니다.")
         }
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // 바텀 시트 정렬 버튼
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 거리순 정렬 버튼
+                    FilterChip(
+                        selected = uiState.sortType == SortType.DISTANCE,
+                        onClick = { viewModel.setSortType(SortType.DISTANCE) },
+                        label = { Text("거리순") },
+                        leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
+                            {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else null
+                    )
+
+                    // 평점순 정렬 버튼
+                    FilterChip(
+                        selected = uiState.sortType == SortType.RATING,
+                        onClick = { viewModel.setSortType(SortType.RATING) },
+                        label = { Text("평점순") },
+                        leadingIcon = if (uiState.sortType == SortType.RATING) {
+                            {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else null
+                    )
+                }
+            }
             items(displayList) { restaurant ->
                 RestaurantItem(
                     restaurant = restaurant,
@@ -167,51 +232,110 @@ fun RestaurantListSheet(
                     userLocation = uiState.userLocation,
                     onItemClick = { onItemClick(restaurant) },
                     showComments = uiState.isCommentVisible && uiState.selectedRestaurant?.id == restaurant.id,
-                    uiState = uiState
+                    uiState = uiState,
+                    navController
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapOverlayUI(
     viewModel: TastyMapViewmodel,
     cameraPositionState: CameraPositionState,
-    uiState: TastyMapUiState
+    uiState: TastyMapUiState,
+    scaffoldState: BottomSheetScaffoldState
 ) {
     val scope = rememberCoroutineScope()
 
     Box(modifier = Modifier.fillMaxSize()) {
         PlaceSearchScreen(
             labelText = "장소 및 음식점 검색",
-            onFocusChange = { viewModel.setSearchFocus(it) },
+            onFocusChange = {
+                viewModel.setSearchFocus(it)
+                scope.launch {
+                    scaffoldState.bottomSheetState.hide()
+                }
+            },
             onPlaceSelectedLocation = { latLng ->
                 scope.launch {
                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
                 }
             },
             onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId)
+                viewModel.selectRestaurantById(restaurantId, {
+                    scope.launch {
+                        scaffoldState.bottomSheetState.show()
+                        scaffoldState.bottomSheetState.expand()
+                    }
+                })
             }
         )
 
         AnimatedVisibility(
             visible = !uiState.isSearchFocused,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 100.dp)
         ) {
-            Button(onClick = {
-                viewModel.searchAndSyncRestaurants(cameraPositionState.position.target, 1000.0)
-            }) {
-                Text("이 지역 식당 검색")
+            Button(
+                onClick = {
+                    viewModel.searchAndSyncRestaurants(
+                        cameraPositionState.position.target,
+                        5000.0,
+                        {
+                            scope.launch {
+                                scaffoldState.bottomSheetState.show()
+                            }
+                        }
+                    )
+                },
+                // 로딩 중에는 버튼 클릭 방지
+                enabled = !uiState.isSearching,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF3B7CFF),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF3B7CFF).copy(alpha = 0.6f),
+                    disabledContentColor = Color.White.copy(alpha = 0.8f)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (uiState.isSearching) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("검색 중...", fontSize = 14.sp)
+                    } else {
+                        Text("이 지역 식당 검색", fontSize = 14.sp)
+                    }
+                }
             }
         }
 
         FloatingActionButton(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 50.dp, end = 16.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 50.dp, end = 16.dp),
             onClick = {
                 uiState.userLocation?.let {
-                    scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f)) }
+                    scope.launch {
+                        cameraPositionState.animate(
+                            CameraUpdateFactory.newLatLngZoom(
+                                it,
+                                18f
+                            )
+                        )
+                    }
                 }
             },
             containerColor = Color.White,
@@ -229,9 +353,13 @@ fun RestaurantItem(
     userLocation: LatLng?,
     onItemClick: () -> Unit,
     showComments: Boolean,
-    uiState: TastyMapUiState
+    uiState: TastyMapUiState,
+    navController: NavController
 ) {
-    Column(modifier = Modifier.fillMaxWidth().clickable { onItemClick() }) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onItemClick() }) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(restaurant.name, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 19.sp))
             Text(
@@ -245,7 +373,13 @@ fun RestaurantItem(
         val distance = userLocation?.let {
             calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
         } ?: 0
-        InfoText("평점: ${restaurant.rating}, 리뷰: ${restaurant.feedCount}개, 거리: ${formatDistance(distance)}")
+        InfoText(
+            "평점: ${if(restaurant.rating!! > 0)restaurant.rating else "( - - )"}, 리뷰: ${restaurant.feedCount}개, 거리: ${
+                formatDistance(
+                    distance
+                )
+            }"
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -261,7 +395,10 @@ fun RestaurantItem(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 uiState.restaurantFeeds.forEach { feed ->
-                    CommentItem(comment = feed.content)
+                    CommentItem(feed.authorNickname, feed.authorProfileUrl, comment = feed.content, {
+                        // 클릭 시 피드 세부화면으로 이동
+                        navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
+                    })
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -269,16 +406,50 @@ fun RestaurantItem(
     }
 }
 
-// --- 유틸리티 및 헬퍼 함수 (기존 로직 유지) ---
-
+// 상세화면의 리뷰(피드) 출력
 @Composable
-fun CommentItem(comment: String) {
-    Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF9F9F9)).padding(12.dp)) {
-        Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.LightGray))
+fun CommentItem(nickName: String, authorProfileUrl: String?, comment: String,  onItemClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFF9F9F9))
+            .clickable {
+                onItemClick()
+            }
+            .padding(12.dp)
+    ) {
+        if (authorProfileUrl.isNullOrBlank()) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "기본 프로필",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .align(Alignment.CenterVertically),
+                tint = Color(0xFFB5B5B5)
+            )
+        } else {
+            AsyncImage(
+                model = authorProfileUrl,
+                contentDescription = "프로필 이미지",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .align(Alignment.CenterVertically),
+                contentScale = ContentScale.Crop
+            )
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text("익명 사용자", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            Text(comment, fontSize = 14.sp, color = Color.DarkGray)
+            Text(nickName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(
+                comment,
+                fontSize = 14.sp,
+                color = Color.DarkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -288,22 +459,42 @@ fun RestaurantPhotoItem(metadata: PhotoMetadata, placesManager: PlaceManager) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(metadata) { placesManager.fetchPhoto(metadata) { bitmap = it } }
     if (bitmap != null) {
-        Image(bitmap!!.asImageBitmap(), null, Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+        Image(
+            bitmap!!.asImageBitmap(),
+            null,
+            Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
     } else {
-        Box(Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF2F2F2)))
+        Box(
+            Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFF2F2F2))
+        )
     }
 }
 
 @Composable
 fun InfoText(text: String) {
-    Text(text, color = Color(0xFF757575), fontSize = 13.sp, modifier = Modifier.padding(vertical = 1.dp))
+    Text(
+        text,
+        color = Color(0xFF757575),
+        fontSize = 13.sp,
+        modifier = Modifier.padding(vertical = 1.dp)
+    )
 }
 
 fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
     val r = 6371000.0
     val dLat = Math.toRadians(lat2 - lat1)
     val dLon = Math.toRadians(lon2 - lon1)
-    val a = sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
+    val a =
+        sin(dLat / 2).pow(2) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(
+            2
+        )
     return (r * 2 * atan2(sqrt(a), sqrt(1 - a))).toInt()
 }
 
@@ -313,25 +504,53 @@ fun formatDistance(distanceInMeters: Int): String {
 
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
-    val text = rating.toString()
-    val mainColor = if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor("#A0C4FF")
-    val textPaint = Paint().apply { color = android.graphics.Color.WHITE; textSize = 36f; isFakeBoldText = true; isAntiAlias = true; textAlign = Paint.Align.CENTER }
+    val text = if(rating>0) rating.toString() else "( - - )"
+
+    val mainColor =
+        if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
+            "#A0C4FF"
+        )
+    val textPaint = Paint().apply {
+        color = android.graphics.Color.WHITE; textSize = 36f; isFakeBoldText = true; isAntiAlias =
+        true; textAlign = Paint.Align.CENTER
+    }
     val textBounds = Rect()
     textPaint.getTextBounds(text, 0, text.length, textBounds)
 
     val rectWidth = textBounds.width() + 60f
     val rectHeight = textBounds.height() + 40f
-    val bitmap = Bitmap.createBitmap(rectWidth.toInt() + 24, rectHeight.toInt() + 40, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(
+        rectWidth.toInt() + 24,
+        rectHeight.toInt() + 40,
+        Bitmap.Config.ARGB_8888
+    )
     val canvas = Canvas(bitmap)
-    val bgPaint = Paint().apply { isAntiAlias = true; color = mainColor; style = Paint.Style.FILL; setShadowLayer(8f, 0f, 6f, android.graphics.Color.parseColor("#40000000")) }
+    val bgPaint = Paint().apply {
+        isAntiAlias = true; color = mainColor; style = Paint.Style.FILL; setShadowLayer(
+        8f,
+        0f,
+        6f,
+        android.graphics.Color.parseColor("#40000000")
+    )
+    }
 
     val path = Path().apply {
-        addRoundRect(RectF(12f, 12f, rectWidth + 12f, rectHeight + 12f), rectHeight / 2, rectHeight / 2, Path.Direction.CW)
+        addRoundRect(
+            RectF(12f, 12f, rectWidth + 12f, rectHeight + 12f),
+            rectHeight / 2,
+            rectHeight / 2,
+            Path.Direction.CW
+        )
         moveTo(rectWidth / 2 + 12f - 15f, rectHeight + 12f)
         lineTo(rectWidth / 2 + 12f, rectHeight + 28f)
         lineTo(rectWidth / 2 + 12f + 15f, rectHeight + 12f)
     }
     canvas.drawPath(path, bgPaint)
-    canvas.drawText(text, rectWidth / 2 + 12f, (rectHeight / 2 + 12f) - (textPaint.descent() + textPaint.ascent()) / 2, textPaint)
+    canvas.drawText(
+        text,
+        rectWidth / 2 + 12f,
+        (rectHeight / 2 + 12f) - (textPaint.descent() + textPaint.ascent()) / 2,
+        textPaint
+    )
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
