@@ -285,7 +285,7 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-            // 2. 유저 정보 조회 측정 (캐시 여부 확인)
+            // 유저 정보 조회 측정 (캐시 여부 확인)
             val userStartTime = System.currentTimeMillis()
             val userProfile = userStoreManager.currentUserProfile.value 
                 ?: userStoreManager.getUser(authorId).getOrNull() // 캐시 없으면 폴백
@@ -313,7 +313,7 @@ class FeedWriteViewModel(
                 )
             )
 
-            // 3. 피드 저장 (Firestore DB) 측정
+            // 피드 저장 (Firestore DB) 측정
             val dbStartTime = System.currentTimeMillis()
             feedStoreManager.saveFeed(feed).onSuccess {
                 val dbEndTime = System.currentTimeMillis()
