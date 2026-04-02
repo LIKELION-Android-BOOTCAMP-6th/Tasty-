@@ -67,18 +67,19 @@ fun CustomNavHost(
             startDestination = Screen.AUTH_ON_BOARDING.route,
             route = "auth_graph"
         ) {
+            // 온보딩
             composable(Screen.AUTH_ON_BOARDING.route) {
                 OnboardingScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
-
+            // 이메일/패스워드 입력
             composable(Screen.AUTH_SIGN_UP_EMAIL_PWD.route) {
                 SignUpScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
-
+            // 닉네임 입력
             composable(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
                 ProfileSetupScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
-
+            // 로그인 화면
             composable(Screen.AUTH_LOGIN.route) {
                 LoginScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
@@ -89,14 +90,18 @@ fun CustomNavHost(
             startDestination = TabScreen.FEED.route,
             route = "feed_graph"
         ) {
+            // 피드 홈
             composable(TabScreen.FEED.route) {
                 FeedScreen(
                     navController,
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
+            // 피드 디테일 인자: 피드 아이디
+            composable(
+                route = "${Screen.FEED_DETAIL.route}/{feedId}",
+                arguments = listOf(navArgument("feedId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
                 FeedDetailScreen(
                     navController,
@@ -104,7 +109,7 @@ fun CustomNavHost(
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
+            // 피드 작성
             composable(Screen.FEED_CREATE_FEED.route) { backStackEntry ->
                 val viewModel: FeedWriteViewModel = viewModel(backStackEntry, factory = FeedWriteViewModelFactory)
                 FeedWriteScreen(
@@ -113,29 +118,8 @@ fun CustomNavHost(
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            /** Map **/
-            composable(
-                route = "${TabScreen.MAP.route}?placeId={placeId}",
-                arguments = listOf(
-                    navArgument("placeId") {
-                        type = NavType.StringType
-                        nullable = true
-                        defaultValue = null
-                    }
-                )
-            ) { backStackEntry ->
-                val placeId = backStackEntry.arguments?.getString("placeId")
-
-                TastyMapScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange,
-                    initialRestaurantId = placeId
-                )
-            }
-
+            // 피드 작성-식당 검색
             composable(Screen.FEED_SEARCH_RESTAURANT.route) { backStackEntry ->
-
                 val parentEntry = remember(backStackEntry) {
                     navController.getBackStackEntry(Screen.FEED_CREATE_FEED.route)
                 }
@@ -150,17 +134,23 @@ fun CustomNavHost(
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable(Screen.USER_PROFILE.route) { backStackEntry ->
+            // 피드 - 유저 프로필
+            composable(
+                route = "${Screen.USER_PROFILE.route}/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 UserProfileScreen(
-                    navController,
-                    userId,
-                    onScaffoldConfigChange
+                    navController = navController,
+                    targetUserId = userId,
+                    onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
+            // 테이스티 디테일 인자: 테이스티 아이디
+            composable(
+                route = "${Screen.TASTY_DETAIL.route}/{tastyId}",
+                arguments = listOf(navArgument("tastyId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
                 TastyDetailScreen(
                     onBackClick = { navController.popBackStack() },
@@ -175,23 +165,29 @@ fun CustomNavHost(
             startDestination = TabScreen.TASTY.route,
             route = "tasty_graph"
         ) {
+            // 테이스티
             composable(TabScreen.TASTY.route) {
                 TastyScreen(
                     onClickTastyItem = { id -> navController.navigate("${Screen.TASTY_DETAIL.route}/$id") },
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
-                val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
+            // 테이스티 상세 인자: 테이스티 아이디
+            composable(
+                route = "${Screen.TASTY_DETAIL.route}/{tastyId}",
+                arguments = listOf(navArgument("tastyId") { type = NavType.StringType })
+            ) {
                 TastyDetailScreen(
                     onBackClick = { navController.popBackStack() },
                     onClickFeed = { id -> navController.navigate("${Screen.FEED_DETAIL.route}/$id") },
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
+            // 테이스티 상세 인자: 피드 아이디
+            composable(
+                route = "${Screen.FEED_DETAIL.route}/{feedId}",
+                arguments = listOf(navArgument("feedId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
                 FeedDetailScreen(
                     navController,
@@ -199,13 +195,16 @@ fun CustomNavHost(
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.USER_PROFILE.route}") { backStackEntry ->
+            // 유저 프로필 인자: 유저 아이디
+            composable(
+                route = "${Screen.USER_PROFILE.route}/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 UserProfileScreen(
-                    navController,
-                    userId,
-                    onScaffoldConfigChange
+                    navController = navController,
+                    targetUserId = userId,
+                    onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
         }
@@ -215,19 +214,7 @@ fun CustomNavHost(
             startDestination = TabScreen.MAP.route,
             route = "map_graph"
         ) {
-
-            composable(Screen.MAP_RESTAURANT_DETAIL.route) { }
-
-            composable("${Screen.USER_PROFILE.route}") { backStackEntry ->
-                val userId = backStackEntry.arguments?.getString("userId") ?: ""
-                UserProfileScreen(
-                    navController,
-                    userId,
-                    onScaffoldConfigChange
-                )
-            }
-
-            /** Map **/
+            // 맵 인자: 플레이스 아이디
             composable(
                 route = "${TabScreen.MAP.route}?placeId={placeId}",
                 arguments = listOf(
@@ -239,22 +226,29 @@ fun CustomNavHost(
                 )
             ) { backStackEntry ->
                 val placeId = backStackEntry.arguments?.getString("placeId")
-
                 TastyMapScreen(
                     navController = navController,
                     onScaffoldConfigChange = onScaffoldConfigChange,
                     initialRestaurantId = placeId
                 )
             }
-
-            composable(Screen.MAP_SEARCH_LOCATION.route){
-                // 맵 지역 검색 화면 컴포저블
+            // 유저 프로필 인자: 유저 아이디
+            composable(
+                route = "${Screen.USER_PROFILE.route}/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                UserProfileScreen(
+                    navController = navController,
+                    targetUserId = userId,
+                    onScaffoldConfigChange = onScaffoldConfigChange
+                )
             }
-            composable(Screen.MAP_RESTAURANT_DETAIL.route){
-                // 맵 식당 세부 화면 컴포저블
-            }
-
-            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
+            // 피드 상세 인자: 피드 아이디
+            composable(
+                route = "${Screen.FEED_DETAIL.route}/{feedId}",
+                arguments = listOf(navArgument("feedId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
                 FeedDetailScreen(
                     navController,
@@ -262,8 +256,11 @@ fun CustomNavHost(
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
+            // 테이스티 디테일 인자: 테이스티 아이디
+            composable(
+                route = "${Screen.TASTY_DETAIL.route}/{tastyId}",
+                arguments = listOf(navArgument("tastyId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
                 TastyDetailScreen(
                     onBackClick = { navController.popBackStack() },
@@ -278,28 +275,32 @@ fun CustomNavHost(
             startDestination = TabScreen.MY_PAGE.route,
             route = "my_page_graph"
         ) {
+            // 마이페이지
             composable(TabScreen.MY_PAGE.route) {
                 MyPageScreen(navController, onScaffoldConfigChange)
             }
-
+            // 피드 선택
             composable(Screen.MY_PAGE_SELECT_FEEDS.route) {
                 TastyListCreateSelectFeedsScreen(navController, onScaffoldConfigChange)
             }
-
+            // 제목/썸네일 입력
             composable(Screen.MY_PAGE_SET_THUMBNAIL_TITLE.route) {
                 TastyListCreateSetupScreen(navController, onScaffoldConfigChange)
             }
-
+            // 프로필 수정
             composable(Screen.MY_PAGE_EDIT_PROFILE.route) {
                 EditProfileScreen(navController, onScaffoldConfigChange)
             }
-
-            composable("${Screen.EDIT_TASTY_LIST.route}") { backStackEntry ->
+            // 테이스티 리스트
+            composable(
+                route = "${Screen.EDIT_TASTY_LIST.route}/{tastyListId}",
+                arguments = listOf(navArgument("tastyListId") { type = NavType.StringType })
+            ) { backStackEntry ->
                 val tastyListId = backStackEntry.arguments?.getString("tastyListId") ?: ""
                 EditTastyListScreen(
-                    tastyListId,
-                    navController,
-                    onScaffoldConfigChange
+                    tastyListId = tastyListId,
+                    navController = navController,
+                    onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
         }
