@@ -311,7 +311,7 @@ private fun ContentInputSection(
                 decorationBox = { innerTextField ->
                     if (content.isBlank()) {
                         Text(
-                            text = "오늘 먹은 음식은 어땠나요? (10~300자)",
+                            text = "오늘 먹은 음식은 어땠나요? (10~600자)",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = Color(0xFFB5B5B5)
                             )
