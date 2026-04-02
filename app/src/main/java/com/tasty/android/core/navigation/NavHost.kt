@@ -9,12 +9,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.navArgument
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.ScaffoldConfig
@@ -112,6 +114,26 @@ fun CustomNavHost(
                 )
             }
 
+            /** Map **/
+            composable(
+                route = "${TabScreen.MAP.route}?placeId={placeId}",
+                arguments = listOf(
+                    navArgument("placeId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val placeId = backStackEntry.arguments?.getString("placeId")
+
+                TastyMapScreen(
+                    navController = navController,
+                    onScaffoldConfigChange = onScaffoldConfigChange,
+                    initialRestaurantId = placeId
+                )
+            }
+
             composable(Screen.FEED_SEARCH_RESTAURANT.route) { backStackEntry ->
 
                 val parentEntry = remember(backStackEntry) {
@@ -193,11 +215,6 @@ fun CustomNavHost(
             startDestination = TabScreen.MAP.route,
             route = "map_graph"
         ) {
-            composable(TabScreen.MAP.route) {
-                TastyMapScreen(navController, onScaffoldConfigChange)
-            }
-
-            composable(Screen.MAP_SEARCH_LOCATION.route) { }
 
             composable(Screen.MAP_RESTAURANT_DETAIL.route) { }
 
@@ -208,6 +225,33 @@ fun CustomNavHost(
                     userId,
                     onScaffoldConfigChange
                 )
+            }
+
+            /** Map **/
+            composable(
+                route = "${TabScreen.MAP.route}?placeId={placeId}",
+                arguments = listOf(
+                    navArgument("placeId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val placeId = backStackEntry.arguments?.getString("placeId")
+
+                TastyMapScreen(
+                    navController = navController,
+                    onScaffoldConfigChange = onScaffoldConfigChange,
+                    initialRestaurantId = placeId
+                )
+            }
+
+            composable(Screen.MAP_SEARCH_LOCATION.route){
+                // 맵 지역 검색 화면 컴포저블
+            }
+            composable(Screen.MAP_RESTAURANT_DETAIL.route){
+                // 맵 식당 세부 화면 컴포저블
             }
 
             composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->

@@ -257,24 +257,17 @@ class FeedWriteViewModel(
         val restaurant = currentState.selectedRestaurant ?: return
 
         viewModelScope.launch {
-            // 측정 전체 시작 시각
-            val startTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "==== [START] 업로드 시퀀스 시작 ====")
-            
+
             _uiState.update {
                 it.copy(isSubmitting = true)
             }
 
             val feedId = feedStoreManager.generateFeedId().getOrNull() ?: ""
 
-            // 1. 이미지 처리 & 업로드 측정
-            val uploadStartTime = System.currentTimeMillis()
             val feedImageUrlsResult = storageManager.uploadFeedImages(
                 feedId = feedId,
                 feedImageUris = currentState.photos.map { it.uri }
             )
-            val uploadEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "Step 1 [이미지 업로드]: ${(uploadEndTime - uploadStartTime) / 1000.0}초")
 
             val feedImageUrls = feedImageUrlsResult.getOrElse {
                 _uiState.update { currentState ->
@@ -286,12 +279,8 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-            // 2. 유저 정보 조회 측정 (캐시 여부 확인)
-            val userStartTime = System.currentTimeMillis()
-            val userProfile = userStoreManager.currentUserProfile.value 
+            val userProfile = userStoreManager.currentUserProfile.value
                 ?: userStoreManager.getUser(authorId).getOrNull() // 캐시 없으면 폴백
-            val userEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "Step 2 [유저 정보 조회]: ${(userEndTime - userStartTime) / 1000.0}초")
 
             val feed = Feed(
                 feedId = feedId,
@@ -314,21 +303,14 @@ class FeedWriteViewModel(
                 )
             )
 
-            // 3. 피드 저장 (Firestore DB) 측정
-            val dbStartTime = System.currentTimeMillis()
+
             feedStoreManager.saveFeed(feed).onSuccess {
-                val dbEndTime = System.currentTimeMillis()
-                android.util.Log.d("FeedUpload", "Step 3 [DB 문서 저장]: ${(dbEndTime - dbStartTime) / 1000.0}초")
-                
-                // 전체 측정 종료
-                val totalTime = (System.currentTimeMillis() - startTime) / 1000.0
-                android.util.Log.d("FeedUpload", "==== [FINISH] 총 소요 시간: ${totalTime}초 ====")
 
                 _uiState.update { currentState -> currentState.copy(isSubmitting = false) }
                 onSuccess()
             }.onFailure {
-                _uiState.update { currentState -> 
-                    currentState.copy(isSubmitting = false, errorMessage = "피드 저장에 실패했습니다.") 
+                _uiState.update { currentState ->
+                    currentState.copy(isSubmitting = false, errorMessage = "피드 저장에 실패했습니다.")
                 }
             }
         }
