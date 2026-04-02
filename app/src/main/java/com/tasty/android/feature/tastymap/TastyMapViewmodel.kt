@@ -129,6 +129,8 @@ class TastyMapViewmodel(
                     isSearching = false
                 )
 
+                setSortType(uiState.sortType)
+
                 onComplete()
             }
         }

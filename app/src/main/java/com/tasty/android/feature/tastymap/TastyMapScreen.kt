@@ -3,6 +3,8 @@ package com.tasty.android.feature.tastymap
 import android.annotation.SuppressLint
 import android.graphics.*
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -118,8 +121,10 @@ fun TastyMapScreen(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 onMapClick = {
-                    viewModel.clearSelection()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                    scope.launch {
+                        scaffoldState.bottomSheetState.partialExpand()
+                        viewModel.clearSelection()
+                    }
                 },
                 properties = MapProperties(isMyLocationEnabled = uiState.userLocation != null),
                 uiSettings = MapUiSettings(
@@ -167,74 +172,81 @@ fun RestaurantListSheet(
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
+// 스크롤 상태 기억
+    val listState = rememberLazyListState()
 
-    if (displayList.isEmpty()) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(200.dp), contentAlignment = Alignment.Center
-        ) {
-            Text("주변에 식당이 없습니다.")
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // 바텀 시트 정렬 버튼
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 거리순 정렬 버튼
-                    FilterChip(
-                        selected = uiState.sortType == SortType.DISTANCE,
-                        onClick = { viewModel.setSortType(SortType.DISTANCE) },
-                        label = { Text("거리순") },
-                        leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
-                            {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        } else null
-                    )
+    Crossfade(
+        targetState = displayList,
+        modifier = Modifier.animateContentSize()
+    ) { targetList ->
+        if (targetList.isEmpty()) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(200.dp), contentAlignment = Alignment.Center
+            ) {
+                Text("주변에 식당이 없습니다.")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // 바텀 시트 정렬 버튼
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // 거리순 정렬 버튼
+                        FilterChip(
+                            selected = uiState.sortType == SortType.DISTANCE,
+                            onClick = { viewModel.setSortType(SortType.DISTANCE) },
+                            label = { Text("거리순") },
+                            leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
+                                {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else null
+                        )
 
-                    // 평점순 정렬 버튼
-                    FilterChip(
-                        selected = uiState.sortType == SortType.RATING,
-                        onClick = { viewModel.setSortType(SortType.RATING) },
-                        label = { Text("평점순") },
-                        leadingIcon = if (uiState.sortType == SortType.RATING) {
-                            {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        } else null
+                        // 평점순 정렬 버튼
+                        FilterChip(
+                            selected = uiState.sortType == SortType.RATING,
+                            onClick = { viewModel.setSortType(SortType.RATING) },
+                            label = { Text("평점순") },
+                            leadingIcon = if (uiState.sortType == SortType.RATING) {
+                                {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else null
+                        )
+                    }
+                }
+                items(targetList) { restaurant ->
+                    RestaurantItem(
+                        restaurant = restaurant,
+                        placesManager = viewModel.placesManager,
+                        userLocation = uiState.userLocation,
+                        onItemClick = { onItemClick(restaurant) },
+                        showComments = uiState.isCommentVisible && uiState.selectedRestaurant?.id == restaurant.id,
+                        uiState = uiState,
+                        navController
                     )
                 }
-            }
-            items(displayList) { restaurant ->
-                RestaurantItem(
-                    restaurant = restaurant,
-                    placesManager = viewModel.placesManager,
-                    userLocation = uiState.userLocation,
-                    onItemClick = { onItemClick(restaurant) },
-                    showComments = uiState.isCommentVisible && uiState.selectedRestaurant?.id == restaurant.id,
-                    uiState = uiState,
-                    navController
-                )
             }
         }
     }
@@ -374,7 +386,7 @@ fun RestaurantItem(
             calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
         } ?: 0
         InfoText(
-            "평점: ${if(restaurant.rating!! > 0)restaurant.rating else "( - - )"}, 리뷰: ${restaurant.feedCount}개, 거리: ${
+            "평점: ${if (restaurant.rating!! > 0) restaurant.rating else "( - - )"}, 리뷰: ${restaurant.feedCount}개, 거리: ${
                 formatDistance(
                     distance
                 )
@@ -395,10 +407,14 @@ fun RestaurantItem(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 uiState.restaurantFeeds.forEach { feed ->
-                    CommentItem(feed.authorNickname, feed.authorProfileUrl, comment = feed.content, {
-                        // 클릭 시 피드 세부화면으로 이동
-                        navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
-                    })
+                    CommentItem(
+                        feed.authorNickname,
+                        feed.authorProfileUrl,
+                        comment = feed.content,
+                        {
+                            // 클릭 시 피드 세부화면으로 이동
+                            navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
+                        })
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -408,7 +424,12 @@ fun RestaurantItem(
 
 // 상세화면의 리뷰(피드) 출력
 @Composable
-fun CommentItem(nickName: String, authorProfileUrl: String?, comment: String,  onItemClick: () -> Unit) {
+fun CommentItem(
+    nickName: String,
+    authorProfileUrl: String?,
+    comment: String,
+    onItemClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -504,7 +525,7 @@ fun formatDistance(distanceInMeters: Int): String {
 
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
-    val text = if(rating>0) rating.toString() else "( - - )"
+    val text = if (rating > 0) rating.toString() else "( - - )"
 
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
