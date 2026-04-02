@@ -91,7 +91,9 @@ fun TastyMapScreen(
     BackHandler(enabled = isSheetExpanded) {
         scope.launch {
             // 뒤로가기 클릭 시 축소
-            scaffoldState.bottomSheetState.partialExpand()
+            if (viewModel.uiState.selectedRestaurant == null) {
+                scaffoldState.bottomSheetState.partialExpand()
+            }
             viewModel.clearSelection()
         }
     }
@@ -463,7 +465,10 @@ fun RestaurantItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick() } // 클릭 시 해당 식당 선택 및 지도 이동
+            .then(
+                if (!showComments) Modifier.clickable { onItemClick() }
+                else Modifier
+            )
             .padding(vertical = 8.dp)
     ) {
         // 식당 이름, 별점, 현재 영업 상태를 표시하는 헤더
@@ -629,9 +634,16 @@ fun RestaurantItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.Call,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = displayPhone, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                    Text(
+                        text = displayPhone,
+                        style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    )
                 }
             }
 
@@ -651,12 +663,23 @@ fun RestaurantItem(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF666666))
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color(0xFF666666)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("영업시간 안내", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                        Text(
+                            "영업시간 안내",
+                            style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        )
                         Spacer(modifier = Modifier.weight(1f))
                         if (!restaurant.openingHours.isNullOrEmpty()) {
-                            Icon(imageVector = if (isHoursExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                            Icon(
+                                imageVector = if (isHoursExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null
+                            )
                         }
                     }
 
@@ -665,9 +688,23 @@ fun RestaurantItem(
                         Spacer(modifier = Modifier.height(12.dp))
                         restaurant.openingHours.forEach { hour ->
                             val parts = hour.split(": ", limit = 2)
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(parts.getOrNull(0) ?: "", style = TextStyle(fontSize = 13.sp, color = Color(0xFF777777)))
-                                Text(parts.getOrNull(1) ?: "", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    parts.getOrNull(0) ?: "",
+                                    style = TextStyle(fontSize = 13.sp, color = Color(0xFF777777))
+                                )
+                                Text(
+                                    parts.getOrNull(1) ?: "",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
                             }
                         }
                     }
@@ -684,7 +721,12 @@ fun RestaurantItem(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             } else if (uiState.restaurantFeeds.isEmpty()) {
-                Text("리뷰가 아직 없어요.", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
+                Text(
+                    "리뷰가 아직 없어요.",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
             } else {
                 uiState.restaurantFeeds.forEach { feed ->
                     CommentItem(
