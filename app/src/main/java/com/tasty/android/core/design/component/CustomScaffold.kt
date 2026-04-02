@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Tune
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.TextColor
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 
 // 스캐폴드 커스텀 설정 클래스 정의
 data class ScaffoldConfig(
@@ -226,6 +230,8 @@ fun CustomScaffold(navController: NavHostController) {
 
     val activeConfig = screenOverride ?: predictiveConfig
 
+    val layoutDirection = LocalLayoutDirection.current
+
     Scaffold(
         modifier = if (activeConfig.showTopBar) {
             Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
@@ -253,10 +259,21 @@ fun CustomScaffold(navController: NavHostController) {
         },
         containerColor = Color.White
     ) { innerPadding ->
-        // 하위 CustomNavHost에 콜백을 전달하여 스크린의 상세 설정을 screenOverride에 반영
+
+        val contentPadding = if (activeConfig.showBottomBar) {
+            innerPadding
+        } else {
+            PaddingValues(
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
+                bottom = 0.dp
+            )
+        }
+
         CustomNavHost(
             navController = navController,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(contentPadding),
             onScaffoldConfigChange = { newConfig ->
                 screenOverride = newConfig
             }
