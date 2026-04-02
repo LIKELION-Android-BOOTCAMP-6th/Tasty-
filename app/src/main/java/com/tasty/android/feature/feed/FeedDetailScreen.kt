@@ -107,9 +107,7 @@ fun FeedDetailScreen(
         color = Color.White
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
+            modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
                 modifier = Modifier.weight(1f)
@@ -554,6 +552,7 @@ private fun CommentInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Gray100)
+            .imePadding()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
