@@ -129,7 +129,6 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
             isCenterAligned = false
         )
         route.startsWith("user_profile") || route.startsWith(Screen.USER_PROFILE.route.split("/")[0]) -> ScaffoldConfig(
-            title = "프로필",
             showTopBar = true,
             showBottomBar = true,
             containsBackButton = true,
