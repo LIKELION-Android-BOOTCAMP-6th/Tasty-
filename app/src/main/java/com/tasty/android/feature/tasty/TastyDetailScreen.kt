@@ -62,12 +62,12 @@ fun TastyDetailScreen(
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
             ScaffoldConfig(
-                title = "Tasty",
+                title = "Tasty 상세",
                 showTopBar = true,
                 showBottomBar = true,
                 containsBackButton = true,
                 onBackClick = onBackClick,
-                isCenterAligned = true
+                isCenterAligned = false
             )
         )
     }
