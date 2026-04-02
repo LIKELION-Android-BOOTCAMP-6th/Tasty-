@@ -58,6 +58,8 @@ import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
+import com.tasty.android.core.navigation.Screen
+import com.tasty.android.core.navigation.TabScreen
 import com.tasty.android.core.util.toFormattedDate
 import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.vmfactory.FeedDetailViewModelFactory
@@ -120,7 +122,7 @@ fun FeedDetailScreen(
                             FeedDetailHeader(
                                 post = post,
                                 onProfileClick = {
-                                    navController.navigate("user_profile/${post.authorId}")
+                                    navController.navigate("${Screen.USER_PROFILE.route}/${post.authorId}")
                                 }
                             )
 
@@ -186,7 +188,10 @@ fun FeedDetailScreen(
 
                             FeedRestaurantInfo(
                                 placeName = post.placeName,
-                                address = post.address
+                                address = post.address,
+                                onClick = {
+                                    navController.navigate("${TabScreen.MAP.route}?placeId=${post.placeId}")
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -249,7 +254,13 @@ fun FeedDetailScreen(
                     items = uiState.comments,
                     key = { it.commentId }
                 ) { comment ->
-                    CommentItem(comment = comment)
+                    CommentItem(
+                    comment = comment,
+                    onProfileClick = {
+                        navController.navigate("${Screen.USER_PROFILE.route}/${comment.authorId}")
+
+                        }
+                    )
                 }
 
                 item {
@@ -376,11 +387,13 @@ private fun FeedDetailHeader(
 @Composable
 private fun FeedRestaurantInfo(
     placeName: String,
-    address: String
+    address: String,
+    onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onClick() }
             .border(
                 width = 1.dp,
                 color = Gray200,
@@ -420,7 +433,8 @@ private fun FeedRestaurantInfo(
 
 @Composable
 private fun CommentItem(
-    comment: FeedComment
+    comment: FeedComment,
+    onProfileClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -432,7 +446,8 @@ private fun CommentItem(
             modifier = Modifier
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(Gray300),
+                .background(Gray300)
+                .clickable { onProfileClick() },
             contentAlignment = Alignment.Center
         ) {
             if (comment.authorProfileUrl.isNullOrBlank()) {
@@ -457,7 +472,10 @@ private fun CommentItem(
         Column(
             modifier = Modifier.weight(1f)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.clickable { onProfileClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = comment.authorNickname,
                     style = MaterialTheme.typography.bodyMedium.copy(

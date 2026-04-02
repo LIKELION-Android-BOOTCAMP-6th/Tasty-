@@ -38,7 +38,8 @@ data class FeedDetailPostUiModel(
     val likeCount: Int,
     val commentCount: Int,
     val dateText: String,
-    val isLiked: Boolean = false
+    val isLiked: Boolean = false,
+    val placeId: String = ""
 )
 
 data class FeedDetailUiState(
