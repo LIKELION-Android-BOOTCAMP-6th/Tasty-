@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -42,7 +43,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.design.theme.PrimaryColor
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import com.tasty.android.core.design.theme.TextColor
 
 @Composable
 fun TastyScreen(
@@ -164,68 +167,88 @@ private fun TastyCard(
     item: TastyItemUiModel,
     onClick: () -> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PrimaryColor)
-            .clickable(onClick = onClick)
-            .padding(bottom = 10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color(0xFFFF1493),
-                    fontWeight = FontWeight.Bold
-                ),
-                maxLines = 1
-            )
-        }
-
-        AsyncImage(
-            model = item.thumbnailImageUrl,
-            contentDescription = item.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color.Black.copy(alpha = 0.05f)
         )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                contentDescription = "좋아요",
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = formatCount(item.likeCount),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = TextColor,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1
+                )
+            }
+
+            AsyncImage(
+                model = item.thumbnailImageUrl,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(Color(0xFFBEBEBE))
             )
 
-            Spacer(modifier = Modifier.width(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Icon(
-                imageVector = Icons.Outlined.RemoveRedEye,
-                contentDescription = "조회수",
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = formatCount(item.viewCount),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FavoriteBorder,
+                    contentDescription = "좋아요",
+                    tint = TextColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatCount(item.likeCount),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Icon(
+                    imageVector = Icons.Outlined.RemoveRedEye,
+                    contentDescription = "조회수",
+                    tint = TextColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatCount(item.viewCount),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
