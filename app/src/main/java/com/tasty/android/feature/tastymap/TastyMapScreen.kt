@@ -94,8 +94,8 @@ fun TastyMapScreen(
             initialRestaurantId?.let { id ->
                 viewModel.selectRestaurantById(id, {
                     scope.launch {
+                        scaffoldState.bottomSheetState.partialExpand()
                         scaffoldState.bottomSheetState.show()
-                        scaffoldState.bottomSheetState.expand()
                     }
                 }
                 )
@@ -305,7 +305,7 @@ fun MapOverlayUI(
                 viewModel.selectRestaurantById(restaurantId, {
                     scope.launch {
                         scaffoldState.bottomSheetState.show()
-                        scaffoldState.bottomSheetState.expand()
+                        scaffoldState.bottomSheetState.partialExpand()
                     }
                 })
             }
@@ -354,7 +354,7 @@ fun MapOverlayUI(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("검색 중...", fontSize = 14.sp)
                     } else {
-                        Text("이 지역 식당 검색", fontSize = 14.sp)
+                        Text("주변 식당 검색", fontSize = 14.sp)
                     }
                 }
             }
@@ -411,19 +411,19 @@ fun RestaurantItem(
         Text(restaurant.address, color = Color.Gray, fontSize = 14.sp)
 
         if(showComments) {
-            // --- 추가된 섹션: 전화번호 및 영업시간 ---
+            // 전화번호 및 영업시간
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 1. 전화번호 표시
+            // 전화번호 표시
             val displayPhone =
-                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else restaurant.phoneNumber
+                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else formatKoreanPhoneNumber(restaurant.phoneNumber)
             Text(
                 text = "📞 $displayPhone",
                 color = if (restaurant.phoneNumber.isNullOrBlank()) Color.LightGray else Color.DarkGray,
                 fontSize = 13.sp
             )
 
-            // 2. 영업시간 표시
+            // 영업시간 표시
             if (restaurant.openingHours.isNullOrEmpty()) {
                 Text(
                     text = "⏰ 영업시간 정보 없음",
@@ -443,7 +443,7 @@ fun RestaurantItem(
                                 text = hour,
                                 color = Color.DarkGray,
                                 fontSize = 13.sp,
-                                lineHeight = 18.sp // 줄 간격 조절
+                                lineHeight = 18.sp
                             )
                         }
                     }
@@ -662,4 +662,35 @@ fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescrip
         textPaint
     )
     return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+fun formatKoreanPhoneNumber(number: String?): String {
+    if (number == null) return "전화번호 정보 없음"
+
+    // 국제전화 형식 처리: +82(한국 국가코드)를 국내 번호 형식인 0으로 변환
+    // 예: +82 10... -> 010...
+    var cleanNumber = number.replace("+82", "0")
+
+    // 숫자만 추출
+    val digits = cleanNumber.filter { it.isDigit() }
+
+    return when {
+        // 서울 지역번호 (02) 처리
+        digits.startsWith("02") -> {
+            when (digits.length) {
+                9 -> digits.replaceFirst("(\\d{2})(\\d{3})(\\d{4})".toRegex(), "$1-$2-$3")
+                10 -> digits.replaceFirst("(\\d{2})(\\d{4})(\\d{4})".toRegex(), "$1-$2-$3")
+                else -> digits
+            }
+        }
+
+        // 일반 번호 (휴대폰 010, 지역번호 031 등) 및 특수 번호 처리
+        // 12자리: 0507-12345-6789 등 긴 안심번호 대응
+        digits.length == 12 -> digits.replaceFirst("(\\d{3})(\\d{5})(\\d{4})".toRegex(), "$1-$2-$3")
+        digits.length == 11 -> digits.replaceFirst("(\\d{3})(\\d{4})(\\d{4})".toRegex(), "$1-$2-$3")
+        digits.length == 10 -> digits.replaceFirst("(\\d{3})(\\d{3})(\\d{4})".toRegex(), "$1-$2-$3")
+
+        // 예외: 위 조건에 해당하지 않는 자릿수는 숫자만 그대로 노출
+        else -> digits
+    }
 }
