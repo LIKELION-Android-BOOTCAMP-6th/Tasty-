@@ -143,9 +143,38 @@ class TastyMapViewmodel(
             if (target != null) {
                 selectRestaurant(target)
             } else {
-                // places api를 통해 식당 정보 가져와서
-                // restaurants 리스트에 추가하고 선택 처리하는 로직 필요
+                placesManager.fetchPlaceDetails(
+                    placeId = restaurantId,
+                    onSuccess = { newRestaurant ->
+                        // Firestore 정보와 병합
+                        syncWithFirestoreAndSelect(newRestaurant)
+                    },
+                    onFailure = { /* 에러 처리 */ })
             }
+        }
+    }
+
+    private fun syncWithFirestoreAndSelect(restaurant: RestaurantData) {
+        viewModelScope.launch {
+            // Firestore에서 리뷰 개수 등 추가 정보 가져오기
+            val firestoreResult = mapStoreManager.getRestaurantInfoFromIds(listOf(restaurant.id))
+
+            val finalData = firestoreResult.fold(
+                onSuccess = { infoMap ->
+                    val info = infoMap[restaurant.id]
+                    restaurant.copy(
+                        rating = info?.ratingAvg ?: restaurant.rating,
+                        feedCount = info?.feedCount ?: 0
+                    )
+                },
+                onFailure = { restaurant }
+            )
+
+            // 해당 식당 리스트에 추가하고 선택 처리
+            uiState = uiState.copy(
+                restaurants = uiState.restaurants + finalData,
+                selectedRestaurant = finalData
+            )
         }
     }
 }

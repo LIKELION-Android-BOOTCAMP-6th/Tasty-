@@ -46,8 +46,8 @@ import kotlin.math.*
 fun TastyMapScreen(
     navController: NavController,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
-    viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory),
-    initialRestaurantId: String? = null
+    initialRestaurantId: String? = null,
+    viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
     val uiState = viewModel.uiState
     val scaffoldState = rememberBottomSheetScaffoldState()
