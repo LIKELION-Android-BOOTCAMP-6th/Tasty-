@@ -147,7 +147,7 @@ class TastyMapViewmodel(
     }
 
     // id로 식당을 찾음
-    fun selectRestaurantById(restaurantId: String) {
+    fun selectRestaurantById(restaurantId: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             // 이미 리스트에 데이터가 있는지 확인
             val target = uiState.restaurants.find { it.id == restaurantId }
@@ -163,6 +163,8 @@ class TastyMapViewmodel(
                     },
                     onFailure = { /* 에러 처리 */ })
             }
+
+            onComplete()
         }
     }
 

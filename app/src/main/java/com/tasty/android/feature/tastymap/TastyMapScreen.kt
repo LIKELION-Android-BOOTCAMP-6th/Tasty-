@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
@@ -26,10 +27,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil3.compose.AsyncImage
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.model.PhotoMetadata
@@ -70,11 +73,13 @@ fun TastyMapScreen(
 
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             initialRestaurantId?.let { id ->
-                viewModel.selectRestaurantById(id)
-                scope.launch {
-                    scaffoldState.bottomSheetState.show()
-                    scaffoldState.bottomSheetState.expand()
+                viewModel.selectRestaurantById(id, {
+                    scope.launch {
+                        scaffoldState.bottomSheetState.show()
+                        scaffoldState.bottomSheetState.expand()
+                    }
                 }
+                )
             }
         }
     }
@@ -161,9 +166,11 @@ fun RestaurantListSheet(
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
 
     if (displayList.isEmpty()) {
-        Box(Modifier
-            .fillMaxWidth()
-            .height(200.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(200.dp), contentAlignment = Alignment.Center
+        ) {
             Text("주변에 식당이 없습니다.")
         }
     } else {
@@ -242,14 +249,24 @@ fun MapOverlayUI(
     Box(modifier = Modifier.fillMaxSize()) {
         PlaceSearchScreen(
             labelText = "장소 및 음식점 검색",
-            onFocusChange = { viewModel.setSearchFocus(it) },
+            onFocusChange = {
+                viewModel.setSearchFocus(it)
+                scope.launch {
+                    scaffoldState.bottomSheetState.hide()
+                }
+            },
             onPlaceSelectedLocation = { latLng ->
                 scope.launch {
                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
                 }
             },
             onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId)
+                viewModel.selectRestaurantById(restaurantId, {
+                    scope.launch {
+                        scaffoldState.bottomSheetState.show()
+                        scaffoldState.bottomSheetState.expand()
+                    }
+                })
             }
         )
 
@@ -334,9 +351,10 @@ fun RestaurantItem(
     showComments: Boolean,
     uiState: TastyMapUiState
 ) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .clickable { onItemClick() }) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onItemClick() }) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(restaurant.name, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 19.sp))
             Text(
@@ -372,7 +390,7 @@ fun RestaurantItem(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 uiState.restaurantFeeds.forEach { feed ->
-                    CommentItem(comment = feed.content)
+                    CommentItem(feed.authorNickname, feed.authorProfileUrl, comment = feed.content)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -380,25 +398,50 @@ fun RestaurantItem(
     }
 }
 
-// --- 유틸리티 및 헬퍼 함수 (기존 로직 유지) ---
-
+// 상세화면의 리뷰(피드) 출력
 @Composable
-fun CommentItem(comment: String) {
+fun CommentItem(nickName: String, authorProfileUrl: String?, comment: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFFF9F9F9))
+            .clickable {
+                // 피드로 이동 로직 구현
+            }
             .padding(12.dp)
     ) {
-        Box(modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(Color.LightGray))
+        if (authorProfileUrl.isNullOrBlank()) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "기본 프로필",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .align(Alignment.CenterVertically),
+                tint = Color(0xFFB5B5B5)
+            )
+        } else {
+            AsyncImage(
+                model = authorProfileUrl,
+                contentDescription = "프로필 이미지",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .align(Alignment.CenterVertically),
+                contentScale = ContentScale.Crop
+            )
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text("익명 사용자", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            Text(comment, fontSize = 14.sp, color = Color.DarkGray)
+            Text(nickName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(
+                comment,
+                fontSize = 14.sp,
+                color = Color.DarkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -417,10 +460,12 @@ fun RestaurantPhotoItem(metadata: PhotoMetadata, placesManager: PlaceManager) {
             contentScale = ContentScale.Crop
         )
     } else {
-        Box(Modifier
-            .size(120.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFF2F2F2)))
+        Box(
+            Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFF2F2F2))
+        )
     }
 }
 
