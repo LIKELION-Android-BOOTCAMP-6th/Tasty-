@@ -258,7 +258,7 @@ class FeedWriteViewModel(
         viewModelScope.launch {
             // 측정 전체 시작 시각
             val startTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "==== [START] 업로드 시퀀스 시작 ====")
+            android.util.Log.d("FeedUpload", "업로드 시퀀스 시작")
             
             _uiState.update {
                 it.copy(isSubmitting = true)
@@ -273,7 +273,7 @@ class FeedWriteViewModel(
                 feedImageUris = currentState.photos.map { it.uri }
             )
             val uploadEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "Step 1 [이미지 업로드]: ${(uploadEndTime - uploadStartTime) / 1000.0}초")
+            android.util.Log.d("FeedUpload", " [이미지 업로드]: ${(uploadEndTime - uploadStartTime) / 1000.0}초")
 
             val feedImageUrls = feedImageUrlsResult.getOrElse {
                 _uiState.update { currentState ->
@@ -288,9 +288,9 @@ class FeedWriteViewModel(
             // 유저 정보 조회 측정 (캐시 여부 확인)
             val userStartTime = System.currentTimeMillis()
             val userProfile = userStoreManager.currentUserProfile.value 
-                ?: userStoreManager.getUser(authorId).getOrNull() // 캐시 없으면 폴백
+                ?: userStoreManager.getUser(authorId).getOrNull() 
             val userEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "Step 2 [유저 정보 조회]: ${(userEndTime - userStartTime) / 1000.0}초")
+            android.util.Log.d("FeedUpload", " [유저 정보 조회]: ${(userEndTime - userStartTime) / 1000.0}초")
 
             val feed = Feed(
                 feedId = feedId,
@@ -317,7 +317,7 @@ class FeedWriteViewModel(
             val dbStartTime = System.currentTimeMillis()
             feedStoreManager.saveFeed(feed).onSuccess {
                 val dbEndTime = System.currentTimeMillis()
-                android.util.Log.d("FeedUpload", "Step 3 [DB 문서 저장]: ${(dbEndTime - dbStartTime) / 1000.0}초")
+                android.util.Log.d("FeedUpload", "[DB 문서 저장]: ${(dbEndTime - dbStartTime) / 1000.0}초")
                 
                 // 전체 측정 종료
                 val totalTime = (System.currentTimeMillis() - startTime) / 1000.0
