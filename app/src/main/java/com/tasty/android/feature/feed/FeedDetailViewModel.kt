@@ -53,7 +53,9 @@ data class FeedDetailUiState(
     val hasMoreComments: Boolean = true
 ) {
     val canSubmitComment: Boolean
-        get() = commentInput.trim().isNotBlank() && !isCommentSubmitting
+        get() = commentInput.trim().isNotBlank() &&
+                commentInput.trim().length <= 50 &&
+                !isCommentSubmitting
 }
 
 class FeedDetailViewModel(
@@ -219,14 +221,16 @@ class FeedDetailViewModel(
     }
 
     fun updateCommentInput(input: String) {
-        _uiState.update { it.copy(commentInput = input) }
+        _uiState.update {
+            it.copy(commentInput = input.take(50))
+        }
     }
 
     // 댓글 추가
     @RequiresApi(Build.VERSION_CODES.O)
     fun submitComment(feedId: String) {
         val input = _uiState.value.commentInput.trim()
-        if (input.isBlank()) return
+        if (input.isBlank() || input.length > 100) return
 
         val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
@@ -282,8 +286,6 @@ class FeedDetailViewModel(
                         }
                     }
                 }
-
-
                 .onFailure {
                     _uiState.update { it.copy(isCommentSubmitting = false, errorMessage = "댓글 작성에 실패했습니다.") }
                 }

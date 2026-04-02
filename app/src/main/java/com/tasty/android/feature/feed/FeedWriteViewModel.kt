@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.StorageManager
 import com.tasty.android.core.firebase.UserStoreManager
@@ -13,7 +12,6 @@ import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.core.place.RestaurantSearchItem
 import com.tasty.android.feature.feed.model.AddressInfo
 import com.tasty.android.feature.feed.model.Feed
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,10 +48,10 @@ data class FeedWriteUiState(
         get() = selectedRestaurant != null
 
     val isContentValid: Boolean
-        get() = content.trim().length >= 10
+        get() = content.trim().length in 10..600
 
     val isShortReviewValid: Boolean
-        get() = shortReview.trim().isNotBlank()
+        get() = shortReview.trim().length in 5..30
 
     val isRatingValid: Boolean
         get() = rating in 1..5
@@ -208,13 +206,13 @@ class FeedWriteViewModel(
 
     fun updateContent(content: String) {
         _uiState.update { currentState ->
-            currentState.copy(content = content)
+            currentState.copy(content = content.take(600))
         }
     }
 
     fun updateShortReview(shortReview: String) {
         _uiState.update { currentState ->
-            currentState.copy(shortReview = shortReview)
+            currentState.copy(shortReview = shortReview.take(30))
         }
     }
 

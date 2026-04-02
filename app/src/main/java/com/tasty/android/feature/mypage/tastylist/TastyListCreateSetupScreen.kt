@@ -44,7 +44,6 @@ import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.feature.vmfactory.TastyListCreateSetupViewModelFactory
 import com.tasty.android.core.navigation.TabScreen
-import androidx.compose.material3.CircularProgressIndicator
 
 @Composable
 fun TastyListCreateSetupScreen(
@@ -148,13 +147,15 @@ fun TastyListCreateSetupScreen(
             }
         }
 
-
-
         Spacer(modifier = Modifier.padding(top = 24.dp))
 
         OutlinedTextField(
             value = uiState.title,
-            onValueChange = viewModel::updateTitle,
+            onValueChange = { newValue ->
+                if (newValue.length <= 20) {
+                    viewModel.updateTitle(newValue)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
