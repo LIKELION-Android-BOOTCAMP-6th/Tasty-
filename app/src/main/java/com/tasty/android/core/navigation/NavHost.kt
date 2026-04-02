@@ -113,19 +113,17 @@ fun CustomNavHost(
             }
 
             composable(Screen.FEED_SEARCH_RESTAURANT.route) { backStackEntry ->
-
                 val parentEntry = remember(backStackEntry) {
-                    navController.getBackStackEntry(Screen.FEED_CREATE_FEED.route)
+                    navController.getBackStackEntry("feed_graph")
                 }
                 val sharedViewModel: FeedWriteViewModel = viewModel(
                     parentEntry,
                     factory = FeedWriteViewModelFactory
                 )
-
                 FeedSearchRestaurantScreen(
-                    navController = navController,
-                    viewModel = sharedViewModel,
-                    onScaffoldConfigChange = onScaffoldConfigChange
+                    navController,
+                    sharedViewModel,
+                    onScaffoldConfigChange
                 )
             }
 

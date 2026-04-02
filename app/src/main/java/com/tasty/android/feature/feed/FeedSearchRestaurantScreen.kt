@@ -105,17 +105,6 @@ fun FeedSearchRestaurantScreen(
                             .padding(vertical = 16.dp, horizontal = 8.dp),
                         style = MaterialTheme.typography.bodyLarge
                     )
-                    Text(
-                        text = item.address,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.selectRestaurant(item.restaurantId)
-                                navController.popBackStack()
-                            }
-                            .padding(vertical = 16.dp, horizontal = 8.dp),
-                        style = MaterialTheme.typography.bodySmall
-                    )
                     HorizontalDivider()
                 }
             }

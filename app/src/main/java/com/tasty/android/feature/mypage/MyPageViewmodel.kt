@@ -158,8 +158,6 @@ class MyPageViewModel(
                             )
                         }
                     }
-                    is TastyUpdateEvent.TastyListLiked -> {}
-                    is TastyUpdateEvent.TastyListUnliked -> {}
                 }
             }
         }

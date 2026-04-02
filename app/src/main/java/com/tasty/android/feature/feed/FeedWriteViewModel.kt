@@ -174,8 +174,7 @@ class FeedWriteViewModel(
                     _searchResults.value = places.map{ place ->
                         RestaurantSearchItem(
                             restaurantId = place.id ?: return@launch,
-                            name = place.name ?: "이름 없음",
-                            address = place.address ?: "주소 정보 없음"
+                            name = place.name ?: "이름 없음"
                         )
 
                     }
