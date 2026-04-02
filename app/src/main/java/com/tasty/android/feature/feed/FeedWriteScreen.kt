@@ -1,6 +1,5 @@
 package com.tasty.android.feature.feed
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,12 +53,10 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
 
-private val TextColor = Color(0xFF4C4B4B)
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
 private val Gray400 = Color(0xFFBDBDBD)
@@ -140,12 +137,20 @@ fun FeedWriteScreen(
 
                 ContentInputSection(
                     content = uiState.content,
-                    onValueChange = viewModel::updateContent
+                    onValueChange = { newValue ->
+                        if (newValue.length <= 300) {
+                            viewModel.updateContent(newValue)
+                        }
+                    }
                 )
 
                 ShortReviewSection(
                     shortReview = uiState.shortReview,
-                    onValueChange = viewModel::updateShortReview
+                    onValueChange = { newValue ->
+                        if (newValue.length <= 25) {
+                            viewModel.updateShortReview(newValue)
+                        }
+                    }
                 )
 
                 PhotoSection(
@@ -284,35 +289,45 @@ private fun ContentInputSection(
     content: String,
     onValueChange: (String) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(280.dp)
-            .border(
-                width = 1.dp,
-                color = Color(0xFFE0E0E0),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .padding(12.dp)
-    ) {
-        BasicTextField(
-            value = content,
-            onValueChange = onValueChange,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                color = TextColor
-            ),
-            modifier = Modifier.fillMaxSize(),
-            decorationBox = { innerTextField ->
-                if (content.isBlank()) {
-                    Text(
-                        text = "오늘 먹은 음식은 어땠나요?",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = Color(0xFFB5B5B5)
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFE0E0E0),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(12.dp)
+        ) {
+            BasicTextField(
+                value = content,
+                onValueChange = onValueChange,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = TextColor
+                ),
+                modifier = Modifier.fillMaxSize(),
+                decorationBox = { innerTextField ->
+                    if (content.isBlank()) {
+                        Text(
+                            text = "오늘 먹은 음식은 어땠나요? (10~300자)",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color(0xFFB5B5B5)
+                            )
                         )
-                    )
+                    }
+                    innerTextField()
                 }
-                innerTextField()
-            }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "${content.length}/300",
+            color = if (content.isNotBlank() && content.length < 10) Color.Red else Gray400,
+            modifier = Modifier.align(Alignment.End)
         )
     }
 }
@@ -352,7 +367,7 @@ private fun ShortReviewSection(
                 decorationBox = { innerTextField ->
                     if (shortReview.isBlank()) {
                         Text(
-                            text = "한줄평을 입력해주세요",
+                            text = "한줄평을 입력해주세요 (5~25자)",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = Color(0xFFB5B5B5)
                             )
@@ -362,6 +377,14 @@ private fun ShortReviewSection(
                 }
             )
         }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "${shortReview.length}/25",
+            color = if (shortReview.isNotBlank() && shortReview.length < 5) Color.Red else Gray400,
+            modifier = Modifier.align(Alignment.End)
+        )
     }
 }
 
