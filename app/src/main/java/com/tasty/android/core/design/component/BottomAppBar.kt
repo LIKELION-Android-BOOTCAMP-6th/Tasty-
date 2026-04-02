@@ -40,21 +40,22 @@ fun CustomBottomAppBar(navController: NavHostController) {
         containerColor = PrimaryColor
     ) {
         TabScreen.entries.forEach{ tabScreen ->
-            // 현재 화면 경로(루트) 확인
-            val isSelected = currentDestination?.hierarchy?.any{navDestination ->
-                navDestination.route == tabScreen.route
+
+            val isSelected = currentDestination?.hierarchy?.any { navDestination ->
+                navDestination.route == "${tabScreen.route}_graph"
             } == true
+
             // 네비게이션 아이템 정의
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    // 해당 스크린으로 이동
-                    navController.navigate(tabScreen.route) {
+                    // 해당 탭 그래프의 루트로 이동
+                    navController.navigate("${tabScreen.route}_graph") {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true // 스크린 이전 상태 저장
+                            saveState = true // 이전 상태 저장
                         }
-                        launchSingleTop = true // 중복 스택 방지
-                        restoreState = true // 스크린 이전 상태 복구
+                        launchSingleTop = true // 중복 생성 방지
+                        restoreState = true // 이전 상태 복원
                     }
                 },
 

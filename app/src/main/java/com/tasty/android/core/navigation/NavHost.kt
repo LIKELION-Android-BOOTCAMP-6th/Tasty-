@@ -7,21 +7,19 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import com.google.android.gms.location.LocationServices
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.location.LocationManager
-import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.auth.LoginScreen
 import com.tasty.android.feature.auth.OnboardingScreen
-import com.tasty.android.feature.auth.OnboardingViewModel
 import com.tasty.android.feature.auth.ProfileSetupScreen
 import com.tasty.android.feature.auth.SignUpScreen
 import com.tasty.android.feature.feed.FeedDetailScreen
@@ -47,11 +45,11 @@ fun CustomNavHost(
     modifier: Modifier = Modifier,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
-
     // 로그인 상태 여부 확인
     val isLoggedIn = Firebase.auth.currentUser != null
-    // 로그인 상태에 따라 첫 화면 동적으로 결정
+    // 로그인 상태에 따라 첫 시작 그래프를 결정
     val startDestination = if(isLoggedIn) "feed_graph" else "auth_graph"
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -61,119 +59,101 @@ fun CustomNavHost(
         popEnterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None }
     ) {
-        navigation(startDestination = Screen.AUTH_ON_BOARDING.route, route = "auth_graph") {
-            /** AUTH **/
+
+        /**AUTH GRAPH **/
+        navigation(
+            startDestination = Screen.AUTH_ON_BOARDING.route,
+            route = "auth_graph"
+        ) {
             composable(Screen.AUTH_ON_BOARDING.route) {
-                // 온보딩 화면 컴포저블
-                OnboardingScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
+                OnboardingScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
+
             composable(Screen.AUTH_SIGN_UP_EMAIL_PWD.route) {
-                // 회원가입 이메일/비밀번호 설정 화면 컴포저블
-                SignUpScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
+                SignUpScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
+
             composable(Screen.AUTH_SIGN_UP_SET_PROFILE.route) {
-                // 회원가입 프로필 정보(닉네임 등) 설정 화면 컴포저블
-                ProfileSetupScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
+                ProfileSetupScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
+
             composable(Screen.AUTH_LOGIN.route) {
-                // 로그인 화면 컴포저블
-                LoginScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
+                LoginScreen(navController, onScaffoldConfigChange = onScaffoldConfigChange)
             }
         }
 
-        navigation(startDestination = TabScreen.FEED.route, route = "feed_graph") {
-            /** FEED **/
+        /** FEED GRAPH **/
+        navigation(
+            startDestination = TabScreen.FEED.route,
+            route = "feed_graph"
+        ) {
             composable(TabScreen.FEED.route) {
                 FeedScreen(
-                    navController = navController,
+                    navController,
                     onScaffoldConfigChange = onScaffoldConfigChange
-                )  // 피드 메인 화면 컴포저블(TAB)
+                )
             }
 
-            composable("${Screen.FEED_DETAIL.route}/{feedId}") {backStackEntry ->
+            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
                 val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
                 FeedDetailScreen(
-                    navController = navController,
-                    feedId = feedId,
+                    navController,
+                    feedId,
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
 
-            composable(Screen.FEED_CREATE_FEED.route) {backStackEntry ->
-                val viewModel: FeedWriteViewModel = viewModel(
-                    backStackEntry,
-                    factory = FeedWriteViewModelFactory
-                )
+            composable(Screen.FEED_CREATE_FEED.route) { backStackEntry ->
+                val viewModel: FeedWriteViewModel = viewModel(backStackEntry, factory = FeedWriteViewModelFactory)
                 FeedWriteScreen(
-                    navController = navController,
-                    onScaffoldConfigChange = onScaffoldConfigChange,
-                    viewModel = viewModel
+                    navController,
+                    viewModel = viewModel,
+                    onScaffoldConfigChange = onScaffoldConfigChange
                 )
-                // 피드 생성 화면 컴포저블
             }
 
             composable(Screen.FEED_SEARCH_RESTAURANT.route) { backStackEntry ->
-
-                val parentEntry = remember( backStackEntry) {
-                    navController.getBackStackEntry(Screen.FEED_CREATE_FEED.route)
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("feed_graph")
                 }
                 val sharedViewModel: FeedWriteViewModel = viewModel(
                     parentEntry,
                     factory = FeedWriteViewModelFactory
                 )
-
                 FeedSearchRestaurantScreen(
-                    navController = navController,
-                    viewModel = sharedViewModel,
+                    navController,
+                    sharedViewModel,
                     onScaffoldConfigChange
                 )
-                // 피드 생성 시 식당 검색 화면 컴포저블
+            }
 
+            composable(Screen.USER_PROFILE.route) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                UserProfileScreen(
+                    navController,
+                    userId,
+                    onScaffoldConfigChange
+                )
             }
 
             composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
                 val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
                 TastyDetailScreen(
                     onBackClick = { navController.popBackStack() },
-                    onClickFeed = { feedId ->
-                        navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
-                    },
+                    onClickFeed = { id -> navController.navigate("${Screen.FEED_DETAIL.route}/$id") },
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
-
-            /** User Profile **/
-            composable(Screen.USER_PROFILE.route) { backStackEntry ->
-                val userId = backStackEntry.arguments?.getString("userId") ?: ""
-                UserProfileScreen(
-                    navController = navController,
-                    targetUserId = userId,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
-            }
-
         }
 
-        /** 테이스티 탭 그래프 **/
-        navigation(startDestination = TabScreen.TASTY.route, route = "tasty_graph") {
-            /** Tasty **/
+        /** TASTY GRAPH **/
+        navigation(
+            startDestination = TabScreen.TASTY.route,
+            route = "tasty_graph"
+        ) {
             composable(TabScreen.TASTY.route) {
                 TastyScreen(
-                    onClickTastyItem = { tastyId ->
-                        navController.navigate("${Screen.TASTY_DETAIL.route}/$tastyId")
-                    },
+                    onClickTastyItem = { id -> navController.navigate("${Screen.TASTY_DETAIL.route}/$id") },
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
@@ -182,124 +162,100 @@ fun CustomNavHost(
                 val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
                 TastyDetailScreen(
                     onBackClick = { navController.popBackStack() },
-                    onClickFeed = { feedId ->
-                        navController.navigate("${Screen.FEED_DETAIL.route}/$feedId")
-                    },
+                    onClickFeed = { id -> navController.navigate("${Screen.FEED_DETAIL.route}/$id") },
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
 
-            composable("${Screen.FEED_DETAIL.route}/{feedId}") {backStackEntry ->
+            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
                 val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
                 FeedDetailScreen(
-                    navController = navController,
-                    feedId = feedId,
+                    navController,
+                    feedId,
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
 
-            /** User Profile **/
-            composable(Screen.USER_PROFILE.route) { backStackEntry ->
+            composable("${Screen.USER_PROFILE.route}") { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 UserProfileScreen(
-                    navController = navController,
-                    targetUserId = userId,
-                    onScaffoldConfigChange = onScaffoldConfigChange
-                )
-            }
-
-        }
-
-
-        /** 맵 그래프 **/
-
-        navigation(startDestination = TabScreen.MAP.route, route = "map_graph") {
-            /** Map **/
-            composable(TabScreen.MAP.route){
-                // 맵 화면 컴포저블(TAB)
-                TastyMapScreen(
-                    navController = navController,
+                    navController,
+                    userId,
                     onScaffoldConfigChange
                 )
             }
-            composable(Screen.MAP_SEARCH_LOCATION.route){
-                // 맵 지역 검색 화면 컴포저블
-            }
-            composable(Screen.MAP_RESTAURANT_DETAIL.route){
-                // 맵 식당 세부 화면 컴포저블
+        }
+
+        /** MAP GRAPH **/
+        navigation(
+            startDestination = TabScreen.MAP.route,
+            route = "map_graph"
+        ) {
+            composable(TabScreen.MAP.route) {
+                TastyMapScreen(navController, onScaffoldConfigChange)
             }
 
-            /** User Profile **/
-            composable(Screen.USER_PROFILE.route) { backStackEntry ->
+            composable(Screen.MAP_SEARCH_LOCATION.route) { }
+
+            composable(Screen.MAP_RESTAURANT_DETAIL.route) { }
+
+            composable("${Screen.USER_PROFILE.route}") { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 UserProfileScreen(
-                    navController = navController,
-                    targetUserId = userId,
+                    navController,
+                    userId,
+                    onScaffoldConfigChange
+                )
+            }
+
+            composable("${Screen.FEED_DETAIL.route}/{feedId}") { backStackEntry ->
+                val feedId = backStackEntry.arguments?.getString("feedId") ?: ""
+                FeedDetailScreen(
+                    navController,
+                    feedId,
                     onScaffoldConfigChange = onScaffoldConfigChange
                 )
             }
 
+            composable("${Screen.TASTY_DETAIL.route}/{tastyId}") { backStackEntry ->
+                val tastyId = backStackEntry.arguments?.getString("tastyId") ?: ""
+                TastyDetailScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onClickFeed = { id -> navController.navigate("${Screen.FEED_DETAIL.route}/$id") },
+                    onScaffoldConfigChange = onScaffoldConfigChange
+                )
+            }
         }
 
+        /** MY PAGE GRAPH **/
+        navigation(
+            startDestination = TabScreen.MY_PAGE.route,
+            route = "my_page_graph"
+        ) {
+            composable(TabScreen.MY_PAGE.route) {
+                MyPageScreen(navController, onScaffoldConfigChange)
+            }
 
-        /** Map **/
-        composable(TabScreen.MAP.route){
-            // 맵 화면 컴포저블(TAB)
-            TastyMapScreen(
-                navController = navController,
-                onScaffoldConfigChange
-            )
-        }
-        composable(Screen.MAP_SEARCH_LOCATION.route){
-            // 맵 지역 검색 화면 컴포저블
-        }
-        composable(Screen.MAP_RESTAURANT_DETAIL.route){
-            // 맵 식당 세부 화면 컴포저블
-        }
+            composable(Screen.MY_PAGE_SELECT_FEEDS.route) {
+                TastyListCreateSelectFeedsScreen(navController, onScaffoldConfigChange)
+            }
 
-        /** My Page **/
-        composable(TabScreen.MY_PAGE.route) {
-            MyPageScreen(
-                navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
-            // 마이페이지 메인 화면 컴포저블(TAB)
-        }
-        composable(Screen.MY_PAGE_SELECT_FEEDS.route) {
-            TastyListCreateSelectFeedsScreen(
-                navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
-        }
-        composable(Screen.MY_PAGE_SET_THUMBNAIL_TITLE.route) {
-            TastyListCreateSetupScreen(
-                navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
-        }
-        composable(Screen.MY_PAGE_EDIT_PROFILE.route) {
-            EditProfileScreen(
-                navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
-        }
-        composable(Screen.EDIT_TASTY_LIST.route) { backStackEntry ->
-            val tastyListId = backStackEntry.arguments?.getString("tastyListId") ?: ""
-            EditTastyListScreen(
-                tastyListId = tastyListId,
-                navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
-        }
+            composable(Screen.MY_PAGE_SET_THUMBNAIL_TITLE.route) {
+                TastyListCreateSetupScreen(navController, onScaffoldConfigChange)
+            }
 
-        /** User Profile **/
-        composable(Screen.USER_PROFILE.route) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            UserProfileScreen(
-                navController = navController,
-                targetUserId = userId,
-                onScaffoldConfigChange = onScaffoldConfigChange
-            )
+            composable(Screen.MY_PAGE_EDIT_PROFILE.route) {
+                EditProfileScreen(navController, onScaffoldConfigChange)
+            }
+
+            composable("${Screen.EDIT_TASTY_LIST.route}") { backStackEntry ->
+                val tastyListId = backStackEntry.arguments?.getString("tastyListId") ?: ""
+                EditTastyListScreen(
+                    tastyListId,
+                    navController,
+                    onScaffoldConfigChange
+                )
+            }
         }
     }
 }
