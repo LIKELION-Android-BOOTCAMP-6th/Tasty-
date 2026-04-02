@@ -174,7 +174,7 @@ private fun TastyDetailHeader(
                         )
                     )
                     Text(
-                        text = author.username,
+                        text = "@"+author.username,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             color = TextColor
                         )
@@ -209,7 +209,7 @@ private fun TastyDetailHeader(
                         Icon(
                             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "좋아요",
-                            tint = Color.Black,
+                            tint = if (isLiked) Color.Red else Color.Black,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
