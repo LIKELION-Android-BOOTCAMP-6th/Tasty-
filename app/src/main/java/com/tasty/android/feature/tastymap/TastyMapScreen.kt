@@ -11,6 +11,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,9 +23,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,6 +58,8 @@ import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.search.PlaceSearchScreen
 import com.tasty.android.feature.tastymap.model.RestaurantData
+import com.tasty.android.feature.tastymap.model.formatPriceLevel
+import com.tasty.android.feature.tastymap.model.getPrimaryCategory
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
@@ -157,8 +165,8 @@ fun TastyMapScreen(
                     )
                 )
             }
-    }
         }
+    }
 
     if (!uiState.isLocationLoading) {
         // 바텀 시트와 지도를 포함하는 스캐폴드
@@ -444,123 +452,247 @@ fun RestaurantItem(
     navController: NavController
 ) {
     val context = LocalContext.current
+    // 영업시간 상세 목록의 펼침 상태를 관리하는 변수
+    var isHoursExpanded by remember { mutableStateOf(false) }
+
+    // 사용자의 현재 위치와 식당 사이의 거리를 계산 (미터 단위)
+    val distance = userLocation?.let {
+        calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
+    } ?: 0
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick() }) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(restaurant.name, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 19.sp))
+            .clickable { onItemClick() } // 클릭 시 해당 식당 선택 및 지도 이동
+            .padding(vertical = 8.dp)
+    ) {
+        // 식당 이름, 별점, 현재 영업 상태를 표시하는 헤더
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = restaurant.name,
+                    style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFFFB400),
+                    modifier = Modifier.size(16.dp)
+                )
+
+                Spacer(modifier = Modifier.width(2.dp))
+
+                Text(
+                    text = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0",
+                    style = TextStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF333333)
+                    )
+                )
+            }
+
+            // 영업 상태에 따라 텍스트 색상을 분기 처리
             Text(
-                restaurant.businessStatus,
+                text = restaurant.businessStatus,
                 color = if (restaurant.businessStatus == "영업 중") Color(0xFF4CAF50)
                 else if (restaurant.businessStatus == "영업 종료") Color.Red
                 else Color.Gray,
-                fontWeight = FontWeight.SemiBold, fontSize = 13.sp
+                style = TextStyle(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                ),
+                modifier = Modifier.padding(start = 8.dp)
             )
         }
-        Text(restaurant.address, color = Color.Gray, fontSize = 14.sp)
 
-        if (showComments) {
-            // 전화번호 및 영업시간
-            Spacer(modifier = Modifier.height(4.dp))
+        // 카테고리, 가격대, 거리를 보여주는 요약 정보 띠
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 대표 카테고리 칩
+            Surface(
+                color = Color(0xFFF0F4FF),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = restaurant.getPrimaryCategory(),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = TextStyle(
+                        color = Color(0xFF3B7CFF),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
 
-            // 전화번호 표시
-            val displayPhone =
-                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음"
-                else formatKoreanPhoneNumber(restaurant.phoneNumber)
+            // 가격 수준 정보
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = restaurant.formatPriceLevel(),
+                    style = TextStyle(color = Color(0xFF666666), fontSize = 13.sp)
+                )
+            }
 
-            Text(
-                text = "📞 $displayPhone",
-                color = if (restaurant.phoneNumber.isNullOrBlank()) Color.LightGray else Color.DarkGray,
-                fontSize = 13.sp,
+            // 시각적 구분을 위한 수직선
+            Box(
                 modifier = Modifier
-                    .padding(vertical = 4.dp)
-                    .clickable(enabled = !restaurant.phoneNumber.isNullOrBlank()) {
-                        // 전화번호가 있는 경우 디바이스 전화로 연결..
-                        val intent = Intent(Intent.ACTION_DIAL).apply {
-                            data = Uri.parse("tel:${displayPhone}")
-                        }
-                        context.startActivity(intent)
-                    }
+                    .size(1.dp, 12.dp)
+                    .background(Color(0xFFDDDDDD))
             )
 
-            // 영업시간 표시
-            if (restaurant.openingHours.isNullOrEmpty()) {
-                Text(
-                    text = "⏰ 영업시간 정보 없음",
-                    color = Color.LightGray,
-                    fontSize = 13.sp
+            // 계산된 거리 표시 (포맷팅 함수 사용)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = Color(0xFF3B7CFF)
                 )
-            } else {
-                Row(modifier = Modifier.padding(top = 2.dp)) {
-                    Text(
-                        text = "⏰ ",
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatDistance(distance),
+                    style = TextStyle(
+                        color = Color(0xFF333333),
                         fontSize = 13.sp,
-                        color = Color.DarkGray
+                        fontWeight = FontWeight.Medium
                     )
-                    Column {
-                        restaurant.openingHours.forEach { hour ->
-                            Text(
-                                text = hour,
-                                color = Color.DarkGray,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp
-                            )
-                        }
-                    }
-                }
+                )
             }
         }
-        val distance = userLocation?.let {
-            calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
-        } ?: 0
-        InfoText(
-            "평점: ${if (restaurant.rating!! > 0) restaurant.rating else "( - - )"}, 리뷰: ${restaurant.feedCount}개, 거리: ${
-                formatDistance(
-                    distance
-                )
-            }"
+
+        // 지번/도로명 주소 텍스트
+        Text(
+            text = restaurant.address,
+            color = Color.Gray,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(vertical = 2.dp)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 구글 플레이스 등에서 가져온 식당 사진 목록
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(vertical = 4.dp)
+        ) {
             items(restaurant.photoMetadata) { metadata ->
                 RestaurantPhotoItem(metadata, placesManager)
             }
         }
 
+        // 특정 식당이 선택되었을 때만 노출되는 상세 영역 (전화, 영업시간, 리뷰)
         if (showComments) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 전화번호 버튼: 클릭 시 기기의 전화 앱으로 연결
+            val hasPhoneNumber = !restaurant.phoneNumber.isNullOrBlank()
+            val displayPhone = if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음"
+            else formatKoreanPhoneNumber(restaurant.phoneNumber)
+
+            Card(
+                onClick = {
+                    if (hasPhoneNumber) {
+                        val intent = Intent(Intent.ACTION_DIAL).apply {
+                            data = Uri.parse("tel:${displayPhone}")
+                        }
+                        context.startActivity(intent)
+                    }
+                },
+                enabled = hasPhoneNumber,
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (hasPhoneNumber) Color(0xFF3B7CFF) else Color(0xFFF2F2F2),
+                    contentColor = if (hasPhoneNumber) Color.White else Color.Gray
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(text = displayPhone, style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 영업시간 정보: 클릭 시 요일별 리스트가 펼쳐짐
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF8F9FA),
+                border = BorderStroke(1.dp, Color(0xFFEEEEEE)),
+                onClick = {
+                    if (!restaurant.openingHours.isNullOrEmpty()) isHoursExpanded = !isHoursExpanded
+                }
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF666666))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("영업시간 안내", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (!restaurant.openingHours.isNullOrEmpty()) {
+                            Icon(imageVector = if (isHoursExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                        }
+                    }
+
+                    // 리스트가 펼쳐진 상태일 때 요일별 시간대 출력
+                    if (isHoursExpanded && !restaurant.openingHours.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        restaurant.openingHours.forEach { hour ->
+                            val parts = hour.split(": ", limit = 2)
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(parts.getOrNull(0) ?: "", style = TextStyle(fontSize = 13.sp, color = Color(0xFF777777)))
+                                Text(parts.getOrNull(1) ?: "", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 사용자 리뷰 피드 목록
             Spacer(modifier = Modifier.height(24.dp))
             Text("방문자 리뷰", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp))
-            Spacer(modifier = Modifier.height(8.dp)) // 제목과 내용 사이 간격
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (uiState.isFeedsLoading) {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             } else if (uiState.restaurantFeeds.isEmpty()) {
-                // 리뷰가 없는 경우 표시할 문구
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "리뷰가 아직 없어요.",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
+                Text("리뷰가 아직 없어요.", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
             } else {
-                // 리뷰 리스트 출력
                 uiState.restaurantFeeds.forEach { feed ->
                     CommentItem(
                         nickName = feed.authorNickname,
                         authorProfileUrl = feed.authorProfileUrl,
                         comment = feed.content,
                         onItemClick = {
+                            // 리뷰 클릭 시 해당 피드의 상세 화면으로 이동
                             navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
                         }
                     )
@@ -675,7 +807,7 @@ fun formatDistance(distanceInMeters: Int): String {
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
 
-    val text = if (rating > 0) rating.toString() else "( - - )"
+    val text = rating.toString()
 
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(

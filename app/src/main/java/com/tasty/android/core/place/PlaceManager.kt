@@ -212,7 +212,9 @@ class PlaceManager(private val context: Context) {
             Field.OPENING_HOURS,
             Field.CURRENT_OPENING_HOURS,
             Field.UTC_OFFSET,
-            Field.PHONE_NUMBER
+            Field.PHONE_NUMBER,
+            Field.TYPES,
+            Field.PRICE_LEVEL
         )
 
         // 나선형 탐색 알고리즘
@@ -260,7 +262,9 @@ class PlaceManager(private val context: Context) {
                             businessStatus = statusText,
                             photoMetadata = place.photoMetadatas?.take(5) ?: emptyList(),
                             phoneNumber = place.phoneNumber,
-                            openingHours = place.openingHours?.weekdayText
+                            openingHours = place.openingHours?.weekdayText,
+                            priceLevel = place.priceLevel,
+                            types = place.placeTypes
                         )
                         accumulatedMap[restaurant.id] = restaurant
                     }
@@ -331,7 +335,9 @@ class PlaceManager(private val context: Context) {
             Field.OPENING_HOURS,
             Field.CURRENT_OPENING_HOURS,
             Field.UTC_OFFSET,
-            Field.PHONE_NUMBER
+            Field.PHONE_NUMBER,
+            Field.TYPES,
+            Field.PRICE_LEVEL
         )
 
         val request = FetchPlaceRequest.newInstance(placeId, placeFields)
@@ -358,7 +364,9 @@ class PlaceManager(private val context: Context) {
                         businessStatus = statusText,
                         photoMetadata = place.photoMetadatas?.take(5) ?: emptyList(),
                         phoneNumber = place.phoneNumber,
-                        openingHours = place.openingHours?.weekdayText
+                        openingHours = place.openingHours?.weekdayText,
+                        priceLevel = place.priceLevel,
+                        types = place.placeTypes
                     )
                 onSuccess(restaurant)
             }
