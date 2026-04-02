@@ -185,107 +185,110 @@ class PlaceManager(private val context: Context) {
             }
     }
 
+    /**
+     * 격자(Grid) 검색을 통해 주변 식당을 촘촘하게 탐색하고 최대 100개까지 반환합니다.
+     */
     suspend fun searchRestaurantsByGrid(
-        center: LatLng,
-        totalRangeKm: Double = 0.5,   // 전체 탐색 범위를 0.5km로 제한
-        gridStepMeter: Double = 150.0  // 격자 간격을 150m로 설정
+        center: LatLng,          // 검색 중심 좌표
+        totalRangeKm: Double = 0.5, // 전체 검색 범위 (km)
+        gridStepMeter: Double = 150.0 // 격자 간격 (m)
     ): List<RestaurantData> = withContext(Dispatchers.IO) {
 
-        val accumulatedMap = mutableMapOf<String, RestaurantData>()
-        // 격자 간격이 150m일 때 반경을 180m로 잡으면 인접 격자와 충분히 중첩
-        val searchRadius = 180.0
+        // 중복 제거를 위한 ConcurrentHashMap (식당 ID 기준)
+        val accumulatedMap = java.util.concurrent.ConcurrentHashMap<String, RestaurantData>()
 
-        val meterPerLat = 110940.0
-        val meterPerLon = 88800.0 * cos(Math.toRadians(center.latitude))
+        // Google Places API 설정값
+        val searchRadius = 180.0 // 각 격자점에서의 검색 반경
+        val meterPerLat = 110940.0 // 위도 1도당 미터 거리
+        val meterPerLon = 88800.0 * kotlin.math.cos(Math.toRadians(center.latitude)) // 경도 1도당 미터 거리
 
-        // 최대 단계 계산
+        // 격자 탐색을 위한 스텝 수 계산
         val maxStep = (totalRangeKm * 1000 / gridStepMeter).toInt() / 2
-
-        // 수집 요소
         val placeFields = listOf(
-            Field.ID,
-            Field.NAME,
-            Field.ADDRESS,
-            Field.LAT_LNG,
-            Field.BUSINESS_STATUS,
-            Field.PHOTO_METADATAS,
-            Field.OPENING_HOURS,
-            Field.CURRENT_OPENING_HOURS,
-            Field.UTC_OFFSET,
-            Field.PHONE_NUMBER,
-            Field.TYPES,
-            Field.PRICE_LEVEL
+            Field.ID, Field.NAME, Field.ADDRESS, Field.LAT_LNG,
+            Field.BUSINESS_STATUS, Field.PHOTO_METADATAS, Field.OPENING_HOURS,
+            Field.PHONE_NUMBER, Field.TYPES, Field.PRICE_LEVEL
         )
 
-        // 나선형 탐색 알고리즘
-        // (0,0) 중심점에서 시작하여 외곽으로 확장
-        var x = 0
-        var y = 0
-        var dx = 0
-        var dy = -1
-
-        // 총 탐색해야 할 포인트 개수
+        // 나선형(Spiral) 경로로 탐색할 위경도 좌표 리스트 생성
+        val points = mutableListOf<LatLng>()
         val side = maxStep * 2 + 1
-        val maxPoints = side * side
-
-        for (i in 0 until maxPoints) {
-            // 현재 (x, y) 좌표 계산
+        var x = 0; var y = 0; var dx = 0; var dy = -1
+        for (i in 0 until side * side) {
             val targetLat = center.latitude + (x * gridStepMeter / meterPerLat)
             val targetLon = center.longitude + (y * gridStepMeter / meterPerLon)
-            val gridPoint = LatLng(targetLat, targetLon)
+            points.add(LatLng(targetLat, targetLon))
 
-            // API 호출
-            val circle = CircularBounds.newInstance(gridPoint, searchRadius)
-            val request = SearchNearbyRequest.builder(circle, placeFields)
-                .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
-                .setIncludedTypes(listOf("restaurant", "cafe", "bakery", "bar"))
-                .build()
-
-            try {
-                // 필터링 및 데이터 파싱
-                val response = placeClient.searchNearby(request).await()
-                response.places.forEach { place ->
-                    if (place.businessStatus != Place.BusinessStatus.CLOSED_PERMANENTLY) {
-                        // 영업 정보 구분
-                        val statusText = when {
-                            place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
-                            place.isOpen == true -> "영업 중"
-                            place.isOpen == false -> "영업 종료"
-                            else -> "영업 정보 없음"
-                        }
-                        val restaurant = RestaurantData(
-                            id = place.id ?: "",
-                            name = place.name ?: "",
-                            address = place.address ?: "",
-                            latitude = place.latLng?.latitude ?: 0.0,
-                            longitude = place.latLng?.longitude ?: 0.0,
-                            businessStatus = statusText,
-                            photoMetadata = place.photoMetadatas?.take(5) ?: emptyList(),
-                            phoneNumber = place.phoneNumber,
-                            openingHours = place.openingHours?.weekdayText,
-                            priceLevel = place.priceLevel,
-                            types = place.placeTypes
-                        )
-                        accumulatedMap[restaurant.id] = restaurant
-                    }
-                }
-                Log.d("PlaceManager", "좌표 ($x, $y) 탐색 완료. 현재 총: ${accumulatedMap.size}개")
-                delay(150L)
-            } catch (e: Exception) {
-                Log.e("PlaceManager", "에러: ${e.message}")
-            }
-
-            // 나선형 이동 로직: 다음 (x, y) 결정
+            // 나선형 방향 전환 로직
             if (x == y || (x < 0 && x == -y) || (x > 0 && x == 1 - y)) {
-                val temp = dx
-                dx = -dy
-                dy = temp
+                val temp = dx; dx = -dy; dy = temp
             }
-            x += dx
-            y += dy
+            x += dx; y += dy
         }
 
-        accumulatedMap.values.toList()
+        // 생성된 좌표들을 5개씩 묶어서(Chunk) 병렬로 API 요청 실행
+        for (chunk in points.chunked(5)) {
+            // 이미 100개를 수집했다면 전체 루프 종료
+            if (accumulatedMap.size >= 100) break
+
+            coroutineScope {
+                chunk.map { point ->
+                    async {
+                        // 개별 코루틴 내부에서도 100개 초과 시 요청 스킵
+                        if (accumulatedMap.size >= 100) return@async
+
+                        try {
+                            // 특정 지점 주변 식당 검색 요청
+                            val circle = CircularBounds.newInstance(point, searchRadius)
+                            val request = SearchNearbyRequest.builder(circle, placeFields)
+                                .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
+                                .setIncludedTypes(listOf("restaurant", "cafe", "bakery", "bar"))
+                                .build()
+
+                            val response = placeClient.searchNearby(request).await()
+
+                            // 검색된 결과 처리
+                            response.places.forEach { place ->
+                                // 폐업하지 않은 곳만 필터링하여 100개까지 저장
+                                if (accumulatedMap.size < 100 &&
+                                    place.businessStatus != Place.BusinessStatus.CLOSED_PERMANENTLY) {
+
+                                    val statusText = when {
+                                        place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
+                                        place.isOpen == true -> "영업 중"
+                                        place.isOpen == false -> "영업 종료"
+                                        else -> "영업 정보 없음"
+                                    }
+
+                                    // 내부 데이터 모델(RestaurantData)로 변환 후 맵에 삽입
+                                    val restaurant = RestaurantData(
+                                        id = place.id ?: "",
+                                        name = place.name ?: "",
+                                        address = place.address ?: "",
+                                        latitude = place.latLng?.latitude ?: 0.0,
+                                        longitude = place.latLng?.longitude ?: 0.0,
+                                        businessStatus = statusText,
+                                        photoMetadata = place.photoMetadatas?.take(5) ?: emptyList(),
+                                        phoneNumber = place.phoneNumber,
+                                        openingHours = place.openingHours?.weekdayText,
+                                        priceLevel = place.priceLevel,
+                                        types = place.placeTypes
+                                    )
+                                    accumulatedMap[restaurant.id] = restaurant
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("PlaceManager", "Grid Search Error: ${e.message}")
+                        }
+                    }
+                }.awaitAll() // 5개 요청이 모두 끝날 때까지 대기
+            }
+            // 과도한 API 호출 방지를 위한 미세한 지연 시간
+            delay(50L)
+        }
+
+        // 최종 결과물 반환 (정확히 100개까지만 리스트로 변환)
+        accumulatedMap.values.toList().take(100)
     }
 
     fun fetchPhoto(photoMetadata: PhotoMetadata, onComplete: (Bitmap?) -> Unit) {
