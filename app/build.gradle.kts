@@ -95,4 +95,6 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:4.3.3")
     // 스플래시 화면 라이브러리
     implementation("androidx.core:core-splashscreen:1.2.0")
+    // 이미지 압축 라이브러리
+    implementation("id.zelory:compressor:3.0.1")
 }

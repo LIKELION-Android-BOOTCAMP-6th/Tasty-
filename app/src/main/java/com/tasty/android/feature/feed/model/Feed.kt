@@ -19,11 +19,7 @@ data class Feed(
     val commentCount: Int = 0,
     val rating: Int = 0,
     val shortReview: String = "",
-    val businessHours: String = "",
-    val businessStatus: String = "",
     val restaurantId: String = "",
     val restaurantName: String = "",
-    val restaurantPhoneNumber: String = "",
-    val restaurantImageUrls: List<String> = emptyList(),
     val addressInfo: AddressInfo = AddressInfo()
 )
