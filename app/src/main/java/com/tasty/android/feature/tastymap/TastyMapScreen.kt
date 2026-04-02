@@ -410,6 +410,46 @@ fun RestaurantItem(
         }
         Text(restaurant.address, color = Color.Gray, fontSize = 14.sp)
 
+        if(showComments) {
+            // --- 추가된 섹션: 전화번호 및 영업시간 ---
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 1. 전화번호 표시
+            val displayPhone =
+                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else restaurant.phoneNumber
+            Text(
+                text = "📞 $displayPhone",
+                color = if (restaurant.phoneNumber.isNullOrBlank()) Color.LightGray else Color.DarkGray,
+                fontSize = 13.sp
+            )
+
+            // 2. 영업시간 표시
+            if (restaurant.openingHours.isNullOrEmpty()) {
+                Text(
+                    text = "⏰ 영업시간 정보 없음",
+                    color = Color.LightGray,
+                    fontSize = 13.sp
+                )
+            } else {
+                Row(modifier = Modifier.padding(top = 2.dp)) {
+                    Text(
+                        text = "⏰ ",
+                        fontSize = 13.sp,
+                        color = Color.DarkGray
+                    )
+                    Column {
+                        restaurant.openingHours.forEach { hour ->
+                            Text(
+                                text = hour,
+                                color = Color.DarkGray,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp // 줄 간격 조절
+                            )
+                        }
+                    }
+                }
+            }
+        }
         val distance = userLocation?.let {
             calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
         } ?: 0
@@ -431,18 +471,37 @@ fun RestaurantItem(
         if (showComments) {
             Spacer(modifier = Modifier.height(24.dp))
             Text("방문자 리뷰", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp))
+            Spacer(modifier = Modifier.height(8.dp)) // 제목과 내용 사이 간격
+
             if (uiState.isFeedsLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            } else if (uiState.restaurantFeeds.isEmpty()) {
+                // 리뷰가 없는 경우 표시할 문구
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "리뷰가 아직 없어요.",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
             } else {
+                // 리뷰 리스트 출력
                 uiState.restaurantFeeds.forEach { feed ->
                     CommentItem(
-                        feed.authorNickname,
-                        feed.authorProfileUrl,
+                        nickName = feed.authorNickname,
+                        authorProfileUrl = feed.authorProfileUrl,
                         comment = feed.content,
-                        {
-                            // 클릭 시 피드 세부화면으로 이동
+                        onItemClick = {
                             navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
-                        })
+                        }
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }

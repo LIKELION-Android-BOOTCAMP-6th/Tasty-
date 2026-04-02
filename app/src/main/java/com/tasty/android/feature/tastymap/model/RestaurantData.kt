@@ -12,5 +12,7 @@ data class RestaurantData(
     val longitude: Double,
     val businessStatus: String,
     val photoMetadata: List<PhotoMetadata>,
+    val phoneNumber: String?,
+    val openingHours: List<String>?,
     val feedCount: Int = 0
 )
