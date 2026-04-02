@@ -2,6 +2,7 @@ package com.tasty.android.feature.tastymap
 
 import android.annotation.SuppressLint
 import android.graphics.*
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -150,7 +151,8 @@ fun TastyMapScreen(
                 uiState.restaurants.forEach { rest ->
                     val isSelected = uiState.selectedRestaurant == rest
                     // 평점 기반의 커스텀 마커 생성
-                    val ratingIcon = remember(rest.rating, isSelected) {
+                    val ratingIcon = remember(rest.id,rest.rating, isSelected) {
+                        Log.d("Marker", "마커 생성 호출: ${rest.name}") // 호출 여부 확인용 로그
                         createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
                     }
 
@@ -317,12 +319,13 @@ fun MapOverlayUI(
         ) {
             Button(
                 onClick = {
+                    val location = cameraPositionState.position.target
                     viewModel.searchAndSyncRestaurants(
-                        cameraPositionState.position.target,
-                        5000.0,
+                        location,
                         {
                             scope.launch {
                                 scaffoldState.bottomSheetState.show()
+                                cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 16f)
                             }
                         }
                     )
@@ -399,7 +402,9 @@ fun RestaurantItem(
             Text(restaurant.name, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 19.sp))
             Text(
                 restaurant.businessStatus,
-                color = if (restaurant.businessStatus == "영업 중") Color(0xFF4CAF50) else Color.Red,
+                color = if (restaurant.businessStatus == "영업 중") Color(0xFF4CAF50)
+                else if(restaurant.businessStatus == "영업 종료") Color.Red
+                else Color.Gray,
                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp
             )
         }
@@ -548,6 +553,7 @@ fun formatDistance(distanceInMeters: Int): String {
 
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
+
     val text = if (rating > 0) rating.toString() else "( - - )"
 
     val mainColor =

@@ -1,5 +1,6 @@
 package com.tasty.android.feature.tastymap
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,6 +13,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.MapStoreManager
@@ -107,14 +109,23 @@ class TastyMapViewmodel(
     }
 
     // Google Places API 결과와 Firestore의 맛집 정보를 병합
-    fun searchAndSyncRestaurants(location: LatLng, radius: Double, onComplete: () -> Unit) {
+    fun searchAndSyncRestaurants(location: LatLng, onComplete: () -> Unit) {
+        // 1. 상태 업데이트 (검색 시작)
         uiState = uiState.copy(isSearching = true)
 
-        placesManager.searchRestaurants(location, radius) { googleResults ->
-            viewModelScope.launch {
+        viewModelScope.launch {
+            try {
+                // 2. 격자 검색 실행 (기존 콜백 방식 대신 직접 결과 수신)
+                // radius 파라미터를 searchRestaurantsByGrid의 totalRangeKm로 전달 (단위 변환 주의: m -> km)
+                val googleResults = placesManager.searchRestaurantsByGrid(
+                    center = location
+                )
+
+                // 3. Firestore 데이터 연동 (ID 리스트 추출)
                 val ids = googleResults.map { it.id }
                 val firestoreResult = mapStoreManager.getRestaurantInfoFromIds(ids)
 
+                // 4. 데이터 병합 (Merge)
                 val mergedList = firestoreResult.fold(
                     onSuccess = { infoMap ->
                         googleResults.map { rest ->
@@ -125,17 +136,28 @@ class TastyMapViewmodel(
                             )
                         }
                     },
-                    onFailure = { googleResults }
+                    onFailure = {
+                        Log.e("Sync", "Firestore 연동 실패: ${it.message}")
+                        googleResults
+                    }
                 )
+
+                // 5. UI 상태 반영
                 uiState = uiState.copy(
                     restaurants = mergedList,
                     selectedRestaurant = null,
                     isSearching = false
                 )
 
+                // 6. 정렬 및 마무리
                 setSortType(uiState.sortType)
-
                 onComplete()
+
+                Log.d("test", "restaurants Count: ${uiState.restaurants.count()}")
+
+            } catch (e: Exception) {
+                Log.e("Sync", "전체 검색 공정 실패: ${e.message}")
+                uiState = uiState.copy(isSearching = false)
             }
         }
     }

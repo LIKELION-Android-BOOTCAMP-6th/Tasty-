@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.google.android.libraries.places.api.model.CircularBounds
@@ -11,6 +12,7 @@ import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.model.Place.BusinessStatus
 import com.google.android.libraries.places.api.model.Place.Field
+import com.google.android.libraries.places.api.model.RectangularBounds
 import com.google.android.libraries.places.api.net.FetchPhotoRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
@@ -20,21 +22,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlin.collections.emptyList
+import kotlin.math.cos
 
 data class RestaurantSearchItem(
     val restaurantId: String,
     val name: String
 )
+
 class PlaceManager(private val context: Context) {
     // Places 클라이언트
     private val placeClient = Places.createClient(context)
 
     // 식당 이름 검색
-    suspend fun searchPlaces(query: String, placeTypes: List<String> = emptyList()): Result<List<RestaurantSearchItem>> = withContext(
-        Dispatchers.IO) {
+    suspend fun searchPlaces(
+        query: String,
+        placeTypes: List<String> = emptyList()
+    ): Result<List<RestaurantSearchItem>> = withContext(
+        Dispatchers.IO
+    ) {
         if (query.isBlank()) return@withContext Result.success(emptyList())
         val placeTypes = placeTypes
         try {
@@ -62,26 +71,27 @@ class PlaceManager(private val context: Context) {
     }
 
 
-    suspend fun getRestaurantDetails(restaurantId: String): Result<Place> = withContext(Dispatchers.IO) {
-        try {
-            val restaurantFields = listOf(
-                Place.Field.ID, // 식당 id
-                Place.Field.NAME, // 식당명
-                Place.Field.ADDRESS, // 주소
-                Place.Field.LAT_LNG, // 위경도
-                Place.Field.TYPES, // 식당 타입
-                Place.Field.ADDRESS_COMPONENTS
-            )
-            val req = FetchPlaceRequest.newInstance(restaurantId, restaurantFields)
-            val res = placeClient.fetchPlace(req).await()
+    suspend fun getRestaurantDetails(restaurantId: String): Result<Place> =
+        withContext(Dispatchers.IO) {
+            try {
+                val restaurantFields = listOf(
+                    Place.Field.ID, // 식당 id
+                    Place.Field.NAME, // 식당명
+                    Place.Field.ADDRESS, // 주소
+                    Place.Field.LAT_LNG, // 위경도
+                    Place.Field.TYPES, // 식당 타입
+                    Place.Field.ADDRESS_COMPONENTS
+                )
+                val req = FetchPlaceRequest.newInstance(restaurantId, restaurantFields)
+                val res = placeClient.fetchPlace(req).await()
 
 
-            Result.success(res.place)
+                Result.success(res.place)
 
-        } catch (e: Exception) {
-            Result.failure(e)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
 
     suspend fun getRestaurantBitmapImages(
@@ -124,7 +134,7 @@ class PlaceManager(private val context: Context) {
         longitude: Double,
         radiusMeters: Double = 5000.0,
         maxResultCount: Int = 20
-    ) : Result<List<Place>> = withContext(Dispatchers.IO) {
+    ): Result<List<Place>> = withContext(Dispatchers.IO) {
         try {
             val center = LatLng(
                 latitude,
@@ -175,78 +185,105 @@ class PlaceManager(private val context: Context) {
             }
     }
 
-    fun searchRestaurants(
-        location: LatLng,
-        radiusInMeters: Double,
-        onResult: (List<RestaurantData>) -> Unit
-    ) {
-        // 가져오고 싶은 필드 정의
-        val placeFields =
-            listOf(
-                Field.ID,
-                Field.NAME,
-                Field.ADDRESS,
-                Field.LAT_LNG,
-                Field.BUSINESS_STATUS,
-                Field.PHOTO_METADATAS,
-                Field.CURRENT_OPENING_HOURS,
-            )
+    suspend fun searchRestaurantsByGrid(
+        center: LatLng,
+        totalRangeKm: Double = 0.5,   // 전체 탐색 범위를 0.5km로 제한
+        gridStepMeter: Double = 150.0  // 격자 간격을 150m로 설정
+    ): List<RestaurantData> = withContext(Dispatchers.IO) {
 
-        // 검색 지역 설정 (중심점과 반경)
-        val circle = CircularBounds.newInstance(location, radiusInMeters)
+        val accumulatedMap = mutableMapOf<String, RestaurantData>()
+        // 격자 간격이 150m일 때 반경을 180m로 잡으면 인접 격자와 충분히 중첩
+        val searchRadius = 180.0
 
-        // 요청 생성 (식당 타입으로 제한)
-        val searchNearbyRequest = SearchNearbyRequest.builder(circle, placeFields)
-            .setIncludedTypes(listOf("restaurant"))
-            .setMaxResultCount(20)
-            // 거리순으로 정렬
-            .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
-            .build()
+        val meterPerLat = 110940.0
+        val meterPerLon = 88800.0 * cos(Math.toRadians(center.latitude))
 
-        // 데이터 요청
-        placeClient.searchNearby(searchNearbyRequest)
-            .addOnSuccessListener { response ->
-                val places = response.places
-                for (place in places) {
-                    Log.d("test", "식당 이름: ${place.name}, 평점: ${place.rating}")
-                }
+        // 최대 단계 계산
+        val maxStep = (totalRangeKm * 1000 / gridStepMeter).toInt() / 2
 
-                // 결과 데이터를 콜백으로 전달
-                val mappedList = response.places.map { place ->
+        // 수집 요소
+        val placeFields = listOf(
+            Field.ID,
+            Field.NAME,
+            Field.ADDRESS,
+            Field.LAT_LNG,
+            Field.BUSINESS_STATUS,
+            Field.PHOTO_METADATAS,
+            Field.OPENING_HOURS,
+            Field.CURRENT_OPENING_HOURS,
+            Field.UTC_OFFSET
+        )
 
-                    val isCurrentlyOpen = place.isOpen ?: (place.currentOpeningHours != null)
+        // 나선형 탐색 알고리즘
+        // (0,0) 중심점에서 시작하여 외곽으로 확장
+        var x = 0
+        var y = 0
+        var dx = 0
+        var dy = -1
 
-                    // RestaurantData 모델로 변환
-                    RestaurantData(
-                        name = place.name ?: "",
-                        address = place.address ?: "",
-                        id = place.id ?: "",
-                        latitude = place.latLng?.latitude ?: 0.0,
-                        longitude = place.latLng?.longitude ?: 0.0,
-                        businessStatus = when {
-                            // 영업 상태 우선 확인
+        // 총 탐색해야 할 포인트 개수
+        val side = maxStep * 2 + 1
+        val maxPoints = side * side
+
+        for (i in 0 until maxPoints) {
+            // 현재 (x, y) 좌표 계산
+            val targetLat = center.latitude + (x * gridStepMeter / meterPerLat)
+            val targetLon = center.longitude + (y * gridStepMeter / meterPerLon)
+            val gridPoint = LatLng(targetLat, targetLon)
+
+            // API 호출
+            val circle = CircularBounds.newInstance(gridPoint, searchRadius)
+            val request = SearchNearbyRequest.builder(circle, placeFields)
+                .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
+                .setIncludedTypes(listOf("restaurant", "cafe", "bakery", "bar"))
+                .build()
+
+            try {
+                // 필터링 및 데이터 파싱
+                val response = placeClient.searchNearby(request).await()
+                response.places.forEach { place ->
+                    if (place.businessStatus != Place.BusinessStatus.CLOSED_PERMANENTLY) {
+                        // 영업 정보 구분
+                        val statusText = when {
                             place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
-                            place.businessStatus == BusinessStatus.CLOSED_PERMANENTLY -> "폐업"
-
-                            // 현재 영업 여부 확인
-                            isCurrentlyOpen == true -> "영업 중"
-
-                            // 영업시간 정보가 아예 없는 경우
-                            else -> "영업 종료"
-                        },
-                        photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
-                    )
+                            place.isOpen == true -> "영업 중"
+                            place.isOpen == false -> "영업 종료"
+                            else -> "영업 정보 없음"
+                        }
+                        val restaurant = RestaurantData(
+                            id = place.id ?: "",
+                            name = place.name ?: "",
+                            address = place.address ?: "",
+                            latitude = place.latLng?.latitude ?: 0.0,
+                            longitude = place.latLng?.longitude ?: 0.0,
+                            businessStatus = statusText,
+                            photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
+                        )
+                        accumulatedMap[restaurant.id] = restaurant
+                    }
                 }
-                onResult(mappedList) // UI로 데이터 전달
+                Log.d("PlaceManager", "좌표 ($x, $y) 탐색 완료. 현재 총: ${accumulatedMap.size}개")
+                delay(150L)
+            } catch (e: Exception) {
+                Log.e("PlaceManager", "에러: ${e.message}")
             }
-            .addOnFailureListener { exception ->
-                Log.e("test", "에러 발생: ${exception.message}")
+
+            // 나선형 이동 로직: 다음 (x, y) 결정
+            if (x == y || (x < 0 && x == -y) || (x > 0 && x == 1 - y)) {
+                val temp = dx
+                dx = -dy
+                dy = temp
             }
+            x += dx
+            y += dy
+        }
+
+        accumulatedMap.values.toList()
     }
 
     fun fetchPhoto(photoMetadata: PhotoMetadata, onComplete: (Bitmap?) -> Unit) {
         val photoRequest =
-            com.google.android.libraries.places.api.net.FetchPhotoRequest.builder(photoMetadata)
+            FetchPhotoRequest.builder(photoMetadata)
                 .setMaxWidth(300) // 비용 절감을 위해 적절한 크기 지정
                 .setMaxHeight(300) // 비용 절감을 위해 적절한 크기 지정
                 .build()
@@ -281,13 +318,16 @@ class PlaceManager(private val context: Context) {
     ) {
         // 가져올 필드 정의
         val placeFields = listOf(
-            Place.Field.ID,
-            Place.Field.NAME,
-            Place.Field.ADDRESS,
-            Place.Field.LAT_LNG,
-            Place.Field.RATING,
-            Place.Field.BUSINESS_STATUS,
-            Place.Field.PHOTO_METADATAS
+            Field.ID,
+            Field.NAME,
+            Field.ADDRESS,
+            Field.LAT_LNG,
+            Field.RATING,
+            Field.BUSINESS_STATUS,
+            Field.PHOTO_METADATAS,
+            Field.OPENING_HOURS,
+            Field.CURRENT_OPENING_HOURS,
+            Field.UTC_OFFSET
         )
 
         val request = FetchPlaceRequest.newInstance(placeId, placeFields)
@@ -295,29 +335,25 @@ class PlaceManager(private val context: Context) {
         placeClient.fetchPlace(request)
             .addOnSuccessListener { response ->
                 val place = response.place
-                val isCurrentlyOpen = place.isOpen ?: (place.currentOpeningHours != null)
+                // 영업 정보 구분
+                val statusText = when {
+                    place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
+                    place.isOpen == true -> "영업 중"
+                    place.isOpen == false -> "영업 종료"
+                    else -> "영업 정보 없음"
+                }
 
                 // RestaurantData 모델로 변환
                 val restaurant =
                     RestaurantData(
-                    name = place.name ?: "",
-                    address = place.address ?: "",
-                    id = place.id ?: "",
-                    latitude = place.latLng?.latitude ?: 0.0,
-                    longitude = place.latLng?.longitude ?: 0.0,
-                    businessStatus = when {
-                        // 영업 상태 우선 확인
-                        place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
-                        place.businessStatus == BusinessStatus.CLOSED_PERMANENTLY -> "폐업"
-
-                        // 현재 영업 여부 확인
-                        isCurrentlyOpen == true -> "영업 중"
-
-                        // 영업시간 정보가 아예 없는 경우
-                        else -> "영업 종료"
-                    },
-                    photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
-                )
+                        name = place.name ?: "",
+                        address = place.address ?: "",
+                        id = place.id ?: "",
+                        latitude = place.latLng?.latitude ?: 0.0,
+                        longitude = place.latLng?.longitude ?: 0.0,
+                        businessStatus = statusText,
+                        photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
+                    )
                 onSuccess(restaurant)
             }
             .addOnFailureListener { exception ->
