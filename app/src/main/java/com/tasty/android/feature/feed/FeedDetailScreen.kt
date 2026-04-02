@@ -102,6 +102,7 @@ fun FeedDetailScreen(
         viewModel.loadFeedDetail(feedId)
     }
 
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh(feedId)
     }
