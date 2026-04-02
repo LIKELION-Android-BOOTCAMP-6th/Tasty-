@@ -370,7 +370,7 @@ private fun FeedDetailHeader(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = if (index < post.rating) TextColor else Gray300,
+                        tint = if (index < post.rating) Color(0xFFFFC107) else Gray300,
                         modifier = Modifier.size(16.dp)
                     )
                 }

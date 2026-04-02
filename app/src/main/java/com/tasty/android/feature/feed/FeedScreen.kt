@@ -552,7 +552,7 @@ private fun FeedCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "별점",
-                                tint = if (index < post.rating) TextColor else Color.LightGray,
+                                tint = if (index < post.rating) Color(0xFFFFC107) else Color.LightGray,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
