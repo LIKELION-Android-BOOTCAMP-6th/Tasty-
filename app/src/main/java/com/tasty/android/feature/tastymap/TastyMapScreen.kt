@@ -70,7 +70,8 @@ fun TastyMapScreen(
     )
     val defaultLocation = LatLng(37.5665, 126.9780)
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 18f)}
+        position = CameraPosition.fromLatLngZoom(defaultLocation, 18f)
+    }
     val scope = rememberCoroutineScope()
 
     // 바텀 시트가 완전히 펼쳐진 상태(Expanded)인지 확인
@@ -84,11 +85,22 @@ fun TastyMapScreen(
         }
     }
 
+    LaunchedEffect(uiState.isLocationLoading) {
+        if (uiState.isLocationLoading) {
+            // 로딩 중일 때는 바텀바를 숨김
+            onScaffoldConfigChange(
+                ScaffoldConfig(showTopBar = false, showBottomBar = false)
+            )
+        } else {
+            // 로딩 완료 후 다시 표시
+            onScaffoldConfigChange(
+                ScaffoldConfig(showTopBar = false, showBottomBar = true)
+            )
+        }
+    }
+
     // 화면 진입 시 위치 초기화 및 Scaffold 설정
     LaunchedEffect(Unit) {
-        onScaffoldConfigChange(
-            ScaffoldConfig(showTopBar = false, showBottomBar = true)
-        )
         viewModel.initializeLocation { latLng ->
             cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
 
@@ -116,69 +128,100 @@ fun TastyMapScreen(
         }
     }
 
-    // 바텀 시트와 지도를 포함하는 스캐폴드
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = 100.dp,
-        sheetContent = {
-            RestaurantListSheet(
-                uiState = uiState,
-                onItemClick = { restaurant ->
-                    viewModel.selectRestaurant(restaurant, {
-                        scope.launch { scaffoldState.bottomSheetState.expand() }
-                    })
-                },
-                viewModel = viewModel,
-                navController
-            )
-        }
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // 구글 맵 렌더링 및 마커 표시
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                onMapClick = {
-                    scope.launch {
-                        scaffoldState.bottomSheetState.partialExpand()
-                        viewModel.clearSelection()
-                    }
-                },
-                properties = MapProperties(isMyLocationEnabled = uiState.userLocation != null),
-                uiSettings = MapUiSettings(
-                    myLocationButtonEnabled = false,
-                    zoomControlsEnabled = false
-                )
+    // 현재 위치 로딩 중일 때 프로그레스 처리
+    if (uiState.isLocationLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White.copy(alpha = 0.8f)), // 배경을 살짝 어둡게 하거나 흰색으로 덮음
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                uiState.restaurants.forEach { rest ->
-                    val isSelected = uiState.selectedRestaurant == rest
-                    // 평점 기반의 커스텀 마커 생성
-                    val ratingIcon = remember(rest.id,rest.rating, isSelected) {
-                        Log.d("Marker", "마커 생성 호출: ${rest.name}") // 호출 여부 확인용 로그
-                        createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
-                    }
-
-                    Marker(
-                        state = MarkerState(position = LatLng(rest.latitude, rest.longitude)),
-                        icon = ratingIcon,
-                        anchor = Offset(0.5f, 1.0f),
-                        onClick = {
-                            viewModel.selectRestaurant(rest, {
-                                scope.launch { scaffoldState.bottomSheetState.expand() }
-                            })
-                            true
-                        }
+                CircularProgressIndicator(
+                    color = Color(0xFF3B7CFF),
+                    strokeWidth = 4.dp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "내 위치를 불러오는 중입니다...",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Gray
                     )
-                }
+                )
             }
+    }
+        }
 
-            // 검색창, 검색 버튼, 내 위치 버튼
-            MapOverlayUI(
-                viewModel = viewModel,
-                cameraPositionState = cameraPositionState,
-                uiState = uiState,
-                scaffoldState
-            )
+    if (!uiState.isLocationLoading) {
+        // 바텀 시트와 지도를 포함하는 스캐폴드
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = 100.dp,
+            sheetContent = {
+                RestaurantListSheet(
+                    uiState = uiState,
+                    onItemClick = { restaurant ->
+                        viewModel.selectRestaurant(restaurant, {
+                            scope.launch { scaffoldState.bottomSheetState.expand() }
+                        })
+                    },
+                    viewModel = viewModel,
+                    navController
+                )
+            }
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // 구글 맵 렌더링 및 마커 표시
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState,
+                    onMapClick = {
+                        scope.launch {
+                            scaffoldState.bottomSheetState.partialExpand()
+                            viewModel.clearSelection()
+                        }
+                    },
+                    properties = MapProperties(isMyLocationEnabled = uiState.userLocation != null),
+                    uiSettings = MapUiSettings(
+                        myLocationButtonEnabled = false,
+                        zoomControlsEnabled = false
+                    )
+                ) {
+                    uiState.restaurants.forEach { rest ->
+                        val isSelected = uiState.selectedRestaurant == rest
+                        // 평점 기반의 커스텀 마커 생성
+                        val ratingIcon = remember(rest.id, rest.rating, isSelected) {
+                            Log.d("Marker", "마커 생성 호출: ${rest.name}") // 호출 여부 확인용 로그
+                            createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
+                        }
+
+                        Marker(
+                            state = MarkerState(position = LatLng(rest.latitude, rest.longitude)),
+                            icon = ratingIcon,
+                            anchor = Offset(0.5f, 1.0f),
+                            onClick = {
+                                viewModel.selectRestaurant(rest, {
+                                    scope.launch { scaffoldState.bottomSheetState.expand() }
+                                })
+                                true
+                            }
+                        )
+                    }
+                }
+
+                // 검색창, 검색 버튼, 내 위치 버튼
+                MapOverlayUI(
+                    viewModel = viewModel,
+                    cameraPositionState = cameraPositionState,
+                    uiState = uiState,
+                    scaffoldState
+                )
+            }
         }
     }
 }
@@ -327,7 +370,8 @@ fun MapOverlayUI(
                         {
                             scope.launch {
                                 scaffoldState.bottomSheetState.show()
-                                cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 16f)
+                                cameraPositionState.position =
+                                    CameraPosition.fromLatLngZoom(location, 16f)
                             }
                         }
                     )
@@ -405,20 +449,22 @@ fun RestaurantItem(
             Text(
                 restaurant.businessStatus,
                 color = if (restaurant.businessStatus == "영업 중") Color(0xFF4CAF50)
-                else if(restaurant.businessStatus == "영업 종료") Color.Red
+                else if (restaurant.businessStatus == "영업 종료") Color.Red
                 else Color.Gray,
                 fontWeight = FontWeight.SemiBold, fontSize = 13.sp
             )
         }
         Text(restaurant.address, color = Color.Gray, fontSize = 14.sp)
 
-        if(showComments) {
+        if (showComments) {
             // 전화번호 및 영업시간
             Spacer(modifier = Modifier.height(4.dp))
 
             // 전화번호 표시
             val displayPhone =
-                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else formatKoreanPhoneNumber(restaurant.phoneNumber)
+                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else formatKoreanPhoneNumber(
+                    restaurant.phoneNumber
+                )
             Text(
                 text = "📞 $displayPhone",
                 color = if (restaurant.phoneNumber.isNullOrBlank()) Color.LightGray else Color.DarkGray,

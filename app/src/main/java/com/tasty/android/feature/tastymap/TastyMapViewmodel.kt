@@ -27,6 +27,7 @@ enum class SortType { DISTANCE, RATING }
 
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val isLocationLoading: Boolean = true,
     val sortType: SortType = SortType.DISTANCE,
     val restaurants: List<RestaurantData> = emptyList(),
     val selectedRestaurant: RestaurantData? = null,
@@ -68,7 +69,10 @@ class TastyMapViewmodel(
     fun initializeLocation(onReady: (LatLng) -> Unit) {
         locationManager.getCurrentLocation { lat, lon ->
             val latLng = LatLng(lat, lon)
-            uiState = uiState.copy(userLocation = latLng)
+            uiState = uiState.copy(
+                userLocation = latLng,
+                isLocationLoading = false
+            )
             onReady(latLng)
         }
     }
