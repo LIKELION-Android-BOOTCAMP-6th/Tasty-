@@ -1,7 +1,9 @@
 package com.tasty.android.feature.tastymap
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.*
+import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -32,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -440,6 +443,8 @@ fun RestaurantItem(
     uiState: TastyMapUiState,
     navController: NavController
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -462,13 +467,22 @@ fun RestaurantItem(
 
             // 전화번호 표시
             val displayPhone =
-                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음" else formatKoreanPhoneNumber(
-                    restaurant.phoneNumber
-                )
+                if (restaurant.phoneNumber.isNullOrBlank()) "전화번호 정보 없음"
+                else formatKoreanPhoneNumber(restaurant.phoneNumber)
+
             Text(
                 text = "📞 $displayPhone",
                 color = if (restaurant.phoneNumber.isNullOrBlank()) Color.LightGray else Color.DarkGray,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    .clickable(enabled = !restaurant.phoneNumber.isNullOrBlank()) {
+                        // 전화번호가 있는 경우 디바이스 전화로 연결..
+                        val intent = Intent(Intent.ACTION_DIAL).apply {
+                            data = Uri.parse("tel:${displayPhone}")
+                        }
+                        context.startActivity(intent)
+                    }
             )
 
             // 영업시간 표시
