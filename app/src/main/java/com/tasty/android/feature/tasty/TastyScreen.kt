@@ -219,7 +219,7 @@ private fun TastyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.FavoriteBorder,
+                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = "좋아요",
                     tint = if (isLiked) Color.Red else Color.Black,
                     modifier = Modifier.size(18.dp)
