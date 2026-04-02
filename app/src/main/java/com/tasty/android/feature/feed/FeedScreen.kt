@@ -201,7 +201,7 @@ fun FeedScreen(
                         navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
                     },
                     onProfileClick = {
-                        navController.navigate("user_profile/${feedPost.authorId}")
+                        navController.navigate("${Screen.USER_PROFILE.route}/${feedPost.authorId}")
                     },
                     onLikeClick = {
                         viewModel.toggleLike(feedPost.feedId)

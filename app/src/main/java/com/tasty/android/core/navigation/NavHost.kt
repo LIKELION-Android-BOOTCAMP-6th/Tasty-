@@ -10,8 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -160,11 +162,21 @@ fun CustomNavHost(
         }
 
         /** Map **/
-        composable(TabScreen.MAP.route){
-            // 맵 화면 컴포저블(TAB)
+        composable(
+            route = "${TabScreen.MAP.route}?placeId={placeId}",
+            arguments = listOf(
+                navArgument("placeId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val placeId = backStackEntry.arguments?.getString("placeId")
+
             TastyMapScreen(
                 navController = navController,
-                onScaffoldConfigChange
+                onScaffoldConfigChange = onScaffoldConfigChange
             )
         }
         composable(Screen.MAP_SEARCH_LOCATION.route){
@@ -210,7 +222,7 @@ fun CustomNavHost(
         }
 
         /** User Profile **/
-        composable(Screen.USER_PROFILE.route) { backStackEntry ->
+        composable("${Screen.USER_PROFILE.route}/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             UserProfileScreen(
                 navController = navController,
