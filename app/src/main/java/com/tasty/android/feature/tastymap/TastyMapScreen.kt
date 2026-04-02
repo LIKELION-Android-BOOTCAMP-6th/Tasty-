@@ -50,7 +50,12 @@ fun TastyMapScreen(
     viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
     val uiState = viewModel.uiState
-    val scaffoldState = rememberBottomSheetScaffoldState()
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.Hidden, // 초기 상태를 숨김으로
+            skipHiddenState = false
+        )
+    )
     val cameraPositionState = rememberCameraPositionState()
     val scope = rememberCoroutineScope()
 
@@ -179,7 +184,6 @@ fun MapOverlayUI(
 
     Box(modifier = Modifier.fillMaxSize()) {
         PlaceSearchScreen(
-            placesManager = viewModel.placesManager,
             labelText = "장소 및 음식점 검색",
             onFocusChange = { viewModel.setSearchFocus(it) },
             onPlaceSelected = { latLng ->
@@ -191,7 +195,7 @@ fun MapOverlayUI(
 
         AnimatedVisibility(
             visible = !uiState.isSearchFocused,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 120.dp)
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp)
         ) {
             Button(onClick = {
                 viewModel.searchAndSyncRestaurants(cameraPositionState.position.target, 1000.0)
@@ -201,7 +205,7 @@ fun MapOverlayUI(
         }
 
         FloatingActionButton(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 100.dp, end = 16.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 50.dp, end = 16.dp),
             onClick = {
                 uiState.userLocation?.let {
                     scope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f)) }
