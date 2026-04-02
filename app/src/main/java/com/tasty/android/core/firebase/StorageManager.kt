@@ -26,8 +26,9 @@ import kotlin.apply
 
 class StorageManager(private val context: Context) {
     // Firebase Storage 인스턴스 생성
-    private val storage = Firebase.storage
+    private val storage = Firebase.storage("gs://tasty-b37e0")
     private val storageRef = storage.reference
+
 
     // 유저 프로필 이미지 업로드 및 업데이트(동일한 경로인 경우에 덮어쓰기 됨다)/ 반환: 다운로드 Url
     suspend fun uploadProfileImage(profileImageUri: Uri): Result<String> = withContext(Dispatchers.IO) {
@@ -54,30 +55,33 @@ class StorageManager(private val context: Context) {
             val feedImagesPath = "feedImages/$feedId"
 
             val downloadUrls = coroutineScope {
-                feedImageUris.mapIndexed { idx, feedImageUri ->
-                    async {
-                        val inputStream = context.contentResolver.openInputStream(feedImageUri)
-                        val tempFile = File.createTempFile("temp_img_$idx", ".jpg", context.cacheDir)
-                        val outputStream = FileOutputStream(tempFile)
+                withContext(Dispatchers.Default) {
+                    feedImageUris.mapIndexed { idx, feedImageUri ->
+                        async {
+                            val inputStream = context.contentResolver.openInputStream(feedImageUri)
+                            val tempFile = File.createTempFile("temp_img_$idx", ".jpg", context.cacheDir)
+                            val outputStream = FileOutputStream(tempFile)
 
-                        inputStream.use { input ->
-                            outputStream.use {output ->
-                                input?.copyTo(output)
+                            inputStream.use { input ->
+                                outputStream.use {output ->
+                                    input?.copyTo(output)
+                                }
+                            } ?: throw Exception("스트림 불가")
+                            val compressedFile = Compressor.compress(context, tempFile) {
+                                default(width = 1024, height = 1024, quality = 80)
                             }
-                        } ?: throw Exception("스트림 불가")
-                        val compressedFile = Compressor.compress(context, tempFile) {
-                            default(width = 1024, height = 1024, quality = 70)
+                            val ref = storageRef.child("$feedImagesPath/feedImage$idx.jpg")
+                            ref.putFile(Uri.fromFile(compressedFile)).await()
+
+                            val url = ref.downloadUrl.await().toString()
+
+                            tempFile.delete()
+                            compressedFile.delete()
+
+                            url
                         }
-                        val ref = storageRef.child("$feedImagesPath/feedImage$idx.jpg")
-                        ref.putFile(Uri.fromFile(compressedFile)).await()
+                }
 
-                        val url = ref.downloadUrl.await().toString()
-
-                        tempFile.delete()
-                        compressedFile.delete()
-
-                        url
-                    }
                 }.awaitAll()
             }
             Result.success(downloadUrls)
