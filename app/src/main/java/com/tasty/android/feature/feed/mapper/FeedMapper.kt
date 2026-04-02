@@ -58,5 +58,6 @@ fun Feed.toFeedDetailPostUiModel(
         content = content,
         shortReview = shortReview,
         imageUrls = feedImageUrls,
+        placeId = restaurantId,
     )
 }
