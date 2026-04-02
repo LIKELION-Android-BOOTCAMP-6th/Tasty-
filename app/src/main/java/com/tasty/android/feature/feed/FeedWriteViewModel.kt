@@ -48,10 +48,10 @@ data class FeedWriteUiState(
         get() = selectedRestaurant != null
 
     val isContentValid: Boolean
-        get() = content.trim().length in 10..300
+        get() = content.trim().length in 10..600
 
     val isShortReviewValid: Boolean
-        get() = shortReview.trim().length in 5..25
+        get() = shortReview.trim().length in 5..30
 
     val isRatingValid: Boolean
         get() = rating in 1..5
@@ -205,13 +205,13 @@ class FeedWriteViewModel(
 
     fun updateContent(content: String) {
         _uiState.update { currentState ->
-            currentState.copy(content = content.take(300))
+            currentState.copy(content = content.take(600))
         }
     }
 
     fun updateShortReview(shortReview: String) {
         _uiState.update { currentState ->
-            currentState.copy(shortReview = shortReview.take(25))
+            currentState.copy(shortReview = shortReview.take(30))
         }
     }
 

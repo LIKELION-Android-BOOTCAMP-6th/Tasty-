@@ -230,7 +230,7 @@ class FeedDetailViewModel(
     @RequiresApi(Build.VERSION_CODES.O)
     fun submitComment(feedId: String) {
         val input = _uiState.value.commentInput.trim()
-        if (input.isBlank() || input.length > 50) return
+        if (input.isBlank() || input.length > 100) return
 
         val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 

@@ -297,7 +297,7 @@ fun FeedDetailScreen(
             CommentInputBar(
                 value = uiState.commentInput,
                 onValueChange = { newValue ->
-                    if (newValue.length <= 50) {
+                    if (newValue.length <= 100) {
                         viewModel.updateCommentInput(newValue)
                     }
                 },
@@ -594,7 +594,7 @@ private fun CommentInputBar(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${value.length}/50",
+                text = "${value.length}/100",
                 modifier = Modifier.align(Alignment.End).padding(end = 6.dp),
                 style = MaterialTheme.typography.bodySmall.copy(color = Gray400)
             )

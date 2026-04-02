@@ -138,7 +138,7 @@ fun FeedWriteScreen(
                 ContentInputSection(
                     content = uiState.content,
                     onValueChange = { newValue ->
-                        if (newValue.length <= 300) {
+                        if (newValue.length <= 600) {
                             viewModel.updateContent(newValue)
                         }
                     }
@@ -147,7 +147,7 @@ fun FeedWriteScreen(
                 ShortReviewSection(
                     shortReview = uiState.shortReview,
                     onValueChange = { newValue ->
-                        if (newValue.length <= 25) {
+                        if (newValue.length <= 30) {
                             viewModel.updateShortReview(newValue)
                         }
                     }
@@ -325,7 +325,7 @@ private fun ContentInputSection(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "${content.length}/300",
+            text = "${content.length}/600",
             color = if (content.isNotBlank() && content.length < 10) Color.Red else Gray400,
             modifier = Modifier.align(Alignment.End)
         )
@@ -367,7 +367,7 @@ private fun ShortReviewSection(
                 decorationBox = { innerTextField ->
                     if (shortReview.isBlank()) {
                         Text(
-                            text = "한줄평을 입력해주세요 (5~25자)",
+                            text = "한줄평을 입력해주세요 (5~30자)",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = Color(0xFFB5B5B5)
                             )
@@ -381,7 +381,7 @@ private fun ShortReviewSection(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "${shortReview.length}/25",
+            text = "${shortReview.length}/30",
             color = if (shortReview.isNotBlank() && shortReview.length < 5) Color.Red else Gray400,
             modifier = Modifier.align(Alignment.End)
         )
