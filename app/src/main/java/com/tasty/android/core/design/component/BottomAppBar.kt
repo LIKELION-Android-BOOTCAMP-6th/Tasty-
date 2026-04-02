@@ -14,8 +14,19 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.PrimaryColor
+import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.navigation.TabScreen
+import okhttp3.internal.immutableListOf
 
+val feedRootList = immutableListOf(
+    TabScreen.FEED.route, // 피드 홈
+    Screen.USER_PROFILE.route, // 유저 프로필
+)
+
+val tastyRootList = immutableListOf(
+    TabScreen.TASTY.route, // 테이스티 홈
+    Screen.TASTY_DETAIL.route, // 테이스티 상세
+)
 
 // 바텀 앱 바 컴포저블
 @Composable

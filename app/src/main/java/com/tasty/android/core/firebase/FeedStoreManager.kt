@@ -159,35 +159,7 @@ class FeedStoreManager {
         }
     }
 
-    // 식당 ID로 피드 목록 조회
-    suspend fun getFeedsByRestaurantId(
-        restaurantId: String,
-        limit: Long = paginationLimit,
-        lastFeedId: String? = null
-    ): Result<List<Feed>> = withContext(Dispatchers.IO) {
-        try {
-            var query = firebaseDB.collection("feeds")
-                .whereEqualTo("restaurantId", restaurantId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(limit)
-
-            if (lastFeedId != null) {
-                val lastSnapshot = firebaseDB.collection("feeds")
-                    .document(lastFeedId)
-                    .get()
-                    .await()
-                query = query.startAfter(lastSnapshot)
-            }
-
-            val snapshot = query.get().await()
-            val feeds = snapshot.documents.mapNotNull { doc ->
-                doc.toObject(Feed::class.java)?.copy(feedId = doc.id)
-            }
-            Result.success(feeds)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    
 
 
 
