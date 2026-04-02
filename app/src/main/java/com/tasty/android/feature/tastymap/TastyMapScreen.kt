@@ -38,6 +38,7 @@ import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.google.maps.android.compose.*
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.navigation.Screen
 import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.feature.search.PlaceSearchScreen
 import com.tasty.android.feature.tastymap.model.RestaurantData
@@ -106,7 +107,8 @@ fun TastyMapScreen(
                     viewModel.selectRestaurant(restaurant)
                     scope.launch { scaffoldState.bottomSheetState.expand() }
                 },
-                viewModel = viewModel
+                viewModel = viewModel,
+                navController
             )
         }
     ) {
@@ -160,7 +162,8 @@ fun TastyMapScreen(
 fun RestaurantListSheet(
     uiState: TastyMapUiState,
     onItemClick: (RestaurantData) -> Unit,
-    viewModel: TastyMapViewmodel
+    viewModel: TastyMapViewmodel,
+    navController: NavController
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
@@ -229,7 +232,8 @@ fun RestaurantListSheet(
                     userLocation = uiState.userLocation,
                     onItemClick = { onItemClick(restaurant) },
                     showComments = uiState.isCommentVisible && uiState.selectedRestaurant?.id == restaurant.id,
-                    uiState = uiState
+                    uiState = uiState,
+                    navController
                 )
             }
         }
@@ -280,7 +284,7 @@ fun MapOverlayUI(
                 onClick = {
                     viewModel.searchAndSyncRestaurants(
                         cameraPositionState.position.target,
-                        1000.0,
+                        5000.0,
                         {
                             scope.launch {
                                 scaffoldState.bottomSheetState.show()
@@ -349,7 +353,8 @@ fun RestaurantItem(
     userLocation: LatLng?,
     onItemClick: () -> Unit,
     showComments: Boolean,
-    uiState: TastyMapUiState
+    uiState: TastyMapUiState,
+    navController: NavController
 ) {
     Column(
         modifier = Modifier
@@ -369,7 +374,7 @@ fun RestaurantItem(
             calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
         } ?: 0
         InfoText(
-            "평점: ${restaurant.rating}, 리뷰: ${restaurant.feedCount}개, 거리: ${
+            "평점: ${if(restaurant.rating!! > 0)restaurant.rating else "( - - )"}, 리뷰: ${restaurant.feedCount}개, 거리: ${
                 formatDistance(
                     distance
                 )
@@ -390,7 +395,10 @@ fun RestaurantItem(
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 uiState.restaurantFeeds.forEach { feed ->
-                    CommentItem(feed.authorNickname, feed.authorProfileUrl, comment = feed.content)
+                    CommentItem(feed.authorNickname, feed.authorProfileUrl, comment = feed.content, {
+                        // 클릭 시 피드 세부화면으로 이동
+                        navController.navigate("${Screen.FEED_DETAIL.route}/${feed.feedId}")
+                    })
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
@@ -400,14 +408,14 @@ fun RestaurantItem(
 
 // 상세화면의 리뷰(피드) 출력
 @Composable
-fun CommentItem(nickName: String, authorProfileUrl: String?, comment: String) {
+fun CommentItem(nickName: String, authorProfileUrl: String?, comment: String,  onItemClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFFF9F9F9))
             .clickable {
-                // 피드로 이동 로직 구현
+                onItemClick()
             }
             .padding(12.dp)
     ) {
@@ -496,7 +504,8 @@ fun formatDistance(distanceInMeters: Int): String {
 
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
-    val text = rating.toString()
+    val text = if(rating>0) rating.toString() else "( - - )"
+
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
             "#A0C4FF"
