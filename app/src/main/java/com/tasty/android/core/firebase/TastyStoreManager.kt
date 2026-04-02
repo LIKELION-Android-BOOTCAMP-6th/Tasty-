@@ -260,10 +260,9 @@ class TastyStoreManager {
     }
 
     // 팔로잉 유저들의 테이스티 리스트 조회
-    suspend fun getTastyListsByUserIds(userIds: List<String>, limit: Long = 10): Result<List<TastyList>> = withContext(Dispatchers.IO) {
+    suspend fun getTastyListsByUserIds(userIds: List<String>, limit: Long = 30): Result<List<TastyList>> = withContext(Dispatchers.IO) {
         if (userIds.isEmpty()) return@withContext Result.success(emptyList())
         try {
-            // Firestore whereIn은 최대 30개까지 지원
             val query = firebaseDB.collection("tastyLists")
                 .whereIn("authorId", userIds.take(30))
                 .orderBy("createdAt", Query.Direction.DESCENDING)

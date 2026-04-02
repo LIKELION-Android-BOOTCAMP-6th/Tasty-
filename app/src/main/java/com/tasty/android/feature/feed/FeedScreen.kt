@@ -2,9 +2,12 @@ package com.tasty.android.feature.feed
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,6 +165,20 @@ fun FeedScreen(
             }
         }
     }
+    LaunchedEffect(
+        uiState.filter.sortType,
+        uiState.filter.selectedRegionText
+    ) {
+        if (uiState.feedPosts.isNotEmpty()) listState.animateScrollBy(
+            value = -100000f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        listState.scrollToItem(0)
+    }
+
 
     // Refresh 후에 초기값으로 복구
     LaunchedEffect(shouldRefresh) {
@@ -305,7 +322,7 @@ private fun FeedHeaderSection(
                 horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 items(
-                    items = tastyLists.take(4),
+                    items = tastyLists.take(tastyLists.size),
                     key = { it.tastyListId }
                 ) { item ->
 
