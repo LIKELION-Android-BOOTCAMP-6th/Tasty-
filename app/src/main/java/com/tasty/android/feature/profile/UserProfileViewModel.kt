@@ -31,7 +31,8 @@ data class UserProfileUiState(
     val feedCount: Int = 0,
     val followerCount: Int = 0,
     val followingCount: Int = 0,
-    val userHandle: String = ""
+    val userHandle: String = "",
+    val isMe: Boolean = false
 )
 
 class UserProfileViewModel(
@@ -172,7 +173,8 @@ class UserProfileViewModel(
                         followingCount = user.followingCount,
                         isFollowing = isFollowing,
                         myFeeds = myFeedItems,
-                        myTastyLists = myTastyListItems
+                        myTastyLists = myTastyListItems,
+                        isMe = currentUserId == user.userId
                     )
                 }
             }

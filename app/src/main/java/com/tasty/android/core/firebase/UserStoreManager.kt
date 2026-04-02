@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -69,6 +70,16 @@ class UserStoreManager {
             }
 
             userRef.update(updateData).await()
+
+            // 로컬 캐시 업데이트
+            _currentUserProfile.update { current ->
+                current?.copy(
+                    nickname = nickname,
+                    bio = bio,
+                    profileImageUrl = profileImageUrl ?: current.profileImageUrl
+                )
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

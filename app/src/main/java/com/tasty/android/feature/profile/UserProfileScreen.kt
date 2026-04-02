@@ -46,23 +46,6 @@ fun UserProfileScreen(
     targetUserId: String,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
-    val currentUserId = remember { Firebase.auth.currentUser?.uid ?: "" }
-    
-    // 본인 확인 시 마이페이지로 리다이렉트
-    LaunchedEffect(targetUserId) {
-        if (targetUserId == currentUserId) {
-            navController.navigate(TabScreen.MY_PAGE.route) {
-                popUpTo(Screen.USER_PROFILE.route) { inclusive = true }
-            }
-        }
-    }
-
-    if (targetUserId == currentUserId) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = PrimaryColor)
-        }
-        return
-    }
 
     val viewModel: UserProfileViewModel = viewModel(
         key = targetUserId,
@@ -117,7 +100,8 @@ fun UserProfileScreen(
             followerCount = uiState.followerCount,
             followingCount = uiState.followingCount,
             isFollowing = uiState.isFollowing,
-            onFollowClick = { viewModel.toggleFollow() }
+            onFollowClick = { viewModel.toggleFollow() },
+            isMe = uiState.isMe
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -167,6 +151,7 @@ private fun UserProfileHeader(
     followerCount: Int,
     followingCount: Int,
     isFollowing: Boolean,
+    isMe: Boolean,
     onFollowClick: () -> Unit
 ) {
     Surface(
@@ -255,13 +240,20 @@ private fun UserProfileHeader(
                 onClick = onFollowClick,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryColor,
+                    containerColor = if (isMe) Color.Red.copy(alpha = 0.7f) else PrimaryColor,
                     contentColor = TextColor
                 ),
+                enabled = !isMe,
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = if (isFollowing) "팔로우 취소" else "팔로우",
+                    text = if (isMe)  {
+                        "자기 자신은 팔로우 할 수 없어요."
+                    } else if (isFollowing) {
+                        "팔로우 취소"
+                    } else {
+                        "팔로우"
+                    },
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -382,7 +374,6 @@ private fun UserFeedPage(feeds: List<MyFeedItem>, onFeedClick: (String) -> Unit)
                             contentScale = ContentScale.Crop
                         )
                     }
-
                     if (feed.hasImages) {
                         Box(
                             modifier = Modifier

@@ -311,7 +311,7 @@ fun MyPageScreen(
                         showTastyListOptions = false
                         selectedTastyListId?.let { id ->
                             navController.navigate(
-                                Screen.EDIT_TASTY_LIST.route.replace("{tastyListId}", id)
+                                "${Screen.EDIT_TASTY_LIST.route}/$id"
                             )
                         }
                     },

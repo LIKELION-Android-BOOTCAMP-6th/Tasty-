@@ -1,6 +1,7 @@
 package com.tasty.android.feature.feed
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,6 +66,7 @@ import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.vmfactory.FeedDetailViewModelFactory
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
@@ -81,6 +83,8 @@ fun FeedDetailScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentGraphRoute = navBackStackEntry?.destination?.parent?.route
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -190,7 +194,18 @@ fun FeedDetailScreen(
                                 placeName = post.placeName,
                                 address = post.address,
                                 onClick = {
-                                    navController.navigate("${TabScreen.MAP.route}?placeId=${post.placeId}")
+                                    navController.navigate(
+                                        when (currentGraphRoute) {
+                                            "feed_graph" -> "${Screen.FEED_MAP.route}?placeId=${post.placeId}"
+                                            "tasty_graph" -> "${Screen.TASTY_MAP.route}?placeId=${post.placeId}"
+                                            "map_graph" -> "${TabScreen.MAP.route}?placeId=${post.placeId}"
+                                            "my_page_graph" -> "${Screen.MY_PAGE_MAP.route}?placeId=${post.placeId}"
+                                            else -> {
+                                                throw IllegalArgumentException("알 수 없는 그래프 경로: $currentGraphRoute")
+                                            }
+                                        }
+
+                                    )
                                 }
                             )
 

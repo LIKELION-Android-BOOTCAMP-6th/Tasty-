@@ -63,6 +63,7 @@ class EditProfileViewModel(
                             bio = user.bio
                         )
                     }
+
                 } else {
                     _uiState.update { it.copy(isLoading = false, errorMessage = "유저 정보를 찾을 수 없습니다.") }
                 }
@@ -94,7 +95,7 @@ class EditProfileViewModel(
             
             var profileImageUrl: String? = null
             
-            // 1. 이미지가 선택된 경우 업로드 먼저 진행
+            // 이미지가 선택된 경우 업로드 먼저 진행
             val selectedUri = _uiState.value.selectedImageUri
             if (selectedUri != null) {
                 val uploadResult = storageManager.uploadProfileImage(selectedUri)
@@ -106,7 +107,7 @@ class EditProfileViewModel(
                 }
             }
 
-            // 2. 프로필 정보 업데이트
+            // 프로필 정보 업데이트
             val result = userStoreManager.updateProfile(
                 userId = currentUserId,
                 nickname = _uiState.value.nickname,
@@ -115,14 +116,13 @@ class EditProfileViewModel(
             )
 
             result.onSuccess {
-                // 3. 피드 정보 동기화 (전역 반영)
-                viewModelScope.launch {
-                    feedStoreManager.syncAuthorInfoInFeeds(
-                        userId = currentUserId,
-                        nickname = _uiState.value.nickname,
-                        profileImageUrl = profileImageUrl ?: _uiState.value.initialProfileImageUrl
-                    )
-                }
+                // 피드 정보 동기화 (전역 반영)
+                feedStoreManager.syncAuthorInfoInFeeds(
+                    userId = currentUserId,
+                    nickname = _uiState.value.nickname,
+                    profileImageUrl = profileImageUrl ?: _uiState.value.initialProfileImageUrl
+                )
+                userStoreManager.fetchAndCacheUser(currentUserId)
                 _uiState.update { it.copy(isLoading = false, isSaveSuccess = true) }
             }.onFailure { e ->
                 _uiState.update { it.copy(isLoading = false, errorMessage = "저장에 실패했습니다: ${e.message}") }

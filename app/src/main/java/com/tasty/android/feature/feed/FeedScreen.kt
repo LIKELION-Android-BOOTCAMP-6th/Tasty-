@@ -303,7 +303,7 @@ private fun FeedHeaderSection(
                 horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 items(
-                    items = tastyLists.take(4),
+                    items = tastyLists.take(tastyLists.size),
                     key = { it.tastyListId }
                 ) { item ->
 
@@ -552,7 +552,7 @@ private fun FeedCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "별점",
-                                tint = if (index < post.rating) TextColor else Color.LightGray,
+                                tint = if (index < post.rating) Color.Yellow else Color.LightGray,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
