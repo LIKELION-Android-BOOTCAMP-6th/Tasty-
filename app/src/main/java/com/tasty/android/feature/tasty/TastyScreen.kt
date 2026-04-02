@@ -221,7 +221,7 @@ private fun TastyCard(
                 Icon(
                     imageVector = Icons.Outlined.FavoriteBorder,
                     contentDescription = "좋아요",
-                    tint = TextColor,
+                    tint = if (isLiked) Color.Red else Color.Black,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
