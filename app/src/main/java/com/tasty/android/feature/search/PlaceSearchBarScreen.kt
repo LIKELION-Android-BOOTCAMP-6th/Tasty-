@@ -1,29 +1,13 @@
 package com.tasty.android.feature.search
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -31,101 +15,74 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.model.AutocompletePrediction
-import com.tasty.android.core.place.PlaceManager
+import com.google.android.libraries.places.api.model.Place
 
 @Composable
 fun PlaceSearchScreen(
-    placesManager: PlaceManager,
     labelText: String,
     onFocusChange: (Boolean) -> Unit,
-    onPlaceSelected: (LatLng) -> Unit // 추가: 좌표를 전달할 콜백
+    onPlaceSelectedLocation: (LatLng) -> Unit,
+    onPlaceSelectedRestaurant: (String) -> Unit,
+    viewModel: PlaceSearchBarViewModel = viewModel(factory = PlaceSearchBarViewModel .Factory)
 ) {
-    // 포커스 상태를 저장하는 변수
-    val focusManager = LocalFocusManager.current
-    var isFocused by remember { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val predictions by viewModel.predictions.collectAsStateWithLifecycle()
+    val isFocused by viewModel.isFocused.collectAsStateWithLifecycle()
 
-    var searchQuery by remember { mutableStateOf("") }
-    var predictions by remember { mutableStateOf(emptyList<AutocompletePrediction>()) }
+    val focusManager = LocalFocusManager.current
 
     Box(
         modifier = Modifier
-            // 1. 포커스 상태에 따라 크기 결정 (포커스 시 fillMaxSize, 미포커스 시 콘텐츠만큼만)
             .then(if (isFocused) Modifier.fillMaxSize() else Modifier.wrapContentHeight())
-            // 포커스 상태일 때만 전체 화면을 하얀색으로 덮음
             .background(if (isFocused) Color.White else Color.Transparent)
-            .statusBarsPadding() // 상태바 영역 침범 방지
-            .clickable(
-                onClick = { focusManager.clearFocus() },
-            )
+            .statusBarsPadding()
+            .clickable(enabled = isFocused) { focusManager.clearFocus() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .statusBarsPadding()
-        )
-        {
-            // 검색창
+                .padding(horizontal = 16.dp)
+        ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    // 글자를 지웠을 때 리스트 비워줌
-                    if (it.isBlank()) {
-                        predictions = emptyList()
-                        isFocused = false
-                    } else {
-                        placesManager.getPredictions(it) { res ->
-                            predictions = res
-                        }
-                    }
-                },
+                onValueChange = viewModel::onQueryChanged,
                 label = { Text(labelText) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .onFocusChanged { focusState ->
-                        // 포커스 여부에 따라 상태 업데이트
-                        isFocused = focusState.isFocused
-                        // 포커스 상태 콜백으로 전달
-                        onFocusChange(focusState.isFocused)
-                        // 포커스를 잃었을 때
-                        if (!focusState.isFocused) {
-                            searchQuery = ""
-                            predictions = emptyList()
-                        }
+                    .onFocusChanged {
+                        viewModel.onFocusChanged(it.isFocused)
+                        onFocusChange(it.isFocused)
                     },
                 singleLine = true,
                 shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,   // 포커스 되었을 때 배경 흰색
-                    unfocusedContainerColor = Color.White, // 포커스 없을 때 배경 흰색
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
                     focusedBorderColor = Color.Gray,
                     unfocusedBorderColor = Color.LightGray
                 )
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            if (isFocused) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(predictions) { prediction ->
+                        PredictionItem(prediction) {
+                            focusManager.clearFocus()
 
-            // 결과 리스트
-            LazyColumn {
-                items(predictions) { prediction ->
-                    PredictionItem(prediction) {
-                        // 배경을 다시 투명하게
-                        focusManager.clearFocus()
-
-                        // 클릭 시 검색창 텍스트를 전체 주소로 바꾸고 리스트 닫기
-                        searchQuery = prediction.getFullText(null).toString()
-
-                        val placeId = prediction.placeId
-                        Log.d("test", "선택된 장소 ID: $placeId")
-
-                        // 검색 결과 반영
-                        placesManager.getPlaceLatLng(placeId) { latLng ->
-                            latLng?.let {
-                                onPlaceSelected(it) // 찾은 좌표를 전달
-                                searchQuery = "" // 검색창 초기화
+                            // 장소 유형(placeTypes)
+                            val types = prediction.placeTypes
+                            if (types.contains(Place.Type.RESTAURANT) ||
+                                types.contains(Place.Type.FOOD)) {
+                                // 음식점인 경우
+                                onPlaceSelectedRestaurant(prediction.placeId)
+                            } else {
+                                // 그 외(지역/주소 등)인 경우
+                                viewModel.selectPlace(prediction, onPlaceSelectedLocation)
                             }
                         }
                     }
@@ -143,7 +100,11 @@ fun PredictionItem(prediction: AutocompletePrediction, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        Text(text = prediction.getPrimaryText(null).toString(), fontWeight = FontWeight.Bold)
+        Text(
+            text = prediction.getPrimaryText(null).toString(),
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyLarge
+        )
         Text(
             text = prediction.getSecondaryText(null).toString(),
             fontSize = 12.sp,

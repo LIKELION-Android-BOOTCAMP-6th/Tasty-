@@ -186,7 +186,6 @@ class PlaceManager(private val context: Context) {
                 Field.ID,
                 Field.NAME,
                 Field.ADDRESS,
-                Field.RATING,
                 Field.LAT_LNG,
                 Field.BUSINESS_STATUS,
                 Field.PHOTO_METADATAS,
@@ -217,10 +216,10 @@ class PlaceManager(private val context: Context) {
 
                     val isCurrentlyOpen = place.isOpen ?: (place.currentOpeningHours != null)
 
+                    // RestaurantData 모델로 변환
                     RestaurantData(
                         name = place.name ?: "",
                         address = place.address ?: "",
-                        rating = place.rating,
                         id = place.id ?: "",
                         latitude = place.latLng?.latitude ?: 0.0,
                         longitude = place.latLng?.longitude ?: 0.0,
@@ -272,6 +271,57 @@ class PlaceManager(private val context: Context) {
             .addOnFailureListener { exception ->
                 Log.e("PlacesManager", "Place not found: ${exception.message}")
                 onResult(null)
+            }
+    }
+
+    fun fetchPlaceDetails(
+        placeId: String,
+        onSuccess: (RestaurantData) -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        // 가져올 필드 정의
+        val placeFields = listOf(
+            Place.Field.ID,
+            Place.Field.NAME,
+            Place.Field.ADDRESS,
+            Place.Field.LAT_LNG,
+            Place.Field.RATING,
+            Place.Field.BUSINESS_STATUS,
+            Place.Field.PHOTO_METADATAS
+        )
+
+        val request = FetchPlaceRequest.newInstance(placeId, placeFields)
+
+        placeClient.fetchPlace(request)
+            .addOnSuccessListener { response ->
+                val place = response.place
+                val isCurrentlyOpen = place.isOpen ?: (place.currentOpeningHours != null)
+
+                // RestaurantData 모델로 변환
+                val restaurant =
+                    RestaurantData(
+                    name = place.name ?: "",
+                    address = place.address ?: "",
+                    id = place.id ?: "",
+                    latitude = place.latLng?.latitude ?: 0.0,
+                    longitude = place.latLng?.longitude ?: 0.0,
+                    businessStatus = when {
+                        // 영업 상태 우선 확인
+                        place.businessStatus == BusinessStatus.CLOSED_TEMPORARILY -> "임시 휴업"
+                        place.businessStatus == BusinessStatus.CLOSED_PERMANENTLY -> "폐업"
+
+                        // 현재 영업 여부 확인
+                        isCurrentlyOpen == true -> "영업 중"
+
+                        // 영업시간 정보가 아예 없는 경우
+                        else -> "영업 종료"
+                    },
+                    photoMetadata = place.photoMetadatas?.take(5) ?: emptyList()
+                )
+                onSuccess(restaurant)
+            }
+            .addOnFailureListener { exception ->
+                onFailure(exception)
             }
     }
 }
