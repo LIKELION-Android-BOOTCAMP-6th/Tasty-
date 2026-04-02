@@ -75,6 +75,7 @@ import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.runtime.SideEffect
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,7 +101,9 @@ fun FeedScreen(
     // 적용 전 임시 필터 상태
     var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
-    LaunchedEffect(Unit) {
+    val currentFilter = uiState.filter
+
+    SideEffect {
         onScaffoldConfigChange(
             ScaffoldConfig(
                 title = "Tasty",
@@ -129,7 +132,7 @@ fun FeedScreen(
 
                         FloatingActionButton(
                             onClick = {
-                                tempFilter = uiState.filter
+                                tempFilter = currentFilter
                                 showFilterSheet = true
                                 showRegionSelection = false
                             },
@@ -146,7 +149,6 @@ fun FeedScreen(
             )
         )
     }
-
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
