@@ -72,22 +72,26 @@ class TastyMapViewmodel(
     }
 
     // 식당 선택
-    fun selectRestaurant(restaurant: RestaurantData) {
-        val isAlreadySelected = uiState.selectedRestaurant?.id == restaurant.id
+    fun selectRestaurant(restaurant: RestaurantData, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            val isAlreadySelected = uiState.selectedRestaurant?.id == restaurant.id
 
-        if (isAlreadySelected) {
-            // 이미 선택된 식당을 다시 클릭한 경우 -> 리뷰(피드) 표시
-            uiState = uiState.copy(isCommentVisible = true)
-            if (uiState.restaurantFeeds.isEmpty()) {
-                fetchFeedsForRestaurant(restaurant.id)
+            if (isAlreadySelected) {
+                // 이미 선택된 식당을 다시 클릭한 경우 -> 리뷰(피드) 표시
+                uiState = uiState.copy(isCommentVisible = true)
+                if (uiState.restaurantFeeds.isEmpty()) {
+                    fetchFeedsForRestaurant(restaurant.id)
+                }
+            } else {
+                // 처음 선택 시 해당 식당으로 리스트를 필터링하고 리뷰(피드)는 숨김
+                uiState = uiState.copy(
+                    selectedRestaurant = restaurant,
+                    isCommentVisible = false,
+                    restaurantFeeds = emptyList()
+                )
             }
-        } else {
-            // 처음 선택 시 해당 식당으로 리스트를 필터링하고 리뷰(피드)는 숨김
-            uiState = uiState.copy(
-                selectedRestaurant = restaurant,
-                isCommentVisible = false,
-                restaurantFeeds = emptyList()
-            )
+
+            onComplete()
         }
     }
 

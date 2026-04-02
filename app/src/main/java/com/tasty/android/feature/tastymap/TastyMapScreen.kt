@@ -2,9 +2,12 @@ package com.tasty.android.feature.tastymap
 
 import android.annotation.SuppressLint
 import android.graphics.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,6 +70,17 @@ fun TastyMapScreen(
     val cameraPositionState = rememberCameraPositionState()
     val scope = rememberCoroutineScope()
 
+    // 바텀 시트가 완전히 펼쳐진 상태(Expanded)인지 확인
+    val isSheetExpanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
+
+    BackHandler(enabled = isSheetExpanded) {
+        scope.launch {
+            // 뒤로가기 클릭 시 축소
+            scaffoldState.bottomSheetState.partialExpand()
+            viewModel.clearSelection()
+        }
+    }
+
     // 화면 진입 시 위치 초기화 및 Scaffold 설정
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -107,8 +121,9 @@ fun TastyMapScreen(
             RestaurantListSheet(
                 uiState = uiState,
                 onItemClick = { restaurant ->
-                    viewModel.selectRestaurant(restaurant)
-                    scope.launch { scaffoldState.bottomSheetState.expand() }
+                    viewModel.selectRestaurant(restaurant, {
+                        scope.launch { scaffoldState.bottomSheetState.expand() }
+                    })
                 },
                 viewModel = viewModel,
                 navController
@@ -144,8 +159,9 @@ fun TastyMapScreen(
                         icon = ratingIcon,
                         anchor = Offset(0.5f, 1.0f),
                         onClick = {
-                            viewModel.selectRestaurant(rest)
-                            scope.launch { scaffoldState.bottomSheetState.expand() }
+                            viewModel.selectRestaurant(rest, {
+                                scope.launch { scaffoldState.bottomSheetState.expand() }
+                            })
                             true
                         }
                     )
@@ -172,14 +188,19 @@ fun RestaurantListSheet(
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
-// 스크롤 상태 기억
     val listState = rememberLazyListState()
+
+    // 리스트가 변경될 때마다 최상단으로 스크롤 (순간적인 튀는 현상 방지)
+    LaunchedEffect(displayList.size) {
+        listState.scrollToItem(0)
+    }
 
     Crossfade(
         targetState = displayList,
-        modifier = Modifier.animateContentSize()
-    ) { targetList ->
-        if (targetList.isEmpty()) {
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "SheetContentTransition"
+    ) { currentList ->
+        if (currentList.isEmpty()) {
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -189,6 +210,7 @@ fun RestaurantListSheet(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White),
@@ -236,7 +258,7 @@ fun RestaurantListSheet(
                         )
                     }
                 }
-                items(targetList) { restaurant ->
+                items(currentList) { restaurant ->
                     RestaurantItem(
                         restaurant = restaurant,
                         placesManager = viewModel.placesManager,
@@ -251,6 +273,7 @@ fun RestaurantListSheet(
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
