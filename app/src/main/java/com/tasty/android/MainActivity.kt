@@ -39,15 +39,27 @@ class MainActivity : ComponentActivity() {
     // CustomScaffold 공통 스케폴드 구조 내에서 화면 정의
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
+        val app = application as MyApplication
+        val authManager = app.container.authManager
+        val userStoreManager = app.container.userStoreManager
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        var keepSplash = true
+        var isUserLoaded = false
+
+        // Splash 화면 유지 조건 설정
         splashScreen.setKeepOnScreenCondition {
-            keepSplash
+            !isUserLoaded
         }
+
         lifecycleScope.launch {
-            delay(2000)
-            keepSplash = false
+            // 현재 로그인된 유저가 있으면 정보를 미리 가져옴
+            val currentUserId = authManager.getCurrentUser()?.uid
+            if (currentUserId != null) {
+                userStoreManager.fetchAndCacheUser(currentUserId)
+            }
+
+            delay(1000)
+            isUserLoaded = true
         }
         enableEdgeToEdge()
         setContent {
@@ -56,6 +68,8 @@ class MainActivity : ComponentActivity() {
                 CustomScaffold(navController = navController)
             }
         }
+
+
     }
 
     override fun onStart() {

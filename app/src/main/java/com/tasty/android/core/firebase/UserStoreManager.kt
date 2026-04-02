@@ -11,11 +11,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class UserStoreManager {
     private val firebaseDB = Firebase.firestore
+
+    // 로그인된 유저 정보 캐시
+    private val _currentUserProfile = MutableStateFlow<User?>(null)
+    val currentUserProfile: StateFlow<User?> = _currentUserProfile.asStateFlow()
+
+    // 유저 정보를 가져와서 캐시에 저장
+    suspend fun fetchAndCacheUser(userId: String): Result<User?> = withContext(Dispatchers.IO) {
+        val result = getUser(userId)
+        result.onSuccess { user ->
+            _currentUserProfile.value = user
+        }
+        result
+    }
     /***
      * 유저 저장&조회&수정
      ***/
