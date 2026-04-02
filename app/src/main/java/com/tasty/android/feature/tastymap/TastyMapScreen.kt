@@ -68,7 +68,9 @@ fun TastyMapScreen(
             skipHiddenState = false
         )
     )
-    val cameraPositionState = rememberCameraPositionState()
+    val defaultLocation = LatLng(37.5665, 126.9780)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(defaultLocation, 18f)}
     val scope = rememberCoroutineScope()
 
     // 바텀 시트가 완전히 펼쳐진 상태(Expanded)인지 확인
