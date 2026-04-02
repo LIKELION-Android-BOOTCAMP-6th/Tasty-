@@ -21,6 +21,8 @@ sealed class TastyUpdateEvent {
     data class TastyListUpdated(val tastyListId: String) : TastyUpdateEvent()
     data class TastyListDeleted(val tastyListId: String) : TastyUpdateEvent()
     data class ViewCountChanged(val tastyListId: String, val newCount: Int) : TastyUpdateEvent()
+    data class TastyListLiked(val tastyListId: String, val userId: String) : TastyUpdateEvent()
+    data class TastyListUnliked(val tastyListId: String, val userId: String) : TastyUpdateEvent()
 }
 
 class TastyStoreManager {
@@ -201,6 +203,10 @@ class TastyStoreManager {
                 "likeCount", FieldValue.increment(1)
             )
             batch.commit().await()
+            
+            // 실시간 이벤트 전파
+            notifyTastyUpdated(TastyUpdateEvent.TastyListLiked(tastyListLike.tastyListId, tastyListLike.userId))
+            
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -228,6 +234,10 @@ class TastyStoreManager {
                 "likeCount", FieldValue.increment(-1)
             )
             batch.commit().await()
+
+            // 실시간 이벤트 전파
+            notifyTastyUpdated(TastyUpdateEvent.TastyListUnliked(tastyListLike.tastyListId, tastyListLike.userId))
+
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)

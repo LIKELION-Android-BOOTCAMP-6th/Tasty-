@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.Icon
@@ -112,7 +113,8 @@ private fun TastyScreenContent(
             items(uiState.tastyList, key = { it.tastyId }) { item ->
                 TastyCard(
                     item = item,
-                    onClick = { onClickTastyItem(item.tastyId) }
+                    onClick = { onClickTastyItem(item.tastyId) },
+                    isLiked = item.isLiked
                 )
             }
         }
@@ -165,7 +167,8 @@ private fun SortChip(
 @Composable
 private fun TastyCard(
     item: TastyItemUiModel,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isLiked: Boolean
 ) {
     Card(
         modifier = Modifier

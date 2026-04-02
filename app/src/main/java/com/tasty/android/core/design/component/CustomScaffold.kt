@@ -49,7 +49,7 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
 
     // 경로 파라미터가 포함된 경우를 위해 matching 로직 처리
     return when {
-        // --- Tab Screens (Bottom Bar 있음) ---
+
         route == TabScreen.FEED.route -> ScaffoldConfig(
             title = "Tasty",
             showTopBar = true,
@@ -65,15 +65,14 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
             }
         )
         route == TabScreen.TASTY.route -> ScaffoldConfig(
-            title = "Tasties",
+            title = "Tasty",
             showTopBar = true,
             showBottomBar = true,
             isCenterAligned = true
         )
 
         route == TabScreen.MAP.route -> ScaffoldConfig(
-            title = "지도",
-            showTopBar = true,
+            showTopBar = false,
             showBottomBar = true,
             isCenterAligned = true
         )
@@ -127,13 +126,13 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
             containsBackButton = true
         )
         route.startsWith("tasty_detail") || route.startsWith(Screen.TASTY_DETAIL.route) -> ScaffoldConfig(
-            title = "테이스티 상세",
+            title = "Tasty 상세",
             showTopBar = true,
             showBottomBar = false,
-            containsBackButton = true
+            containsBackButton = true,
+            isCenterAligned = false
         )
         route.startsWith("user_profile") || route.startsWith(Screen.USER_PROFILE.route.split("/")[0]) -> ScaffoldConfig(
-            title = "프로필",
             showTopBar = true,
             showBottomBar = true,
             containsBackButton = true,
@@ -212,11 +211,16 @@ fun CustomScaffold(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // 루트 바뀔 때마다 스크롤 상태 초기화
+    LaunchedEffect(currentRoute) {
+        scrollBehavior.state.contentOffset = 0f
+        scrollBehavior.state.heightOffset = 0f
+    }
+
 
     val predictiveConfig = remember(currentRoute) {
         getPredictiveConfig(currentRoute, navController)
     }
-
 
     var screenOverride by remember { mutableStateOf<ScaffoldConfig?>(null) }
 
