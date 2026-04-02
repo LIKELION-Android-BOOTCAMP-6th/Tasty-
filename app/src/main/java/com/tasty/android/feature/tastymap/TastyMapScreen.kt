@@ -186,10 +186,13 @@ fun MapOverlayUI(
         PlaceSearchScreen(
             labelText = "장소 및 음식점 검색",
             onFocusChange = { viewModel.setSearchFocus(it) },
-            onPlaceSelected = { latLng ->
+            onPlaceSelectedLocation = { latLng ->
                 scope.launch {
                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
                 }
+            },
+            onPlaceSelectedRestaurant = { restaurantId ->
+                viewModel.selectRestaurantById(restaurantId)
             }
         )
 

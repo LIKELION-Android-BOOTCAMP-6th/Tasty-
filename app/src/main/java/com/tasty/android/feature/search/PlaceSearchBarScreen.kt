@@ -19,11 +19,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.google.android.libraries.places.api.model.Place
+
 @Composable
 fun PlaceSearchScreen(
     labelText: String,
     onFocusChange: (Boolean) -> Unit,
-    onPlaceSelected: (LatLng) -> Unit,
+    onPlaceSelectedLocation: (LatLng) -> Unit,
+    onPlaceSelectedRestaurant: (String) -> Unit,
     viewModel: PlaceSearchBarViewModel = viewModel(factory = PlaceSearchBarViewModel .Factory)
 ) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -70,7 +73,17 @@ fun PlaceSearchScreen(
                     items(predictions) { prediction ->
                         PredictionItem(prediction) {
                             focusManager.clearFocus()
-                            viewModel.selectPlace(prediction, onPlaceSelected)
+
+                            // 장소 유형(placeTypes)
+                            val types = prediction.placeTypes
+                            if (types.contains(Place.Type.RESTAURANT) ||
+                                types.contains(Place.Type.FOOD)) {
+                                // 음식점인 경우
+                                onPlaceSelectedRestaurant(prediction.placeId)
+                            } else {
+                                // 그 외(지역/주소 등)인 경우
+                                viewModel.selectPlace(prediction, onPlaceSelectedLocation)
+                            }
                         }
                     }
                 }
