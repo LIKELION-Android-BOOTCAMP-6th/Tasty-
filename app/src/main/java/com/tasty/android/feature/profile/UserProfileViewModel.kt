@@ -184,6 +184,7 @@ class UserProfileViewModel(
 
     fun toggleFollow() {
         if (currentUserId.isBlank() || targetUserId == currentUserId) return
+
         if (_uiState.value.isFollowActionLoading) return // 중복 요청 방지
         
         val follow = Follow(followerUserId = currentUserId, followingUserId = targetUserId)
