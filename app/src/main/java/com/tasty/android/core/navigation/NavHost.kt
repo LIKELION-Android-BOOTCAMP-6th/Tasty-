@@ -176,7 +176,8 @@ fun CustomNavHost(
 
             TastyMapScreen(
                 navController = navController,
-                onScaffoldConfigChange = onScaffoldConfigChange
+                onScaffoldConfigChange = onScaffoldConfigChange,
+                initialRestaurantId = placeId
             )
         }
         composable(Screen.MAP_SEARCH_LOCATION.route){
