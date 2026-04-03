@@ -1,7 +1,10 @@
 package com.tasty.android.feature.tasty
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,13 +16,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.Icon
@@ -42,7 +49,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
-import com.tasty.android.core.design.theme.PrimaryColor
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import com.tasty.android.core.design.theme.TextColor
 
 @Composable
 fun TastyScreen(
@@ -52,6 +61,7 @@ fun TastyScreen(
     viewModel: TastyViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val gridState  = rememberLazyGridState()
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -65,6 +75,17 @@ fun TastyScreen(
         )
     }
 
+    LaunchedEffect(uiState.selectedSortType) {
+        if (uiState.tastyList.isNotEmpty()) gridState.animateScrollBy(
+            value = -100000f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        gridState.scrollToItem(0)
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -73,7 +94,8 @@ fun TastyScreen(
         uiState = uiState,
         onSelectSort = viewModel::selectSort,
         onClickTastyItem = onClickTastyItem,
-        modifier = modifier
+        modifier = modifier,
+        state = gridState
     )
 }
 
@@ -82,7 +104,8 @@ private fun TastyScreenContent(
     uiState: TastyUiState,
     onSelectSort: (TastySortType) -> Unit,
     onClickTastyItem: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    state: LazyGridState
 ) {
     Column(
         modifier = modifier
@@ -102,6 +125,7 @@ private fun TastyScreenContent(
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
+            state = state,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
             contentPadding = PaddingValues(bottom = 20.dp)
@@ -109,7 +133,8 @@ private fun TastyScreenContent(
             items(uiState.tastyList, key = { it.tastyId }) { item ->
                 TastyCard(
                     item = item,
-                    onClick = { onClickTastyItem(item.tastyId) }
+                    onClick = { onClickTastyItem(item.tastyId) },
+                    isLiked = item.isLiked
                 )
             }
         }
@@ -162,70 +187,91 @@ private fun SortChip(
 @Composable
 private fun TastyCard(
     item: TastyItemUiModel,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isLiked: Boolean
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PrimaryColor)
-            .clickable(onClick = onClick)
-            .padding(bottom = 10.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = Color(0xFFFF1493),
-                    fontWeight = FontWeight.Bold
-                ),
-                maxLines = 1
-            )
-        }
-
-        AsyncImage(
-            model = item.thumbnailImageUrl,
-            contentDescription = item.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .padding(horizontal = 8.dp)
-                .clip(RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        shape = RoundedCornerShape(18.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color.Black.copy(alpha = 0.05f)
         )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = Icons.Outlined.FavoriteBorder,
-                contentDescription = "좋아요",
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = formatCount(item.likeCount),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = TextColor,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1
+                )
+            }
+
+            AsyncImage(
+                model = item.thumbnailImageUrl,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .background(Color(0xFFBEBEBE))
             )
 
-            Spacer(modifier = Modifier.width(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Icon(
-                imageVector = Icons.Outlined.RemoveRedEye,
-                contentDescription = "조회수",
-                tint = Color.Black
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = formatCount(item.viewCount),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = "좋아요",
+                    tint = if (isLiked) Color.Red else Color.Black,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatCount(item.likeCount),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Icon(
+                    imageVector = Icons.Outlined.RemoveRedEye,
+                    contentDescription = "조회수",
+                    tint = TextColor,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatCount(item.viewCount),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }

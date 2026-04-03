@@ -1,6 +1,7 @@
 package com.tasty.android.feature.feed
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,6 +64,9 @@ import com.tasty.android.core.navigation.TabScreen
 import com.tasty.android.core.util.toFormattedDate
 import com.tasty.android.feature.feed.model.FeedComment
 import com.tasty.android.feature.vmfactory.FeedDetailViewModelFactory
+import androidx.compose.runtime.*
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
@@ -79,6 +83,8 @@ fun FeedDetailScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentGraphRoute = navBackStackEntry?.destination?.parent?.route
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -96,6 +102,7 @@ fun FeedDetailScreen(
         viewModel.loadFeedDetail(feedId)
     }
 
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh(feedId)
     }
@@ -105,9 +112,7 @@ fun FeedDetailScreen(
         color = Color.White
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
+            modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
                 modifier = Modifier.weight(1f)
@@ -190,7 +195,18 @@ fun FeedDetailScreen(
                                 placeName = post.placeName,
                                 address = post.address,
                                 onClick = {
-                                    navController.navigate("${TabScreen.MAP.route}?placeId=${post.placeId}")
+                                    navController.navigate(
+                                        when (currentGraphRoute) {
+                                            "feed_graph" -> "${Screen.FEED_MAP.route}?placeId=${post.placeId}"
+                                            "tasty_graph" -> "${Screen.TASTY_MAP.route}?placeId=${post.placeId}"
+                                            "map_graph" -> "${TabScreen.MAP.route}?placeId=${post.placeId}"
+                                            "my_page_graph" -> "${Screen.MY_PAGE_MAP.route}?placeId=${post.placeId}"
+                                            else -> {
+                                                throw IllegalArgumentException("알 수 없는 그래프 경로: $currentGraphRoute")
+                                            }
+                                        }
+
+                                    )
                                 }
                             )
 
@@ -294,7 +310,11 @@ fun FeedDetailScreen(
 
             CommentInputBar(
                 value = uiState.commentInput,
-                onValueChange = viewModel::updateCommentInput,
+                onValueChange = { newValue ->
+                    if (newValue.length <= 100) {
+                        viewModel.updateCommentInput(newValue)
+                    }
+                },
                 onSendClick = { viewModel.submitComment(feedId) },
                 enabled = uiState.canSubmitComment
             )
@@ -366,7 +386,7 @@ private fun FeedDetailHeader(
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = if (index < post.rating) TextColor else Gray300,
+                        tint = if (index < post.rating) Color(0xFFFFC107) else Gray300,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -436,6 +456,9 @@ private fun CommentItem(
     comment: FeedComment,
     onProfileClick: () -> Unit
 ) {
+    var expanded by remember(comment.commentId) { mutableStateOf(false) }
+    var hasOverflow by remember(comment.commentId) { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -498,8 +521,29 @@ private fun CommentItem(
                 text = comment.content,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = TextColor
-                )
+                ),
+                maxLines = if (expanded) Int.MAX_VALUE else 5,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { result ->
+                    if (!expanded) {
+                        hasOverflow = result.hasVisualOverflow
+                    }
+                }
             )
+
+            if (hasOverflow) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (expanded) "접기" else "더보기",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = TextColor.copy(alpha = 0.4f),
+                        fontWeight = FontWeight.Bold
+                    ),
+                    modifier = Modifier.clickable {
+                        expanded = !expanded
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -524,39 +568,50 @@ private fun CommentInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Gray100)
+            .imePadding()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .border(
-                    width = 1.dp,
-                    color = Gray300,
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .background(Color.White, RoundedCornerShape(24.dp))
-                .padding(horizontal = 14.dp, vertical = 11.dp)
-        ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = TextColor
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    if (value.isBlank()) {
-                        Text(
-                            text = "댓글을 입력해주세요",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Gray400
+        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = Gray300,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .background(Color.White, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 14.dp, vertical = 11.dp)
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = TextColor
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { innerTextField ->
+                        if (value.isBlank()) {
+                            Text(
+                                text = "댓글을 입력해주세요",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = Gray400
+                                )
                             )
-                        )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
-                }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "${value.length}/100",
+                modifier = Modifier.align(Alignment.End).padding(end = 6.dp),
+                style = MaterialTheme.typography.bodySmall.copy(color = Gray400)
             )
         }
 

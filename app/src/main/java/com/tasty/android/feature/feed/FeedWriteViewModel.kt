@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.libraries.places.api.model.PhotoMetadata
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.StorageManager
 import com.tasty.android.core.firebase.UserStoreManager
@@ -13,7 +12,6 @@ import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.core.place.RestaurantSearchItem
 import com.tasty.android.feature.feed.model.AddressInfo
 import com.tasty.android.feature.feed.model.Feed
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,10 +48,10 @@ data class FeedWriteUiState(
         get() = selectedRestaurant != null
 
     val isContentValid: Boolean
-        get() = content.trim().length >= 10
+        get() = content.trim().length in 10..600
 
     val isShortReviewValid: Boolean
-        get() = shortReview.trim().isNotBlank()
+        get() = shortReview.trim().length in 5..30
 
     val isRatingValid: Boolean
         get() = rating in 1..5
@@ -174,7 +172,8 @@ class FeedWriteViewModel(
                     _searchResults.value = places.map{ place ->
                         RestaurantSearchItem(
                             restaurantId = place.id ?: return@launch,
-                            name = place.name ?: "이름 없음"
+                            name = place.name ?: "이름 없음",
+                            address = place.address ?: "주소 정보 없음"
                         )
 
                     }
@@ -207,13 +206,13 @@ class FeedWriteViewModel(
 
     fun updateContent(content: String) {
         _uiState.update { currentState ->
-            currentState.copy(content = content)
+            currentState.copy(content = content.take(600))
         }
     }
 
     fun updateShortReview(shortReview: String) {
         _uiState.update { currentState ->
-            currentState.copy(shortReview = shortReview)
+            currentState.copy(shortReview = shortReview.take(30))
         }
     }
 
@@ -256,24 +255,17 @@ class FeedWriteViewModel(
         val restaurant = currentState.selectedRestaurant ?: return
 
         viewModelScope.launch {
-            // 측정 전체 시작 시각
-            val startTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", "업로드 시퀀스 시작")
-            
+
             _uiState.update {
                 it.copy(isSubmitting = true)
             }
 
             val feedId = feedStoreManager.generateFeedId().getOrNull() ?: ""
 
-            // 1. 이미지 처리 & 업로드 측정
-            val uploadStartTime = System.currentTimeMillis()
             val feedImageUrlsResult = storageManager.uploadFeedImages(
                 feedId = feedId,
                 feedImageUris = currentState.photos.map { it.uri }
             )
-            val uploadEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", " [이미지 업로드]: ${(uploadEndTime - uploadStartTime) / 1000.0}초")
 
             val feedImageUrls = feedImageUrlsResult.getOrElse {
                 _uiState.update { currentState ->
@@ -285,12 +277,8 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-            // 유저 정보 조회 측정 (캐시 여부 확인)
-            val userStartTime = System.currentTimeMillis()
-            val userProfile = userStoreManager.currentUserProfile.value 
-                ?: userStoreManager.getUser(authorId).getOrNull() 
-            val userEndTime = System.currentTimeMillis()
-            android.util.Log.d("FeedUpload", " [유저 정보 조회]: ${(userEndTime - userStartTime) / 1000.0}초")
+            val userProfile = userStoreManager.currentUserProfile.value
+                ?: userStoreManager.getUser(authorId).getOrNull() // 캐시 없으면 폴백
 
             val feed = Feed(
                 feedId = feedId,
@@ -313,21 +301,14 @@ class FeedWriteViewModel(
                 )
             )
 
-            // 피드 저장 (Firestore DB) 측정
-            val dbStartTime = System.currentTimeMillis()
+
             feedStoreManager.saveFeed(feed).onSuccess {
-                val dbEndTime = System.currentTimeMillis()
-                android.util.Log.d("FeedUpload", "[DB 문서 저장]: ${(dbEndTime - dbStartTime) / 1000.0}초")
-                
-                // 전체 측정 종료
-                val totalTime = (System.currentTimeMillis() - startTime) / 1000.0
-                android.util.Log.d("FeedUpload", "==== [FINISH] 총 소요 시간: ${totalTime}초 ====")
 
                 _uiState.update { currentState -> currentState.copy(isSubmitting = false) }
                 onSuccess()
             }.onFailure {
-                _uiState.update { currentState -> 
-                    currentState.copy(isSubmitting = false, errorMessage = "피드 저장에 실패했습니다.") 
+                _uiState.update { currentState ->
+                    currentState.copy(isSubmitting = false, errorMessage = "피드 저장에 실패했습니다.")
                 }
             }
         }

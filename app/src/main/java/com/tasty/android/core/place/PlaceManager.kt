@@ -30,7 +30,8 @@ import kotlin.math.cos
 
 data class RestaurantSearchItem(
     val restaurantId: String,
-    val name: String
+    val name: String,
+    val address: String
 )
 
 class PlaceManager(private val context: Context) {
@@ -61,7 +62,8 @@ class PlaceManager(private val context: Context) {
             val restaurants = res.autocompletePredictions.map {
                 RestaurantSearchItem(
                     restaurantId = it.placeId,
-                    name = it.getPrimaryText(null).toString()
+                    name = it.getPrimaryText(null).toString(),
+                    address = it.getSecondaryText(null).toString()
                 )
             }
             Result.success(restaurants)

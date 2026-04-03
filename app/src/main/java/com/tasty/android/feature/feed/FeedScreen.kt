@@ -2,9 +2,12 @@ package com.tasty.android.feature.feed
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,6 +78,7 @@ import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.runtime.SideEffect
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,7 +104,9 @@ fun FeedScreen(
     // 적용 전 임시 필터 상태
     var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
-    LaunchedEffect(Unit) {
+    val currentFilter = uiState.filter
+
+    SideEffect {
         onScaffoldConfigChange(
             ScaffoldConfig(
                 title = "Tasty",
@@ -129,7 +135,7 @@ fun FeedScreen(
 
                         FloatingActionButton(
                             onClick = {
-                                tempFilter = uiState.filter
+                                tempFilter = currentFilter
                                 showFilterSheet = true
                                 showRegionSelection = false
                             },
@@ -147,7 +153,6 @@ fun FeedScreen(
         )
     }
 
-
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -160,6 +165,20 @@ fun FeedScreen(
             }
         }
     }
+    LaunchedEffect(
+        uiState.filter.sortType,
+        uiState.filter.selectedRegionText
+    ) {
+        if (uiState.feedPosts.isNotEmpty()) listState.animateScrollBy(
+            value = -100000f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        listState.scrollToItem(0)
+    }
+
 
     // Refresh 후에 초기값으로 복구
     LaunchedEffect(shouldRefresh) {
@@ -303,7 +322,7 @@ private fun FeedHeaderSection(
                 horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 items(
-                    items = tastyLists.take(4),
+                    items = tastyLists.take(tastyLists.size),
                     key = { it.tastyListId }
                 ) { item ->
 
@@ -552,7 +571,7 @@ private fun FeedCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "별점",
-                                tint = if (index < post.rating) TextColor else Color.LightGray,
+                                tint = if (index < post.rating) Color(0xFFFFC107) else Color.LightGray,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

@@ -25,6 +25,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Tune
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.TextColor
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 
 // 스캐폴드 커스텀 설정 클래스 정의
 data class ScaffoldConfig(
@@ -45,7 +49,7 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
 
     // 경로 파라미터가 포함된 경우를 위해 matching 로직 처리
     return when {
-        // --- Tab Screens (Bottom Bar 있음) ---
+
         route == TabScreen.FEED.route -> ScaffoldConfig(
             title = "Tasty",
             showTopBar = true,
@@ -61,15 +65,14 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
             }
         )
         route == TabScreen.TASTY.route -> ScaffoldConfig(
-            title = "Tasties",
+            title = "Tasty",
             showTopBar = true,
             showBottomBar = true,
             isCenterAligned = true
         )
 
         route == TabScreen.MAP.route -> ScaffoldConfig(
-            title = "지도",
-            showTopBar = true,
+            showTopBar = false,
             showBottomBar = true,
             isCenterAligned = true
         )
@@ -123,13 +126,13 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
             containsBackButton = true
         )
         route.startsWith("tasty_detail") || route.startsWith(Screen.TASTY_DETAIL.route) -> ScaffoldConfig(
-            title = "테이스티 상세",
+            title = "Tasty 상세",
             showTopBar = true,
             showBottomBar = false,
-            containsBackButton = true
+            containsBackButton = true,
+            isCenterAligned = false
         )
         route.startsWith("user_profile") || route.startsWith(Screen.USER_PROFILE.route.split("/")[0]) -> ScaffoldConfig(
-            title = "프로필",
             showTopBar = true,
             showBottomBar = true,
             containsBackButton = true,
@@ -208,12 +211,16 @@ fun CustomScaffold(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // 루트 바뀔 때마다 스크롤 상태 초기화
+    LaunchedEffect(currentRoute) {
+        scrollBehavior.state.contentOffset = 0f
+        scrollBehavior.state.heightOffset = 0f
+    }
+
 
     val predictiveConfig = remember(currentRoute) {
         getPredictiveConfig(currentRoute, navController)
     }
-
-
 
     var screenOverride by remember { mutableStateOf<ScaffoldConfig?>(null) }
 
@@ -222,6 +229,8 @@ fun CustomScaffold(navController: NavHostController) {
     }
 
     val activeConfig = screenOverride ?: predictiveConfig
+
+    val layoutDirection = LocalLayoutDirection.current
 
     Scaffold(
         modifier = if (activeConfig.showTopBar) {
@@ -250,10 +259,21 @@ fun CustomScaffold(navController: NavHostController) {
         },
         containerColor = Color.White
     ) { innerPadding ->
-        // 하위 CustomNavHost에 콜백을 전달하여 스크린의 상세 설정을 screenOverride에 반영
+
+        val contentPadding = if (activeConfig.showBottomBar) {
+            innerPadding
+        } else {
+            PaddingValues(
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
+                bottom = 0.dp
+            )
+        }
+
         CustomNavHost(
             navController = navController,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(contentPadding),
             onScaffoldConfigChange = { newConfig ->
                 screenOverride = newConfig
             }

@@ -48,6 +48,7 @@ enum class Screen(
     MY_PAGE_SELECT_FEEDS("my_page_select_feeds"), // 마이페이지 - 새 테이스티 리스트 만들기 피드 선택 화면
     MY_PAGE_SET_THUMBNAIL_TITLE("my_page_set_thumbnail_title"), // 마이페이지 - 새 테이스티 리스트 만들기 썸네일/제목 설정 화면
     MY_PAGE_EDIT_PROFILE("my_page_edit_profile"), // 마이페이지 - 프로필 수정 화면
+    MY_PAGE_MAP("my_page_map"), // 마이페이지에서 지도화면 진입
 
     /** Map **/
     MAP_SEARCH_LOCATION ("map_search_location"), // 지도 - 지역 검색 화면
@@ -59,9 +60,11 @@ enum class Screen(
     FEED_DETAIL("feed_detail"), // 피드 - 세부 화면
     /** Tasty **/
     TASTY_DETAIL("tasty_detail"), // 테이스티- 세부 화면
-    EDIT_TASTY_LIST("edit_tasty_list/{tastyListId}"), // 테이스티 리스트 수정 화면
+    TASTY_MAP("tasty_map"), // 테이스티 루트에서 맵 진입
+    EDIT_TASTY_LIST("edit_tasty_list"), // 테이스티 리스트 수정 화면
+    FEED_MAP("feed_map"), // 테이스티에서 맵으로 이동 시
 
     /** User Profile **/
-    USER_PROFILE("user_profile/{userId}") // 유저 프로필 - 다른 유저 프로필 화면
+    USER_PROFILE("user_profile") // 유저 프로필 - 다른 유저 프로필 화면
 
 }
