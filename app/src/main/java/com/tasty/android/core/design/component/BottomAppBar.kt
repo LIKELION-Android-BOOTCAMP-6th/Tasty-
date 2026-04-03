@@ -42,8 +42,7 @@ fun CustomBottomAppBar(navController: NavHostController) {
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
-        containerColor = PrimaryColor,
-        modifier = Modifier.height(60.dp)
+        containerColor = PrimaryColor
     ) {
         TabScreen.entries.forEach{ tabScreen ->
 

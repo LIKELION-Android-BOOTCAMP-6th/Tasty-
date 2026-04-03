@@ -106,6 +106,7 @@ fun FeedScreen(
 
     val currentFilter = uiState.filter
 
+
     SideEffect {
         onScaffoldConfigChange(
             ScaffoldConfig(
@@ -153,9 +154,6 @@ fun FeedScreen(
         )
     }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refresh()
-    }
 
     // Observer for Loading Feeds
     LaunchedEffect(listState) {
@@ -165,18 +163,23 @@ fun FeedScreen(
             }
         }
     }
+
+    var lastAppliedFilter by remember { mutableStateOf<FeedFilterUiState?>(null) }
+
     LaunchedEffect(
         uiState.filter.sortType,
         uiState.filter.selectedRegionText
     ) {
-        if (uiState.feedPosts.isNotEmpty()) listState.animateScrollBy(
-            value = -100000f,
-            animationSpec = tween(
-                durationMillis = 2000,
-                easing = LinearOutSlowInEasing
-            )
-        )
-        listState.scrollToItem(0)
+        val currentFilter = uiState.filter
+
+        if (lastAppliedFilter != null && lastAppliedFilter != currentFilter) {
+            if (uiState.feedPosts.isNotEmpty()) {
+                listState.scrollToItem(0)
+            }
+        }
+        
+        // 현재 필터를 마지막 적용된 필터로 저장
+        lastAppliedFilter = currentFilter
     }
 
 

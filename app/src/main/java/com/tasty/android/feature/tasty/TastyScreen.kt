@@ -54,6 +54,9 @@ import coil3.compose.AsyncImage
 import com.tasty.android.core.design.component.ScaffoldConfig
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.tasty.android.core.design.theme.TextColor
 
 @Composable
@@ -78,19 +81,25 @@ fun TastyScreen(
         )
     }
 
+
+    var lastSortType by remember { mutableStateOf<TastySortType?>(null) }
+
     LaunchedEffect(uiState.selectedSortType) {
-        if (uiState.tastyList.isNotEmpty()) gridState.animateScrollBy(
-            value = -100000f,
-            animationSpec = tween(
-                durationMillis = 2000,
-                easing = LinearOutSlowInEasing
-            )
-        )
-        gridState.scrollToItem(0)
+        val currentSort = uiState.selectedSortType
+        
+        // 1. 첫 로드 시에는 스크롤하지 않음
+        // 2. 정렬이 실제로 변경되었을 때만 상단으로 이동
+        if (lastSortType != null && lastSortType != currentSort) {
+            if (uiState.tastyList.isNotEmpty()) {
+                gridState.scrollToItem(0)
+            }
+        }
+        
+        lastSortType = currentSort
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refresh()
+        //viewModel.refresh()
     }
 
     TastyScreenContent(
