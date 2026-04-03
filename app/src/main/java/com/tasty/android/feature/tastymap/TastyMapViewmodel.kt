@@ -182,7 +182,7 @@ class TastyMapViewmodel(
     }
 
     // id로 식당을 찾음
-    fun selectRestaurantById(restaurantId: String, onComplete: () -> Unit) {
+    fun selectRestaurantById(restaurantId: String, location: LatLng, onComplete: () -> Unit) {
         viewModelScope.launch {
             // 이미 리스트에 데이터가 있는지 확인
             val target = uiState.restaurants.find { it.id == restaurantId }
@@ -194,7 +194,7 @@ class TastyMapViewmodel(
                     placeId = restaurantId,
                     onSuccess = { newRestaurant ->
                         // Firestore 정보와 병합
-                        syncWithFirestoreAndSelect(newRestaurant)
+                        syncWithFirestoreAndSelect(newRestaurant, location)
                     },
                     onFailure = { /* 에러 처리 */ })
             }
@@ -203,7 +203,7 @@ class TastyMapViewmodel(
         }
     }
 
-    private fun syncWithFirestoreAndSelect(restaurant: RestaurantData) {
+    private fun syncWithFirestoreAndSelect(restaurant: RestaurantData, location: LatLng) {
         viewModelScope.launch {
             // Firestore에서 리뷰 개수 등 추가 정보 가져오기
             val firestoreResult = mapStoreManager.getRestaurantInfoFromIds(listOf(restaurant.id))
@@ -213,7 +213,9 @@ class TastyMapViewmodel(
                     val info = infoMap[restaurant.id]
                     restaurant.copy(
                         rating = info?.ratingAvg ?: restaurant.rating,
-                        feedCount = info?.feedCount ?: 0
+                        feedCount = info?.feedCount ?: 0,
+                        distance = calculateDistance(location.latitude, location.longitude,
+                            restaurant.latitude, restaurant.longitude)
                     )
                 },
                 onFailure = { restaurant }
