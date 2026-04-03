@@ -209,23 +209,40 @@ fun FeedScreen(
             item {
                 Spacer(modifier = Modifier.height(10.dp))
             }
-
-            items(
-                items = uiState.feedPosts,
-                key = { it.feedId }
-            ) { feedPost ->
-                FeedCard(
-                    post = feedPost,
-                    onCardClick = {
-                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
-                    },
-                    onProfileClick = {
-                        navController.navigate("${Screen.USER_PROFILE.route}/${feedPost.authorId}")
-                    },
-                    onLikeClick = {
-                        viewModel.toggleLike(feedPost.feedId)
+            if (uiState.feedPosts.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "조건에 맞는 피드가 없어요",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color.Gray
+                            )
+                        )
                     }
-                )
+                }
+            } else {
+
+                items(
+                    items = uiState.feedPosts,
+                    key = { it.feedId }
+                ) { feedPost ->
+                    FeedCard(
+                        post = feedPost,
+                        onCardClick = {
+                            navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
+                        },
+                        onProfileClick = {
+                            navController.navigate("${Screen.USER_PROFILE.route}/${feedPost.authorId}")
+                        },
+                        onLikeClick = {
+                            viewModel.toggleLike(feedPost.feedId)
+                        }
+                    )
+                }
             }
         }
 
