@@ -2,12 +2,9 @@ package com.tasty.android.feature.feed
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,8 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -79,7 +74,6 @@ import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.SideEffect
-import androidx.navigation.compose.currentBackStackEntryAsState
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,11 +87,6 @@ fun FeedScreen(
 
     // 리스트 상태 저장
     val listState = rememberLazyListState()
-    // refresh 상태 저장
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val savedStateHandle = navBackStackEntry?.savedStateHandle
-
-    val shouldRefresh = savedStateHandle?.get<Boolean>("refreshFeed") ?: false
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
