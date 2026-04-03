@@ -60,6 +60,9 @@ fun PlaceSearchScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
+                    cursorColor = Color.Gray, // 커서 색상
+                    focusedLabelColor = Color.Black, // 포커스 시 레이블 색상
+                    unfocusedLabelColor = Color.Gray,      // 포커스 해제 시 레이블 색상
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White,
                     focusedBorderColor = Color.Gray,

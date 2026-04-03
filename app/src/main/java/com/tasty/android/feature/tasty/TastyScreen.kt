@@ -1,23 +1,31 @@
 package com.tasty.android.feature.tasty
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,6 +64,7 @@ fun TastyScreen(
     viewModel: TastyViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val gridState  = rememberLazyGridState()
 
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -69,6 +78,17 @@ fun TastyScreen(
         )
     }
 
+    LaunchedEffect(uiState.selectedSortType) {
+        if (uiState.tastyList.isNotEmpty()) gridState.animateScrollBy(
+            value = -100000f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        gridState.scrollToItem(0)
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -77,7 +97,8 @@ fun TastyScreen(
         uiState = uiState,
         onSelectSort = viewModel::selectSort,
         onClickTastyItem = onClickTastyItem,
-        modifier = modifier
+        modifier = modifier,
+        state = gridState
     )
 }
 
@@ -86,7 +107,8 @@ private fun TastyScreenContent(
     uiState: TastyUiState,
     onSelectSort: (TastySortType) -> Unit,
     onClickTastyItem: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    state: LazyGridState
 ) {
     Column(
         modifier = modifier
@@ -106,9 +128,13 @@ private fun TastyScreenContent(
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
+            state = state,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
-            contentPadding = PaddingValues(bottom = 20.dp)
+            contentPadding = PaddingValues(
+                top = 12.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
+            )
         ) {
             items(uiState.tastyList, key = { it.tastyId }) { item ->
                 TastyCard(

@@ -184,6 +184,8 @@ class UserProfileViewModel(
 
     fun toggleFollow() {
         if (currentUserId.isBlank() || targetUserId == currentUserId) return
+
+        if (_uiState.value.isFollowActionLoading) return // 중복 요청 방지
         
         val follow = Follow(followerUserId = currentUserId, followingUserId = targetUserId)
         val isCurrentlyFollowing = _uiState.value.isFollowing
@@ -198,10 +200,10 @@ class UserProfileViewModel(
             }
             
             if (result.isSuccess) {
+                // 버튼 상태만 즉시 업데이트, 카운트는 observeUserProfile의 실시간 데이터에 의존
                 _uiState.update { state ->
                     state.copy(
                         isFollowing = !isCurrentlyFollowing,
-                        followerCount = if (isCurrentlyFollowing) state.followerCount - 1 else state.followerCount + 1,
                         isFollowActionLoading = false
                     )
                 }

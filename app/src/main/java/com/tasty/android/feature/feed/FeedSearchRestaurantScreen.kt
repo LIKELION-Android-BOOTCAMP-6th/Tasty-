@@ -113,7 +113,7 @@ fun FeedSearchRestaurantScreen(
                                 viewModel.selectRestaurant(item.restaurantId)
                                 navController.popBackStack()
                             }
-                            .padding(vertical = 16.dp, horizontal = 8.dp),
+                            .padding(horizontal = 8.dp),
                         style = MaterialTheme.typography.bodySmall
                     )
                     HorizontalDivider()

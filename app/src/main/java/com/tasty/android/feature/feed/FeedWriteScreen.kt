@@ -1,5 +1,6 @@
 package com.tasty.android.feature.feed
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -53,9 +55,11 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.tasty.android.core.design.component.AppBarAction
 import com.tasty.android.core.design.component.ScaffoldConfig
+import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
+import org.intellij.lang.annotations.JdkConstants
 
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
@@ -69,6 +73,7 @@ fun FeedWriteScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val authorId = Firebase.auth.currentUser?.uid ?: ""
+    val context = LocalContext.current
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(5)
@@ -91,6 +96,9 @@ fun FeedWriteScreen(
                 topBarActions = listOf(
                     AppBarAction(
                         onActionClick = {
+                            if (!uiState.canSubmit) {
+                                Toast.makeText(context, "필수 항목들을 입력해주세요", Toast.LENGTH_SHORT).show()
+                            }
                             if (uiState.canSubmit && !uiState.isSubmitting) {
                                 viewModel.submitPost(authorId = authorId) {
                                     navController.previousBackStackEntry?.savedStateHandle?.set("refreshFeed", true)
@@ -190,66 +198,79 @@ private fun RestaurantSelectSection(
     onClick: () -> Unit,
     onClearClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = Color(0xFFD9D9D9),
-                shape = RoundedCornerShape(6.dp)
+
+    Column {
+        Text(
+            "(필수)",
+            style = MaterialTheme.typography.titleMedium.copy(
+                color = Color(0xFFB4E494)
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.LocationOn,
-            contentDescription = "식당 선택",
-            tint = TextColor
         )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        if (selectedRestaurant == null) {
-            Text(
-                text = "식당을 선택해주세요",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = TextColor
-                ),
-                modifier = Modifier.weight(1f)
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = Color(0xFFD9D9D9),
+                    shape = RoundedCornerShape(6.dp)
+                )
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = "식당 선택",
+                tint = TextColor
             )
-        } else {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = selectedRestaurant.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        color = TextColor
-                    )
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = selectedRestaurant.address,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = TextColor
-                    )
-                )
-            }
-        }
 
-        if (selectedRestaurant != null) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable(onClick = onClearClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "선택 해제",
-                    tint = TextColor
-                )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (selectedRestaurant == null) {
+                Row {
+                    Text(
+                        text = "방문하신 식당을 선택해주세요.",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = TextColor
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+            } else {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = selectedRestaurant.name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = TextColor
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = selectedRestaurant.address,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextColor
+                        )
+                    )
+                }
+            }
+
+            if (selectedRestaurant != null) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable(onClick = onClearClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "선택 해제",
+                        tint = TextColor
+                    )
+                }
             }
         }
     }
@@ -260,27 +281,47 @@ private fun RatingSection(
     rating: Int,
     onRatingSelected: (Int) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        repeat(5) { index ->
-            val star = index + 1
-
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clickable { onRatingSelected(star) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "별점 $star",
-                    tint = if (star <= rating) TextColor else Color(0xFFD9D9D9),
-                    modifier = Modifier.size(34.dp)
+    Column {
+        Column(
+        ) {
+            Text(
+                "(필수)",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = Color(0xFFB4E494)
                 )
-            }
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                "1~5점 사이의 종합적인 (맛, 서비스 등) ⭐\uFE0F을 매겨주세요.",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = TextColor
+                )
+            )
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(5) { index ->
+                val star = index + 1
+
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clickable { onRatingSelected(star) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "별점 $star",
+                        tint = if (star <= rating) Color(0xFFFFC107) else Color.LightGray,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.padding(horizontal = 2.dp))
+        }
+
     }
 }
 
@@ -290,6 +331,19 @@ private fun ContentInputSection(
     onValueChange: (String) -> Unit
 ) {
     Column {
+        Text(
+            "(필수)",
+            style = MaterialTheme.typography.titleMedium.copy(
+                color = Color(0xFFB4E494)
+            )
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            "\uD83C\uDF74 방문하신 식당의 리뷰를 남겨주세요.",
+            style = MaterialTheme.typography.titleMedium.copy(
+                color = TextColor
+            )
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -311,7 +365,7 @@ private fun ContentInputSection(
                 decorationBox = { innerTextField ->
                     if (content.isBlank()) {
                         Text(
-                            text = "오늘 먹은 음식은 어땠나요? (10~600자)",
+                            text = "오늘 드신 음식은 어땠나요?\n(10~600자)",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = Color(0xFFB5B5B5)
                             )
@@ -339,14 +393,18 @@ private fun ShortReviewSection(
 ) {
     Column {
         Text(
-            text = "한줄평",
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = TextColor
-            )
+            text = "(필수)",
+            style = MaterialTheme.typography.titleMedium.copy(
+                color = Color(0xFFB4E494)
+            ),
         )
-
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "✏\uFE0F 한줄평을 남겨주세요.",
+            style = MaterialTheme.typography.titleMedium,
+            color = TextColor
+        )
         Spacer(modifier = Modifier.height(4.dp))
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -396,8 +454,15 @@ private fun PhotoSection(
 ) {
     Column {
         Text(
-            text = "사진 추가",
-            style = MaterialTheme.typography.bodySmall,
+            text = "(필수)",
+            style = MaterialTheme.typography.titleMedium.copy(
+                color = Color(0xFFB4E494)
+            )
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "\uD83D\uDCF7 식당에서 찍으신 사진을 1장 이상 첨부해주세요.",
+            style = MaterialTheme.typography.titleMedium,
             color = TextColor
         )
 

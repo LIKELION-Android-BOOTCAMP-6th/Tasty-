@@ -2,9 +2,12 @@ package com.tasty.android.feature.feed
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -126,7 +129,7 @@ fun FeedScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "게시글 작성"
+                                contentDescription = "게시글 작성",
                             )
                         }
 
@@ -162,6 +165,20 @@ fun FeedScreen(
             }
         }
     }
+    LaunchedEffect(
+        uiState.filter.sortType,
+        uiState.filter.selectedRegionText
+    ) {
+        if (uiState.feedPosts.isNotEmpty()) listState.animateScrollBy(
+            value = -100000f,
+            animationSpec = tween(
+                durationMillis = 2000,
+                easing = LinearOutSlowInEasing
+            )
+        )
+        listState.scrollToItem(0)
+    }
+
 
     // Refresh 후에 초기값으로 복구
     LaunchedEffect(shouldRefresh) {
@@ -192,23 +209,40 @@ fun FeedScreen(
             item {
                 Spacer(modifier = Modifier.height(10.dp))
             }
-
-            items(
-                items = uiState.feedPosts,
-                key = { it.feedId }
-            ) { feedPost ->
-                FeedCard(
-                    post = feedPost,
-                    onCardClick = {
-                        navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
-                    },
-                    onProfileClick = {
-                        navController.navigate("${Screen.USER_PROFILE.route}/${feedPost.authorId}")
-                    },
-                    onLikeClick = {
-                        viewModel.toggleLike(feedPost.feedId)
+            if (uiState.feedPosts.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "조건에 맞는 피드가 없어요",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color.Gray
+                            )
+                        )
                     }
-                )
+                }
+            } else {
+
+                items(
+                    items = uiState.feedPosts,
+                    key = { it.feedId }
+                ) { feedPost ->
+                    FeedCard(
+                        post = feedPost,
+                        onCardClick = {
+                            navController.navigate("${Screen.FEED_DETAIL.route}/${feedPost.feedId}")
+                        },
+                        onProfileClick = {
+                            navController.navigate("${Screen.USER_PROFILE.route}/${feedPost.authorId}")
+                        },
+                        onLikeClick = {
+                            viewModel.toggleLike(feedPost.feedId)
+                        }
+                    )
+                }
             }
         }
 
