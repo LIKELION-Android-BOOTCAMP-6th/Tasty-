@@ -125,7 +125,7 @@ fun FeedScreen(
                         contentColor = TextColor,
                         modifier = Modifier
                             .navigationBarsPadding()
-                            .padding(bottom = 84.dp)
+                            .padding(bottom = 57.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -136,9 +136,6 @@ fun FeedScreen(
             )
         )
     }
-
-
-
     // Observer for Loading Feeds
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.distinctUntilChanged().collect {lastIdx ->
@@ -234,7 +231,7 @@ fun FeedScreen(
             contentColor = TextColor,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 28.dp)
+                .padding(end = 16.dp, bottom = 1.dp)
                 .navigationBarsPadding()
         ) {
             Icon(

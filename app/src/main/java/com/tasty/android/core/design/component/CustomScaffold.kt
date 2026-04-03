@@ -183,7 +183,7 @@ fun FeedFab(
             contentColor = TextColor,
             modifier = Modifier
                 .navigationBarsPadding()
-                .padding(bottom = 84.dp)
+                .padding(bottom = 57.dp)
 
         ) {
             Icon(
