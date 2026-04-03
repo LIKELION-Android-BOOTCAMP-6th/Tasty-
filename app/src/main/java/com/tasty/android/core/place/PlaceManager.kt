@@ -209,7 +209,7 @@ class PlaceManager(private val context: Context) {
         val placeFields = listOf(
             Field.ID, Field.NAME, Field.ADDRESS, Field.LAT_LNG,
             Field.BUSINESS_STATUS, Field.PHOTO_METADATAS, Field.OPENING_HOURS,
-            Field.PHONE_NUMBER, Field.TYPES, Field.PRICE_LEVEL
+            Field.PHONE_NUMBER, Field.TYPES, Field.PRICE_LEVEL, Field.UTC_OFFSET
         )
 
         // 나선형(Spiral) 경로로 탐색할 위경도 좌표 리스트 생성
