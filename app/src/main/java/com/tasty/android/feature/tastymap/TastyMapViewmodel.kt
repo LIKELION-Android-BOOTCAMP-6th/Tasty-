@@ -136,7 +136,10 @@ class TastyMapViewmodel(
                             val info = infoMap[rest.id]
                             rest.copy(
                                 rating = info?.ratingAvg ?: rest.rating,
-                                feedCount = info?.feedCount ?: 0
+                                feedCount = info?.feedCount ?: 0,
+                                // 사용자의 현재 위치와 식당 사이의 거리를 계산 (미터 단위)
+                                distance = calculateDistance(location.latitude, location.longitude,
+                                    rest.latitude, rest.longitude)
                             )
                         }
                     },
@@ -232,12 +235,7 @@ class TastyMapViewmodel(
             SortType.DISTANCE -> {
                 // 유저 위치가 있을 때만 거리순 정렬, 없으면 그대로 유지
                 if (userLoc != null) {
-                    currentRestaurants.sortedBy { rest ->
-                        // 위도/경도 차이를 이용한 단순 거리 비교 (정교한 계산이 필요하면 calculateDistance 사용)
-                        val latDiff = rest.latitude - userLoc.latitude
-                        val lngDiff = rest.longitude - userLoc.longitude
-                        latDiff * latDiff + lngDiff * lngDiff
-                    }
+                    currentRestaurants.sortedBy { it.distance }
                 } else {
                     currentRestaurants
                 }
