@@ -275,28 +275,28 @@ fun RestaurantListSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), // 상하 패딩을 16dp에서 8dp로 조정
+                verticalArrangement = Arrangement.spacedBy(16.dp) // 항목 간 간격을 24dp에서 16dp로 축소
             ) {
                 // 바텀 시트 정렬 버튼
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                            .padding(bottom = 4.dp), // 하단 여백을 8dp에서 4dp로 축소
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // 거리순 정렬 버튼
                         FilterChip(
                             selected = uiState.sortType == SortType.DISTANCE,
                             onClick = { viewModel.setSortType(SortType.DISTANCE) },
-                            label = { Text("거리순") },
+                            label = { Text("거리순", fontSize = 12.sp) }, // 폰트 사이즈 미세 조정 가능
                             leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
                                 {
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp) // 아이콘 크기 18dp에서 16dp로 축소
                                     )
                                 }
                             } else null
@@ -306,13 +306,13 @@ fun RestaurantListSheet(
                         FilterChip(
                             selected = uiState.sortType == SortType.RATING,
                             onClick = { viewModel.setSortType(SortType.RATING) },
-                            label = { Text("평점순") },
+                            label = { Text("평점순", fontSize = 12.sp) },
                             leadingIcon = if (uiState.sortType == SortType.RATING) {
                                 {
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                             } else null

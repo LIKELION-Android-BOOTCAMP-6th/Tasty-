@@ -243,7 +243,6 @@ class PlaceManager(private val context: Context) {
                             // 특정 지점 주변 식당 검색 요청
                             val circle = CircularBounds.newInstance(point, searchRadius)
                             val request = SearchNearbyRequest.builder(circle, placeFields)
-                                .setRankPreference(SearchNearbyRequest.RankPreference.DISTANCE)
                                 .setIncludedTypes(listOf("restaurant", "cafe", "bakery", "bar"))
                                 .build()
 
