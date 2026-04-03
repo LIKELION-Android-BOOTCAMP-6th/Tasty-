@@ -43,8 +43,7 @@ fun CustomBottomAppBar(navController: NavHostController) {
 
     NavigationBar(
         containerColor = PrimaryColor,
-        modifier = Modifier.height(60.dp).background(Color.Transparent),
-        windowInsets = WindowInsets(0)
+        modifier = Modifier.height(60.dp)
     ) {
         TabScreen.entries.forEach{ tabScreen ->
 

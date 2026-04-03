@@ -21,6 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -62,6 +65,16 @@ class MainActivity : ComponentActivity() {
             isUserLoaded = true
         }
         enableEdgeToEdge()
+
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+
+        insetsController.apply {
+
+            hide(WindowInsetsCompat.Type.navigationBars())
+
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         setContent {
             MyApplicationTheme {
                 val navController = rememberNavController() // NavController 선언
