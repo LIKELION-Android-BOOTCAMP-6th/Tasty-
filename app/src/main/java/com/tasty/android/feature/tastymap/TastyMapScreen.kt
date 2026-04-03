@@ -113,19 +113,20 @@ fun TastyMapScreen(
     }
 
     // 화면 진입 시 위치 초기화 및 Scaffold 설정
-    LaunchedEffect(Unit) {
+    LaunchedEffect(initialRestaurantId, uiState.isLocationLoading) {
         viewModel.initializeLocation { latLng ->
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+
+            if (initialRestaurantId == null)
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
 
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
-            initialRestaurantId?.let { id ->
-                viewModel.selectRestaurantById(id, {
+            if (initialRestaurantId != null && !uiState.isLocationLoading) {
+                // 위치 로딩이 끝나고 ID가 있을 때 실행
+                viewModel.selectRestaurantById(initialRestaurantId) {
                     scope.launch {
                         scaffoldState.bottomSheetState.partialExpand()
-                        scaffoldState.bottomSheetState.show()
                     }
                 }
-                )
             }
         }
     }
@@ -457,6 +458,9 @@ fun RestaurantItem(
     // 영업시간 상세 목록의 펼침 상태를 관리하는 변수
     var isHoursExpanded by remember { mutableStateOf(false) }
 
+    val ratingText = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
+    val displayRatingText = if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
+
     // 사용자의 현재 위치와 식당 사이의 거리를 계산 (미터 단위)
     val distance = userLocation?.let {
         calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
@@ -475,37 +479,40 @@ fun RestaurantItem(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom // 이름과 영업 상태의 하단 라인을 맞춤
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // 별점 표시 (이름 위로 이동)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB400),
+                        modifier = Modifier.size(14.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    Text(
+                        text = displayRatingText,
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Color(0xFF333333)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 식당 이름
                 Text(
                     text = restaurant.name,
                     style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = Color(0xFFFFB400),
-                    modifier = Modifier.size(16.dp)
-                )
-
-                Spacer(modifier = Modifier.width(2.dp))
-
-                Text(
-                    text = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0",
-                    style = TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF333333)
-                    )
                 )
             }
 
@@ -519,7 +526,7 @@ fun RestaurantItem(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp
                 ),
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
             )
         }
 
