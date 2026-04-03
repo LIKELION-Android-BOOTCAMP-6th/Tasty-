@@ -180,7 +180,11 @@ fun FeedFab(
         FloatingActionButton(
             onClick = onWriteClick,
             containerColor = PrimaryColor,
-            contentColor = TextColor
+            contentColor = TextColor,
+            modifier = Modifier
+                .navigationBarsPadding()
+                .padding(bottom = 84.dp)
+
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
@@ -188,16 +192,7 @@ fun FeedFab(
             )
         }
 
-        FloatingActionButton(
-            onClick = onFilterClick,
-            containerColor = PrimaryColor,
-            contentColor = TextColor
-        ) {
-            Icon(
-                imageVector = Icons.Default.Tune,
-                contentDescription = "필터"
-            )
-        }
+
     }
 }
 
