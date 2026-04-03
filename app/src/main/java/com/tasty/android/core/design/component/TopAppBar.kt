@@ -2,6 +2,7 @@ package com.tasty.android.core.design.component
 
 import android.accessibilityservice.GestureDescription
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons

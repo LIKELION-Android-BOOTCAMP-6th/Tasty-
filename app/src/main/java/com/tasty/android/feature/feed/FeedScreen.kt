@@ -129,7 +129,7 @@ fun FeedScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "게시글 작성"
+                                contentDescription = "게시글 작성",
                             )
                         }
 
