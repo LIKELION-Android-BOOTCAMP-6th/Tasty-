@@ -1,13 +1,18 @@
 package com.tasty.android.core.design.component
 
 import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,7 +42,9 @@ fun CustomBottomAppBar(navController: NavHostController) {
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
-        containerColor = PrimaryColor
+        containerColor = PrimaryColor,
+        modifier = Modifier.height(60.dp).background(Color.Transparent),
+        windowInsets = WindowInsets(0)
     ) {
         TabScreen.entries.forEach{ tabScreen ->
 
