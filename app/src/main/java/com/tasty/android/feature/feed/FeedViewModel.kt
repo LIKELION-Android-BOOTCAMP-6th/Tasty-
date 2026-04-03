@@ -15,6 +15,7 @@ import com.tasty.android.core.firebase.TastyUpdateEvent
 import com.tasty.android.core.firebase.UserStoreManager
 import com.tasty.android.core.location.LocationManager
 import com.tasty.android.feature.feed.mapper.toFeedPostUiModel
+import com.tasty.android.feature.feed.model.Feed
 import com.tasty.android.feature.feed.model.FeedLike
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -100,7 +101,7 @@ class FeedViewModel(
 
     // 거리순 캐싱 데이타
     private data class DistanceCache(
-        val feeds: List<FeedPostUiModel>,
+        val feeds: List<Feed>, //
         val cachedLat: Double,
         val cachedLng: Double,
         val cachedAt: TimeSource.Monotonic.ValueTimeMark
@@ -156,6 +157,20 @@ class FeedViewModel(
         originalFeedPosts = originalFeedPosts.map {
             if (it.feedId == feedId) transform(it) else it
         }
+        
+        // 캐시 데이터 동기화
+        distanceCache = distanceCache?.let { cache ->
+            val updatedFeeds = cache.feeds.map { feed ->
+                if (feed.feedId == feedId) {
+                    val updatedUi = transform(feed.toFeedPostUiModel())
+                    feed.copy(
+                        likeCount = updatedUi.likeCount,
+                        commentCount = updatedUi.commentCount
+                    )
+                } else feed
+            }
+            cache.copy(feeds = updatedFeeds)
+        }
     }
 
     private suspend fun updateAuthorInfoInState(authorId: String, newNickname: String, newProfileUrl: String?) = withContext(Dispatchers.Default) {
@@ -176,6 +191,42 @@ class FeedViewModel(
                 post
             }
         }
+
+        // 캐시 데이터 동기화
+        distanceCache = distanceCache?.let { cache ->
+            val updatedFeeds = cache.feeds.map { feed ->
+                if (feed.authorId == authorId) {
+                    feed.copy(
+                        authorNickname = newNickname,
+                        authorProfileUrl = newProfileUrl
+                    )
+                } else feed
+            }
+            cache.copy(feeds = updatedFeeds)
+        }
+    }
+
+    private suspend fun mapFeedsToUiModels(feeds: List<Feed>): List<FeedPostUiModel> = withContext(Dispatchers.Default) {
+        feeds.map { feed ->
+            async {
+                val isLiked = feedStoreManager.isLiked(
+                    FeedLike(
+                        feedId = feed.feedId,
+                        userId = currentUserId
+                    )
+                ).getOrDefault(false)
+
+                val authorNickname = feed.authorNickname.ifBlank { "작성자" }
+                val userHandle = feed.authorHandle.ifBlank { "tastier" }
+
+                feed.toFeedPostUiModel(
+                    authorNickname = authorNickname,
+                    userHandle = userHandle,
+                    authorProfileUrl = feed.authorProfileUrl,
+                    isLiked = isLiked
+                )
+            }
+        }.awaitAll()
     }
 
     fun refresh() {
@@ -203,28 +254,7 @@ class FeedViewModel(
                 lastFeedId = lastFeedId
             ).onSuccess { feeds ->
                 // 데이터 변환 및 필터링 작업을 백그라운드 스레드에서 수행
-                val newUiModels = withContext(Dispatchers.Default) {
-                    feeds.map { feed ->
-                        async {
-                            val isLiked = feedStoreManager.isLiked(
-                                FeedLike(
-                                    feedId = feed.feedId,
-                                    userId = currentUserId ?: ""
-                                )
-                            ).getOrDefault(false)
-
-                            val authorNickname = feed.authorNickname.ifBlank { "작성자" }
-                            val userHandle = feed.authorHandle.ifBlank { "tastier" }
-
-                            feed.toFeedPostUiModel(
-                                authorNickname = authorNickname,
-                                userHandle = userHandle,
-                                authorProfileUrl = feed.authorProfileUrl,
-                                isLiked = isLiked
-                            )
-                        }
-                    }.awaitAll()
-                }
+                val newUiModels = mapFeedsToUiModels(feeds)
 
                 lastFeedId = feeds.lastOrNull()?.feedId
 
@@ -262,9 +292,12 @@ class FeedViewModel(
 
             val cache = distanceCache
             if (cache != null && isCacheValid(cache, myLat, myLng)) {
+                val uiModels = mapFeedsToUiModels(cache.feeds)
+                originalFeedPosts = uiModels
                 _uiState.update { currentState ->
                     currentState.copy(
-                        feedPosts = applyRegionFilter(cache.feeds, currentState.filter)
+                        isLoading = false,
+                        feedPosts = applyRegionFilter(uiModels, currentState.filter)
                     )
                 }
                 return@launch
@@ -278,12 +311,10 @@ class FeedViewModel(
                 userLon = myLng
             ).onSuccess { feeds ->
                 // 리스트 매핑을 백그라운드에서 수행
-                val uiModels = withContext(Dispatchers.Default) {
-                    feeds.map { it.toFeedPostUiModel() }
-                }
+                val uiModels = mapFeedsToUiModels(feeds)
 
                 distanceCache = DistanceCache(
-                    feeds = uiModels,
+                    feeds = feeds, // 원본 Feed 리스트 저장
                     cachedLat = myLat,
                     cachedLng = myLng,
                     cachedAt = TimeSource.Monotonic.markNow()
@@ -381,24 +412,15 @@ class FeedViewModel(
         val safeUserId = if (currentUserId.isBlank()) "anonymous_user" else currentUserId
 
         viewModelScope.launch {
-            val updatedPosts = withContext(Dispatchers.Default) {
-                _uiState.value.feedPosts.map { post ->
-                    if (post.feedId == feedId) post.copy(
-                        isLiked = !isCurrentlyLiked,
-                        likeCount = if (isCurrentlyLiked) post.likeCount - 1
-                        else post.likeCount + 1
-                    )
-                    else post
-                }
+            // 원거리 정렬 캐시 및 상태 통합 업데이트
+            updateFeedPostInState(feedId) { post ->
+                post.copy(
+                    isLiked = !isCurrentlyLiked,
+                    likeCount = if (isCurrentlyLiked) post.likeCount - 1 else post.likeCount + 1
+                )
             }
 
-            _uiState.update { state ->
-                state.copy(feedPosts = updatedPosts)
-            }
-        }
-
-        val feedLike = FeedLike(feedId = feedId, userId = safeUserId)
-        viewModelScope.launch {
+            val feedLike = FeedLike(feedId = feedId, userId = safeUserId)
             val result = if (isCurrentlyLiked) {
                 feedStoreManager.unlikeFeed(feedLike)
             } else {
@@ -406,15 +428,11 @@ class FeedViewModel(
             }
 
             result.onFailure {
-                _uiState.update { state ->
-                    state.copy(
-                        feedPosts = state.feedPosts.map { post ->
-                            if (post.feedId == feedId) post.copy(
-                                isLiked = isCurrentlyLiked,
-                                likeCount = currentPost.likeCount
-                            )
-                            else post
-                        }
+                // 실패 시 롤백
+                updateFeedPostInState(feedId) { post ->
+                    post.copy(
+                        isLiked = isCurrentlyLiked,
+                        likeCount = currentPost.likeCount
                     )
                 }
             }

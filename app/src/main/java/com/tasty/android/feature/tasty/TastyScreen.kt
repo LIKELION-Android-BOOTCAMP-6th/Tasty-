@@ -79,18 +79,21 @@ fun TastyScreen(
     }
 
     LaunchedEffect(uiState.selectedSortType) {
-        if (uiState.tastyList.isNotEmpty()) gridState.animateScrollBy(
-            value = -100000f,
-            animationSpec = tween(
-                durationMillis = 2000,
-                easing = LinearOutSlowInEasing
+        if (uiState.tastyList.isNotEmpty()) {
+            gridState.animateScrollBy(
+                value = -100000f,
+                animationSpec = tween(
+                    durationMillis = 2000,
+                    easing = LinearOutSlowInEasing
+                )
             )
-        )
-        gridState.scrollToItem(0)
+            gridState.scrollToItem(0)
+        }
+
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refresh()
+        //viewModel.refresh()
     }
 
     TastyScreenContent(
