@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -157,6 +158,7 @@ fun MyPageScreen(
             )
         )
     }
+
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
@@ -682,37 +684,47 @@ private fun MyTastyListPage(
     onTastyListClick: (String) -> Unit,
     onTastyListLongClick: (String) -> Unit
 ) {
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = PrimaryColor)
+    val gridState = rememberLazyGridState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (tastyLists.isEmpty() && !isLoading) {
+            EmptyContent(
+                title = "아직 만든 Tasty 리스트가 없어요",
+                description = "새로운 리스트를 만들어보세요"
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                state = gridState,
+                contentPadding = PaddingValues(
+                    top = 14.dp,
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(tastyLists, key = { it.tastyListId }) { tastyItem ->
+                    TastyListThumbnailCard(
+                        item = tastyItem,
+                        onClick = { onTastyListClick(tastyItem.tastyListId) },
+                        onLongClick = { onTastyListLongClick(tastyItem.tastyListId) }
+                    )
+                }
+            }
         }
-    } else if (tastyLists.isEmpty()) {
-        EmptyContent(
-            title = "아직 만든 Tasty 리스트가 없어요",
-            description = "새로운 리스트를 만들어보세요"
-        )
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(
-                top = 14.dp,
-                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 20.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(tastyLists, key = { it.tastyListId }) { tastyItem ->
-                TastyListThumbnailCard(
-                    item = tastyItem,
-                    onClick = { onTastyListClick(tastyItem.tastyListId) },
-                    onLongClick = { onTastyListLongClick(tastyItem.tastyListId) }
-                )
+
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryColor)
             }
         }
     }

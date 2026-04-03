@@ -241,7 +241,6 @@ class FeedViewModel(
         viewModelScope.launch {
             if (isRefresh) {
                 lastFeedId = null
-                originalFeedPosts = emptyList()
                 _uiState.update { it.copy(isLoading = true, hasMore = true) }
                 loadFollowingTastyLists()
             } else {
@@ -286,7 +285,15 @@ class FeedViewModel(
     @RequiresApi(Build.VERSION_CODES.O)
     private fun loadDistanceFeeds() {
         viewModelScope.launch {
-            val location = locationManager.getCurrentLocation().getOrNull() ?: return@launch
+            val locationResult = locationManager.getCurrentLocation()
+            val location = locationResult.getOrNull()
+            if (location == null) {
+
+                _uiState.update { it.copy(
+                    isLoading = false
+                ) }
+                return@launch
+            }
             val myLat = location.first
             val myLng = location.second
 
