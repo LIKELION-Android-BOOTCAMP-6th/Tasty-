@@ -122,7 +122,7 @@ fun TastyMapScreen(
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             if (initialRestaurantId != null && !uiState.isLocationLoading) {
                 // 위치 로딩이 끝나고 ID가 있을 때 실행
-                viewModel.selectRestaurantById(initialRestaurantId) {
+                viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
                     scope.launch {
                         scaffoldState.bottomSheetState.partialExpand()
                     }
@@ -361,7 +361,7 @@ fun MapOverlayUI(
                 }
             },
             onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId, {
+                viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
                     scope.launch {
                         scaffoldState.bottomSheetState.show()
                         scaffoldState.bottomSheetState.partialExpand()
