@@ -79,6 +79,9 @@ import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalContext
+import com.tasty.android.core.location.LocationManager
+import com.tasty.android.core.location.rememberLocationPermissionState
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,6 +108,16 @@ fun FeedScreen(
     var tempFilter by remember { mutableStateOf(FeedFilterUiState()) }
 
     val currentFilter = uiState.filter
+
+    val context = LocalContext.current
+    val locationManager = remember { LocationManager(context) }
+    val locationPermissionState = rememberLocationPermissionState(
+        locationManager = locationManager,
+        onPermissionGranted = {
+            // 권한 및 GPS가 준비되었을 때 거리순 정렬 적용
+            tempFilter = tempFilter.copy(sortType = FeedSortType.DISTANCE)
+        }
+    )
 
 
     SideEffect {
@@ -285,7 +298,11 @@ fun FeedScreen(
                             tempFilter = FeedFilterUiState()
                         },
                         onSortSelected = { sortType ->
-                            tempFilter = tempFilter.copy(sortType = sortType)
+                            if (sortType == FeedSortType.DISTANCE) {
+                                locationPermissionState.checkAndRequestLocation()
+                            } else {
+                                tempFilter = tempFilter.copy(sortType = sortType)
+                            }
                         },
                         onRegionClick = {
                             showRegionSelection = true

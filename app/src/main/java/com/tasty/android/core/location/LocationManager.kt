@@ -73,4 +73,32 @@ class LocationManager(private val context: Context) {
         )
         return results[0].toDouble()
     }
+
+    // 위치 서비스(GPS 하드웨어) 활성화 여부 체크 및 요청
+    fun checkLocationSettings(
+        onResolutionRequired: (com.google.android.gms.common.api.ResolvableApiException) -> Unit,
+        onSuccess: () -> Unit
+    ) {
+        val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
+            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+            5000
+        ).build()
+
+        val builder = com.google.android.gms.location.LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client = com.google.android.gms.location.LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener {
+            onSuccess()
+        }
+
+        task.addOnFailureListener { exception ->
+            if (exception is com.google.android.gms.common.api.ResolvableApiException) {
+                onResolutionRequired(exception)
+            }
+        }
+    }
 }
