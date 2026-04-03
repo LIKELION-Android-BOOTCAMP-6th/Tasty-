@@ -461,11 +461,6 @@ fun RestaurantItem(
     val ratingText = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
     val displayRatingText = if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
 
-    // 사용자의 현재 위치와 식당 사이의 거리를 계산 (미터 단위)
-    val distance = userLocation?.let {
-        calculateDistance(it.latitude, it.longitude, restaurant.latitude, restaurant.longitude)
-    } ?: 0
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -579,7 +574,7 @@ fun RestaurantItem(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = formatDistance(distance),
+                    text = formatDistance(restaurant.distance),
                     style = TextStyle(
                         color = Color(0xFF333333),
                         fontSize = 13.sp,
