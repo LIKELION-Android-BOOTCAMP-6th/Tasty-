@@ -79,6 +79,7 @@ import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.SideEffect
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,8 +94,8 @@ fun FeedScreen(
     // 리스트 상태 저장
     val listState = rememberLazyListState()
     // refresh 상태 저장
-    val currentEntry = navController.currentBackStackEntry
-    val savedStateHandle = currentEntry?.savedStateHandle
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val savedStateHandle = navBackStackEntry?.savedStateHandle
 
     val shouldRefresh = savedStateHandle?.get<Boolean>("refreshFeed") ?: false
 
@@ -115,47 +116,32 @@ fun FeedScreen(
                 containsBackButton = false,
                 isCenterAligned = true,
                 floatingActionButton = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.navigationBarsPadding()
+                    FloatingActionButton(
+                        onClick = {
+                            navController.navigate(Screen.FEED_CREATE_FEED.route)
+                        },
+                        containerColor = PrimaryColor,
+                        contentColor = TextColor,
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 84.dp)
                     ) {
-                        FloatingActionButton(
-                            onClick = {
-                                navController.navigate(Screen.FEED_CREATE_FEED.route)
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "게시글 작성",
-                            )
-                        }
-
-                        FloatingActionButton(
-                            onClick = {
-                                tempFilter = currentFilter
-                                showFilterSheet = true
-                                showRegionSelection = false
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Tune,
-                                contentDescription = "필터"
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "게시글 작성",
+                        )
                     }
                 }
             )
         )
     }
-
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refresh()
+        if (shouldRefresh) {
+            viewModel.invalidateCacheAndRefresh()
+            savedStateHandle?.set("refreshFeed", false)
+        }
     }
+
 
     // Observer for Loading Feeds
     LaunchedEffect(listState) {
@@ -179,19 +165,11 @@ fun FeedScreen(
         listState.scrollToItem(0)
     }
 
-
-    // Refresh 후에 초기값으로 복구
-    LaunchedEffect(shouldRefresh) {
-        if(shouldRefresh) {
-            viewModel.invalidateCacheAndRefresh()
-            savedStateHandle["refreshFeed"] = false
-        }
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF5F5F5)
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -245,6 +223,24 @@ fun FeedScreen(
                 }
             }
         }
+        FloatingActionButton(
+            onClick = {
+                tempFilter = currentFilter
+                showRegionSelection = false
+                showFilterSheet = true
+            },
+            containerColor = PrimaryColor,
+            contentColor = TextColor,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 28.dp)
+                .navigationBarsPadding()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "필터"
+            )
+        }
 
         if (showFilterSheet) {
             ModalBottomSheet(
@@ -293,6 +289,7 @@ fun FeedScreen(
                             showRegionSelection = false
                         }
                     )
+                }
                 }
             }
         }
