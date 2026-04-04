@@ -2,12 +2,9 @@ package com.tasty.android.feature.feed
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,8 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -95,11 +90,6 @@ fun FeedScreen(
 
     // 리스트 상태 저장
     val listState = rememberLazyListState()
-    // refresh 상태 저장
-    val currentEntry = navController.currentBackStackEntry
-    val savedStateHandle = currentEntry?.savedStateHandle
-
-    val shouldRefresh = savedStateHandle?.get<Boolean>("refreshFeed") ?: false
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var showRegionSelection by remember { mutableStateOf(false) }
@@ -129,38 +119,20 @@ fun FeedScreen(
                 containsBackButton = false,
                 isCenterAligned = true,
                 floatingActionButton = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.navigationBarsPadding()
+                    FloatingActionButton(
+                        onClick = {
+                            navController.navigate(Screen.FEED_CREATE_FEED.route)
+                        },
+                        containerColor = PrimaryColor,
+                        contentColor = TextColor,
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 57.dp)
                     ) {
-                        FloatingActionButton(
-                            onClick = {
-                                navController.navigate(Screen.FEED_CREATE_FEED.route)
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "게시글 작성",
-                            )
-                        }
-
-                        FloatingActionButton(
-                            onClick = {
-                                tempFilter = currentFilter
-                                showFilterSheet = true
-                                showRegionSelection = false
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Tune,
-                                contentDescription = "필터"
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "게시글 작성",
+                        )
                     }
                 }
             )
@@ -196,18 +168,21 @@ fun FeedScreen(
     }
 
 
-    // Refresh 후에 초기값으로 복구
-    LaunchedEffect(shouldRefresh) {
-        if(shouldRefresh) {
-            viewModel.invalidateCacheAndRefresh()
-            savedStateHandle["refreshFeed"] = false
+        if (lastAppliedFilter != null && lastAppliedFilter != currentFilter) {
+            if (uiState.feedPosts.isNotEmpty()) {
+                listState.scrollToItem(0)
+            }
         }
+        
+        // 현재 필터를 마지막 적용된 필터로 저장
+        lastAppliedFilter = currentFilter
     }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF5F5F5)
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -261,6 +236,24 @@ fun FeedScreen(
                 }
             }
         }
+        FloatingActionButton(
+            onClick = {
+                tempFilter = currentFilter
+                showRegionSelection = false
+                showFilterSheet = true
+            },
+            containerColor = PrimaryColor,
+            contentColor = TextColor,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 1.dp)
+                .navigationBarsPadding()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "필터"
+            )
+        }
 
         if (showFilterSheet) {
             ModalBottomSheet(
@@ -313,6 +306,7 @@ fun FeedScreen(
                             showRegionSelection = false
                         }
                     )
+                }
                 }
             }
         }

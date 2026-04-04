@@ -6,10 +6,15 @@ import android.content.Context
 import android.location.Location
 import androidx.annotation.RequiresPermission
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationSettingsResponse
 import com.google.android.gms.location.Priority
+import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.tasks.CancellationToken
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.tasks.await
 
 class LocationManager(private val context: Context) {
@@ -74,31 +79,20 @@ class LocationManager(private val context: Context) {
         return results[0].toDouble()
     }
 
-    // 위치 서비스(GPS 하드웨어) 활성화 여부 체크 및 요청
     fun checkLocationSettings(
-        onResolutionRequired: (com.google.android.gms.common.api.ResolvableApiException) -> Unit,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
     ) {
-        val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
-            com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
-            5000
-        ).build()
-
-        val builder = com.google.android.gms.location.LocationSettingsRequest.Builder()
+        // 앱에서 요구하는 위치 정확도 설정
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
+        val builder = LocationSettingsRequest.Builder()
             .addLocationRequest(locationRequest)
-            .setAlwaysShow(true)
+            .setAlwaysShow(true) // 위치가 꺼져 있으면 무조건 다이얼로그 표시
 
-        val client = com.google.android.gms.location.LocationServices.getSettingsClient(context)
+        val client: SettingsClient = LocationServices.getSettingsClient(context)
         val task = client.checkLocationSettings(builder.build())
 
-        task.addOnSuccessListener {
-            onSuccess()
-        }
-
-        task.addOnFailureListener { exception ->
-            if (exception is com.google.android.gms.common.api.ResolvableApiException) {
-                onResolutionRequired(exception)
-            }
-        }
+        task.addOnSuccessListener { onSuccess() }
+        task.addOnFailureListener { exception -> onFailure(exception) }
     }
 }
