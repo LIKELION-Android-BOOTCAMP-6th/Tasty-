@@ -1,11 +1,15 @@
 package com.tasty.android.feature.tastymap
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.graphics.*
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
@@ -49,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
 import com.google.android.libraries.places.api.model.PhotoMetadata
@@ -87,6 +92,45 @@ fun TastyMapScreen(
 
     // 바텀 시트가 완전히 펼쳐진 상태(Expanded)인지 확인
     val isSheetExpanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
+
+    // 위치 설정 팝업 결과 처리를 위한 런처
+    val settingResultLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // 사용자가 '확인'을 눌러 GPS를 켰을 때
+            viewModel.initializeLocation { latLng ->
+
+                if (initialRestaurantId == null)
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+
+                // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
+                if (initialRestaurantId != null && !uiState.isLocationLoading) {
+                    // 위치 로딩이 끝나고 ID가 있을 때 실행
+                    viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
+                        scope.launch {
+                            scaffoldState.bottomSheetState.partialExpand()
+                        }
+                    }
+                }
+            }
+
+        } else {
+            // 사용자가 '취소'를 눌렀을 때 처리
+            Log.d("test", "위치 서비스 활성화 거부됨")
+        }
+    }
+
+    // 화면 진입 시 위치 서비스 체크 실행
+    LaunchedEffect(Unit) {
+        viewModel.checkAndLoadLocation(
+            onResolvableException = { exception ->
+                // 시스템 다이얼로그 띄우기
+                val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                settingResultLauncher.launch(intentSenderRequest)
+            }
+        )
+    }
 
     BackHandler(enabled = isSheetExpanded) {
         scope.launch {
@@ -233,7 +277,7 @@ fun TastyMapScreen(
                     viewModel = viewModel,
                     cameraPositionState = cameraPositionState,
                     uiState = uiState,
-                    scaffoldState
+                    scaffoldState = scaffoldState
                 )
             }
         }
@@ -346,6 +390,26 @@ fun MapOverlayUI(
 ) {
     val scope = rememberCoroutineScope()
 
+    // 위치 설정 팝업 결과 처리를 위한 런처
+    val settingResultLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // 사용자가 '확인'을 눌러 GPS를 켰을 때
+            viewModel.initializeLocation { latLng ->
+                scope.launch {
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newLatLngZoom(latLng, 18f)
+                    )
+                }
+            }
+
+        } else {
+            // 사용자가 '취소'를 눌렀을 때 처리
+            Log.d("test", "위치 서비스 활성화 거부됨")
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         PlaceSearchScreen(
             labelText = "장소 및 음식점 검색",
@@ -425,21 +489,38 @@ fun MapOverlayUI(
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 50.dp, end = 16.dp),
             onClick = {
-                uiState.userLocation?.let {
-                    scope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(
-                                it,
-                                18f
-                            )
-                        )
+                if (uiState.isInitializingLocation) return@FloatingActionButton // 로딩 중 클릭 방지
+                // 위치 서비스 상태를 체크
+                viewModel.checkAndLoadLocation(
+                    onResolvableException = { exception ->
+                        // 서비스가 꺼져 있다면 다이얼로그 출력
+                        val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                        settingResultLauncher.launch(intentSenderRequest)
+                    },
+                    onReady = {
+                        // 서비스가 켜져 있다면 위치를 초기화하고 카메라를 이동
+                        viewModel.initializeLocation { latLng ->
+                            scope.launch {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(latLng, 18f)
+                                )
+                            }
+                        }
                     }
-                }
+                )
             },
-            containerColor = Color.White,
-            contentColor = Color.Blue
+            containerColor = if (uiState.isInitializingLocation) Color.LightGray else Color.White,
+            contentColor = if (uiState.isInitializingLocation) Color.Gray else Color.Blue
         ) {
-            Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
+            if (uiState.isInitializingLocation) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.Blue
+                )
+            } else {
+                Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
+            }
         }
     }
 }

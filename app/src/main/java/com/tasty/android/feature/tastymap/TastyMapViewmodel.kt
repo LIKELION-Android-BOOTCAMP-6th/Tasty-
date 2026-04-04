@@ -10,10 +10,17 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationSettingsResponse
+import com.google.android.gms.location.Priority
+import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.tasks.Task
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.MapStoreManager
@@ -27,6 +34,7 @@ enum class SortType { DISTANCE, RATING }
 
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val isInitializingLocation: Boolean = false,
     val isLocationLoading: Boolean = true,
     val sortType: SortType = SortType.DISTANCE,
     val restaurants: List<RestaurantData> = emptyList(),
@@ -64,14 +72,38 @@ class TastyMapViewmodel(
             }
         }
     }
+    // 디바이스 위치 서비스 체크
+    fun checkAndLoadLocation(
+        onResolvableException: (ResolvableApiException) -> Unit,
+        onReady: () -> Unit = {}
+    ) {
+        locationManager.checkLocationSettings(
+            onSuccess = {
+                // 위치 서비스가 이미 켜져 있음
+                onReady()
+            },
+            onFailure = { exception ->
+                if (exception is ResolvableApiException) {
+                    // 위치 서비스가 꺼져 있음 -> UI 레이어에 다이얼로그 요청 전달
+                    onResolvableException(exception)
+                } else {
+                    Log.e("TastyMap", "위치 설정을 사용할 수 없습니다.")
+                }
+            }
+        )
+    }
 
     // 초기 위치
     fun initializeLocation(onReady: (LatLng) -> Unit) {
+        // 로딩 시작
+        uiState = uiState.copy(isInitializingLocation = true)
+
         locationManager.getCurrentLocation { lat, lon ->
             val latLng = LatLng(lat, lon)
             uiState = uiState.copy(
                 userLocation = latLng,
-                isLocationLoading = false
+                isLocationLoading = false,
+                isInitializingLocation = false
             )
             onReady(latLng)
         }
