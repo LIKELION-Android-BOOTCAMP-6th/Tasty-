@@ -65,6 +65,8 @@ import com.tasty.android.feature.search.PlaceSearchScreen
 import com.tasty.android.feature.tastymap.model.RestaurantData
 import com.tasty.android.feature.tastymap.model.formatPriceLevel
 import com.tasty.android.feature.tastymap.model.getPrimaryCategory
+import com.tasty.android.core.location.LocationManager
+import com.tasty.android.core.location.rememberLocationPermissionState
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
@@ -89,6 +91,24 @@ fun TastyMapScreen(
         position = CameraPosition.fromLatLngZoom(defaultLocation, 18f)
     }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val locationManager = remember { LocationManager(context) }
+
+    // 위치 권한 및 GPS 활성화 핸들러
+    val locationPermissionState = rememberLocationPermissionState(
+        locationManager = locationManager,
+        onPermissionGranted = {
+            // 권한 및 GPS가 준비되었을 때 위치 초기화 실행
+            viewModel.initializeLocation { latLng ->
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+            }
+        }
+    )
+
+    // 화면 진입 시 위치 권한 및 GPS 체크 실행
+    LaunchedEffect(Unit) {
+        locationPermissionState.checkAndRequestLocation()
+    }
 
     // 바텀 시트가 완전히 펼쳐진 상태(Expanded)인지 확인
     val isSheetExpanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
@@ -156,7 +176,7 @@ fun TastyMapScreen(
         }
     }
 
-    // 화면 진입 시 위치 초기화 및 Scaffold 설정
+    // 화면 진입 시 위치 초기화 및 Scaffold 설정 (기존 로직 유지하되 중복 실행 방지 고려)
     LaunchedEffect(initialRestaurantId, uiState.isLocationLoading) {
         viewModel.initializeLocation { latLng ->
 
