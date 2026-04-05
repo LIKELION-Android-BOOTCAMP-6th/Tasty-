@@ -468,37 +468,39 @@ fun RestaurantListSheet(
                             .padding(bottom = 4.dp), // 하단 여백을 8dp에서 4dp로 축소
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // 거리순 정렬 버튼
-                        FilterChip(
-                            selected = uiState.sortType == SortType.DISTANCE,
-                            onClick = { viewModel.setSortType(SortType.DISTANCE) },
-                            label = { Text("거리순", fontSize = 12.sp) }, // 폰트 사이즈 미세 조정 가능
-                            leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
-                                {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp) // 아이콘 크기 18dp에서 16dp로 축소
-                                    )
-                                }
-                            } else null
-                        )
+                        if(!uiState.isCommentVisible) {
+                            // 거리순 정렬 버튼
+                            FilterChip(
+                                selected = uiState.sortType == SortType.DISTANCE,
+                                onClick = { viewModel.setSortType(SortType.DISTANCE) },
+                                label = { Text("거리순", fontSize = 12.sp) }, // 폰트 사이즈 미세 조정 가능
+                                leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp) // 아이콘 크기 18dp에서 16dp로 축소
+                                        )
+                                    }
+                                } else null
+                            )
 
-                        // 평점순 정렬 버튼
-                        FilterChip(
-                            selected = uiState.sortType == SortType.RATING,
-                            onClick = { viewModel.setSortType(SortType.RATING) },
-                            label = { Text("평점순", fontSize = 12.sp) },
-                            leadingIcon = if (uiState.sortType == SortType.RATING) {
-                                {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else null
-                        )
+                            // 평점순 정렬 버튼
+                            FilterChip(
+                                selected = uiState.sortType == SortType.RATING,
+                                onClick = { viewModel.setSortType(SortType.RATING) },
+                                label = { Text("평점순", fontSize = 12.sp) },
+                                leadingIcon = if (uiState.sortType == SortType.RATING) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
                     }
                 }
                 items(currentList) { restaurant ->
@@ -984,6 +986,8 @@ fun RestaurantItem(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             var isNaviOptionsExpanded by remember { mutableStateOf(false) }
             Column(modifier = Modifier.fillMaxWidth()) {
