@@ -121,6 +121,13 @@ fun TastyMapScreen(
         }
     }
 
+    // 카메라 이동 감지 로직
+    LaunchedEffect(cameraPositionState.isMoving) {
+        if (viewModel.uiState.isSearchPerformed && cameraPositionState.isMoving) {
+            viewModel.resetSearchState()
+        }
+    }
+
     // 화면 진입 시 위치 서비스 체크 실행
     LaunchedEffect(Unit) {
         viewModel.checkAndLoadLocation(
@@ -132,6 +139,7 @@ fun TastyMapScreen(
         )
     }
 
+    // 디바이스 백버튼 처리
     BackHandler(enabled = isSheetExpanded) {
         scope.launch {
             // 뒤로가기 클릭 시 축소
@@ -250,6 +258,16 @@ fun TastyMapScreen(
                         zoomControlsEnabled = false
                     )
                 ) {
+                    // 검색 반경 표시 (Circle)
+                    if(uiState.isSearchPerformed) {
+                        Circle(
+                            center = viewModel.uiState.lastCameraLocation,
+                            radius = uiState.searchRadius, // 미터(m) 단위
+                            fillColor = Color(0x224285F4), // 반투명한 파란색
+                            strokeColor = Color(0xFF4285F4), // 진한 파란색 테두리
+                            strokeWidth = 2f
+                        )
+                    }
                     uiState.restaurants.forEach { rest ->
                         val isSelected = uiState.selectedRestaurant == rest
                         // 평점 기반의 커스텀 마커 생성
@@ -442,14 +460,17 @@ fun MapOverlayUI(
         ) {
             Button(
                 onClick = {
-                    val location = cameraPositionState.position.target
+                    viewModel.setLastCameraLocation(cameraPositionState.position.target)
                     viewModel.searchAndSyncRestaurants(
-                        location,
+                        viewModel.uiState.lastCameraLocation,
                         {
                             scope.launch {
                                 scaffoldState.bottomSheetState.show()
-                                cameraPositionState.position =
-                                    CameraPosition.fromLatLngZoom(location, 16f)
+                                cameraPositionState.animate(
+                                    update = CameraUpdateFactory.newLatLngZoom(viewModel.uiState.lastCameraLocation, 16f),
+                                    durationMs = 500
+                                )
+                                viewModel.setSearchState()
                             }
                         }
                     )

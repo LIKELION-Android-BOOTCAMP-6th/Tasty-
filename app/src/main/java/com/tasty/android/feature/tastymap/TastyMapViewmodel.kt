@@ -34,6 +34,9 @@ enum class SortType { DISTANCE, RATING }
 
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val lastCameraLocation: LatLng = LatLng(0.0,0.0),
+    val isSearchPerformed: Boolean = false, // 서치 수행 여부
+    val searchRadius: Double = 500.0, // 500m
     val isInitializingLocation: Boolean = false,
     val isLocationLoading: Boolean = true,
     val sortType: SortType = SortType.DISTANCE,
@@ -286,5 +289,17 @@ class TastyMapViewmodel(
             sortType = sortType,
             restaurants = sortedList
         )
+    }
+
+    fun resetSearchState() {
+        uiState = uiState.copy(isSearchPerformed = false)
+    }
+
+    fun setSearchState() {
+        uiState = uiState.copy(isSearchPerformed = true)
+    }
+    fun setLastCameraLocation(location: LatLng)
+    {
+        uiState = uiState.copy(lastCameraLocation = location)
     }
 }
