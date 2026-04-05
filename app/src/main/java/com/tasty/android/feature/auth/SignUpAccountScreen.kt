@@ -1,5 +1,6 @@
 package com.tasty.android.feature.auth
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -42,6 +45,8 @@ fun SignUpScreen(
     // ViewModel 상태 구독
     val uiState by viewmodel.uiState.collectAsState()
 
+    val focusManager = LocalFocusManager.current
+
     // 에러 메세지가 업데이트되면 다이얼로그 출력
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null) {
@@ -73,7 +78,12 @@ fun SignUpScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus() // 배경 터치 시 포커스 해제
+                })
+            },
         horizontalAlignment = Alignment.Start
     ) {
         Spacer(modifier = Modifier.height(60.dp))
@@ -133,7 +143,10 @@ fun SignUpScreen(
 
         // 다음 버튼
         Button(
-            onClick = { viewmodel.onNextClick(email, password) },
+            onClick = {
+                focusManager.clearFocus()
+                viewmodel.onNextClick(email, password)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

@@ -1,5 +1,7 @@
 package com.tasty.android.feature.auth
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -71,6 +75,8 @@ fun LoginScreen(
 
     var showErrorDialog by remember { mutableStateOf(false) }
 
+    val focusManager = LocalFocusManager.current
+
     LaunchedEffect(uiState.errorMessage) {
         if (uiState.errorMessage != null) {
             showErrorDialog = true
@@ -99,7 +105,12 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus() // 배경 터치 시 포커스 해제
+                })
+            },
         horizontalAlignment = Alignment.Start
     ) {
         Spacer(modifier = Modifier.height(100.dp))
@@ -159,7 +170,10 @@ fun LoginScreen(
 
         // 로그인 버튼
         Button(
-            onClick = { viewmodel.onLoginClicked(email, password) },
+            onClick = {
+                focusManager.clearFocus()
+                viewmodel.onLoginClicked(email, password)
+                      },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
