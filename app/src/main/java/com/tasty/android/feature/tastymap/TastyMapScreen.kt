@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,8 +44,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,10 +83,23 @@ fun TastyMapScreen(
     viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
     val uiState = viewModel.uiState
+
+    val listState = rememberLazyListState()
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
             initialValue = SheetValue.Hidden, // 초기 상태를 숨김으로
-            skipHiddenState = false
+            skipHiddenState = false,
+            confirmValueChange = { newValue ->
+                // 리스트가 최상단에 있지 않을 때는 시트가 접히지 않도록 방어
+                if (newValue != SheetValue.Expanded) {
+                    val isAtTop = listState.firstVisibleItemIndex == 0 &&
+                            listState.firstVisibleItemScrollOffset == 0
+
+                    isAtTop
+                } else {
+                    true
+                }
+            }
         )
     )
     val defaultLocation = LatLng(37.5665, 126.9780)
@@ -265,9 +281,10 @@ fun TastyMapScreen(
                         })
                     },
                     viewModel = viewModel,
-                    navController
+                    navController = navController,
+                    listState = listState
                 )
-            }
+            },
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // 구글 맵 렌더링 및 마커 표시
@@ -335,11 +352,11 @@ fun RestaurantListSheet(
     uiState: TastyMapUiState,
     onItemClick: (RestaurantData) -> Unit,
     viewModel: TastyMapViewmodel,
-    navController: NavController
+    navController: NavController,
+    listState: LazyListState
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
-    val listState = rememberLazyListState()
 
     // 리스트가 변경될 때마다 최상단으로 스크롤 (순간적인 튀는 현상 방지)
     LaunchedEffect(displayList.size) {
@@ -364,7 +381,9 @@ fun RestaurantListSheet(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White),
+                    .background(Color.White)
+                    // 내부 스크롤이 시트 드래그보다 우선시 하게 설정
+                    .nestedScroll(rememberNestedScrollInteropConnection()),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), // 상하 패딩을 16dp에서 8dp로 조정
                 verticalArrangement = Arrangement.spacedBy(16.dp) // 항목 간 간격을 24dp에서 16dp로 축소
             ) {
