@@ -15,8 +15,10 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -983,6 +985,69 @@ fun RestaurantItem(
                 }
             }
 
+            var isNaviOptionsExpanded by remember { mutableStateOf(false) }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // 길찾기 메인 버튼
+                Button(
+                    onClick = { isNaviOptionsExpanded = !isNaviOptionsExpanded },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF3B7CFF)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF3B7CFF)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("길찾기 / 외부 지도에서 보기", style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                    }
+                }
+
+                // 버튼 클릭 시 나타나는 외부 지도 앱 선택 레이아웃
+                AnimatedVisibility(
+                    visible = isNaviOptionsExpanded,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val mapApps = listOf(
+                            "NAVER" to "네이버 지도",
+                            "KAKAO" to "카카오맵",
+                            "GOOGLE" to "구글 지도"
+                        )
+
+                        mapApps.forEach { (type, label) ->
+                            OutlinedButton(
+                                onClick = {
+                                    openExternalMap(context, restaurant, type)
+                                    isNaviOptionsExpanded = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(vertical = 12.dp),
+                                border = BorderStroke(1.dp, Color(0xFFEEEEEE))
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = TextStyle(fontSize = 12.sp, color = Color(0xFF555555), fontWeight = FontWeight.Medium)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 사용자 리뷰 피드 목록
             Spacer(modifier = Modifier.height(24.dp))
             Text("방문자 리뷰", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp))
@@ -1136,6 +1201,40 @@ fun CrosshairPointer() {
             shape = CircleShape,
             color = Color(0xFF3B7CFF)
         ) {}
+    }
+}
+
+fun openExternalMap(context: android.content.Context, restaurant: RestaurantData, type: String) {
+    val uri = when (type) {
+        "GOOGLE" -> {
+            // 구글 지도: 쿼리에 식당 이름과 좌표를 함께 전달
+            Uri.parse("geo:${restaurant.latitude},${restaurant.longitude}?q=${Uri.encode(restaurant.name)}")
+        }
+        "KAKAO" -> {
+            // 카카오맵: 스키마를 이용해 좌표와 이름을 전달
+            Uri.parse("kakaomap://look?p=${restaurant.latitude},${restaurant.longitude}")
+        }
+        "NAVER" -> {
+            // 네이버 지도: 앱 호출 스키마 (설치 안 되어 있으면 마켓으로 이동하게 예외처리 필요)
+            // dlat, dlng는 목적지 좌표, dname은 목적지 이름
+            Uri.parse("nmap://place?lat=${restaurant.latitude}&lng=${restaurant.longitude}&name=${Uri.encode(restaurant.name)}&appname=com.tasty.android")
+        }
+        else -> return
+    }
+
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+    try {
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // 앱이 없을 경우 각 스토어로 연결
+        val marketUrl = when (type) {
+            "KAKAO" -> "market://details?id=net.daum.android.map"
+            "NAVER" -> "market://details?id=com.nhn.android.nmap"
+            else -> null
+        }
+        marketUrl?.let {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+        }
     }
 }
 
