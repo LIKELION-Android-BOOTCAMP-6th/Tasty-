@@ -155,23 +155,6 @@ fun LoginScreen(
             singleLine = true
         )
 
-    // 에러 메시지
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .padding(top = 4.dp, end = 4.dp)
-        ) {
-            uiState.errorMessage?.let { error ->
-                Text(
-                    text = error,
-                    color = Color.Red,
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(40.dp))
 
         // 로그인 버튼
