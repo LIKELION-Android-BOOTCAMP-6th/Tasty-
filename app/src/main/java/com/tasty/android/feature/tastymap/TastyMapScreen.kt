@@ -19,8 +19,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,8 +45,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +60,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
@@ -69,7 +78,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun TastyMapScreen(
     navController: NavController,
@@ -78,10 +87,27 @@ fun TastyMapScreen(
     viewModel: TastyMapViewmodel = viewModel(factory = TastyMapViewmodel.Factory)
 ) {
     val uiState = viewModel.uiState
+
+    val listState = rememberLazyListState()
+
+    // 드래그 핸들을 통한 강제 닫기인지 확인하는 플래그
+    var isForceClosing by remember { mutableStateOf(false) }
+
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = if (initialRestaurantId != null) SheetValue.Expanded else SheetValue.Hidden,
-            skipHiddenState = false
+            initialValue = SheetValue.Hidden, // 초기 상태를 숨김으로
+            skipHiddenState = false,
+            // 바텀시트 콘텐츠 목록 최상단에 있지 않을 때는 시트가 접히지 않도록 방어
+            confirmValueChange = { newValue ->
+                // 핸들을 잡고 있는 상태라면(isForceClosing) 어떤 상태 변화(접기/닫기)도 허용
+                if (isForceClosing) {
+                    true
+                } else {
+                    // 핸들이 아닐 때는 리스트가 최상단일 때만 시트 변화 허용
+                    val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    newValue != SheetValue.Hidden || isAtTop
+                }
+            }
         )
     )
     val defaultLocation = LatLng(37.5665, 126.9780)
@@ -107,7 +133,10 @@ fun TastyMapScreen(
                 // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
                 if (initialRestaurantId != null && !uiState.isLocationLoading) {
                     // 위치 로딩이 끝나고 ID가 있을 때 실행
-                    viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
+                    viewModel.selectRestaurantById(
+                        initialRestaurantId,
+                        viewModel.uiState.userLocation!!
+                    ) {
                         scope.launch {
                             scaffoldState.bottomSheetState.expand()
                         }
@@ -118,6 +147,41 @@ fun TastyMapScreen(
         } else {
             // 사용자가 '취소'를 눌렀을 때 처리
             Log.d("test", "위치 서비스 활성화 거부됨")
+        }
+    }
+
+    val locationPermissionState = rememberPermissionState(
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    LaunchedEffect(locationPermissionState.status) {
+        if (locationPermissionState.status is com.google.accompanist.permissions.PermissionStatus.Granted) {
+            // 권한이 허용된 경우: 기존 GPS 활성화 체크 로직 실행
+            viewModel.checkAndLoadLocation(
+                onResolvableException = { exception ->
+                    val intentSenderRequest =
+                        IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onReady = {
+                    viewModel.initializeLocation { latLng ->
+                        if (initialRestaurantId == null) {
+                            cameraPositionState.position =
+                                CameraPosition.fromLatLngZoom(latLng, 18f)
+                        }
+                    }
+                }
+            )
+        } else {
+            // 권한이 없는 경우: 시스템 권한 요청 팝업 띄우기
+            locationPermissionState.launchPermissionRequest()
+        }
+    }
+
+    // 카메라 이동 감지 로직
+    LaunchedEffect(cameraPositionState.isMoving) {
+        if (viewModel.uiState.isSearchPerformed && cameraPositionState.isMoving) {
+            viewModel.resetSearchState()
         }
     }
 
@@ -132,6 +196,7 @@ fun TastyMapScreen(
         )
     }
 
+    // 디바이스 백버튼 처리
     BackHandler(enabled = isSheetExpanded) {
         scope.launch {
             // 뒤로가기 클릭 시 축소
@@ -166,7 +231,10 @@ fun TastyMapScreen(
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             if (initialRestaurantId != null && !uiState.isLocationLoading) {
                 // 위치 로딩이 끝나고 ID가 있을 때 실행
-                viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
+                viewModel.selectRestaurantById(
+                    initialRestaurantId,
+                    viewModel.uiState.userLocation!!
+                ) {
                     scope.launch {
                         scaffoldState.bottomSheetState.expand()
                     }
@@ -220,6 +288,42 @@ fun TastyMapScreen(
         BottomSheetScaffold(
             scaffoldState = scaffoldState,
             sheetPeekHeight = 100.dp,
+            sheetDragHandle = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    when (event.type) {
+                                        PointerEventType.Press -> {
+                                            scope.launch {
+                                                listState.scrollToItem(0)
+                                            }
+                                            isForceClosing = true
+                                        }
+                                        PointerEventType.Release -> {
+                                            isForceClosing = false
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 실제 시각적인 핸들 모양 (회색 바)
+                    Surface(
+                        modifier = Modifier
+                            .width(34.dp)
+                            .height(4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = CircleShape
+                    ) {}
+                }
+
+            },
             sheetContent = {
                 RestaurantListSheet(
                     uiState = uiState,
@@ -229,9 +333,10 @@ fun TastyMapScreen(
                         })
                     },
                     viewModel = viewModel,
-                    navController
+                    navController = navController,
+                    listState = listState
                 )
-            }
+            },
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // 구글 맵 렌더링 및 마커 표시
@@ -250,6 +355,16 @@ fun TastyMapScreen(
                         zoomControlsEnabled = false
                     )
                 ) {
+                    // 검색 반경 표시 (Circle)
+                    if (uiState.isSearchPerformed) {
+                        Circle(
+                            center = viewModel.uiState.lastCameraLocation,
+                            radius = uiState.lastSearchRadius, // 미터(m) 단위
+                            fillColor = Color(0x224285F4), // 반투명한 파란색
+                            strokeColor = Color(0xFF4285F4), // 진한 파란색 테두리
+                            strokeWidth = 2f
+                        )
+                    }
                     uiState.restaurants.forEach { rest ->
                         val isSelected = uiState.selectedRestaurant == rest
                         // 평점 기반의 커스텀 마커 생성
@@ -290,11 +405,11 @@ fun RestaurantListSheet(
     uiState: TastyMapUiState,
     onItemClick: (RestaurantData) -> Unit,
     viewModel: TastyMapViewmodel,
-    navController: NavController
+    navController: NavController,
+    listState: LazyListState,
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
-    val listState = rememberLazyListState()
 
     // 리스트가 변경될 때마다 최상단으로 스크롤 (순간적인 튀는 현상 방지)
     LaunchedEffect(displayList.size) {
@@ -319,8 +434,13 @@ fun RestaurantListSheet(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), // 상하 패딩을 16dp에서 8dp로 조정
+                    .background(Color.White)
+                    // 내부 스크롤이 시트 드래그보다 우선시 하게 설정
+                    .nestedScroll(rememberNestedScrollInteropConnection()),
+                contentPadding = PaddingValues(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                ), // 상하 패딩을 16dp에서 8dp로 조정
                 verticalArrangement = Arrangement.spacedBy(16.dp) // 항목 간 간격을 24dp에서 16dp로 축소
             ) {
                 // 바텀 시트 정렬 버튼
@@ -421,6 +541,79 @@ fun MapOverlayUI(
                     scope.launch {
                         scaffoldState.bottomSheetState.hide()
                     }
+                })
+            }
+        )
+
+        // 반경 선택 및 검색 버튼 영역
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 100.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedVisibility(visible = !uiState.isSearchFocused) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    val radiusOptions = listOf(
+                        "정밀 검색(500m)" to 500.0,
+                        "표준 검색(1km)" to 1000.0,
+                        "광역 검색(5km)" to 5000.0
+                    )
+
+                    radiusOptions.forEach { (label, value) ->
+                        FilterChip(
+                            selected = uiState.searchRadius == value,
+                            onClick = { viewModel.setSearchRadius(value) },
+                            label = { Text(label, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF3B7CFF),
+                                selectedLabelColor = Color.White
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = uiState.searchRadius == value,
+                                borderColor = Color(0xFF3B7CFF)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = !uiState.isSearchFocused,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 150.dp)
+        ) {
+            Button(
+                onClick = {
+                    viewModel.setLastCameraLocation(cameraPositionState.position.target)
+                    viewModel.searchAndSyncRestaurants(
+                        viewModel.uiState.lastCameraLocation,
+                        {
+                            scope.launch {
+                                scaffoldState.bottomSheetState.show()
+                                val targetZoom = when {
+                                    uiState.searchRadius <= 500.0 -> 15.5f
+                                    uiState.searchRadius <= 1000.0 -> 14.5f
+                                    uiState.searchRadius <= 5000.0 -> 12f
+                                    else -> 10.0f
+                                }
+                                cameraPositionState.animate(
+                                    update = CameraUpdateFactory.newLatLngZoom(
+                                        viewModel.uiState.lastCameraLocation,
+                                        targetZoom
+                                    ),
+                                    durationMs = 500
+                                )
+                                viewModel.setSearchState()
+                            }
+                        }
+                    )
                 },
                 onPlaceSelectedLocation = { latLng ->
                     scope.launch {
@@ -489,28 +682,27 @@ fun MapOverlayUI(
                 }
             }
 
-            FloatingActionButton(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 50.dp, end = 16.dp),
-                onClick = {
-                    if (uiState.isInitializingLocation) return@FloatingActionButton // 로딩 중 클릭 방지
-                    // 위치 서비스 상태를 체크
-                    viewModel.checkAndLoadLocation(
-                        onResolvableException = { exception ->
-                            // 서비스가 꺼져 있다면 다이얼로그 출력
-                            val intentSenderRequest =
-                                IntentSenderRequest.Builder(exception.resolution).build()
-                            settingResultLauncher.launch(intentSenderRequest)
-                        },
-                        onReady = {
-                            // 서비스가 켜져 있다면 위치를 초기화하고 카메라를 이동
-                            viewModel.initializeLocation { latLng ->
-                                scope.launch {
-                                    cameraPositionState.animate(
-                                        CameraUpdateFactory.newLatLngZoom(latLng, 18f)
-                                    )
-                                }
+        FloatingActionButton(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 50.dp, end = 16.dp),
+            onClick = {
+                if (uiState.isInitializingLocation) return@FloatingActionButton // 로딩 중 클릭 방지
+                // 위치 서비스 상태를 체크
+                viewModel.checkAndLoadLocation(
+                    onResolvableException = { exception ->
+                        // 서비스가 꺼져 있다면 다이얼로그 출력
+                        val intentSenderRequest =
+                            IntentSenderRequest.Builder(exception.resolution).build()
+                        settingResultLauncher.launch(intentSenderRequest)
+                    },
+                    onReady = {
+                        // 서비스가 켜져 있다면 위치를 초기화하고 카메라를 이동
+                        viewModel.initializeLocation { latLng ->
+                            scope.launch {
+                                cameraPositionState.animate(
+                                    CameraUpdateFactory.newLatLngZoom(latLng, 18f)
+                                )
                             }
                         }
                     )
@@ -546,8 +738,10 @@ fun RestaurantItem(
     // 영업시간 상세 목록의 펼침 상태를 관리하는 변수
     var isHoursExpanded by remember { mutableStateOf(false) }
 
-    val ratingText = if (restaurant.rating != null && restaurant.rating > 0) "%.1f".format(restaurant.rating) else "0.0"
-    val displayRatingText = if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
+    val ratingText =
+        if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
+    val displayRatingText =
+        if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
 
     Column(
         modifier = Modifier
