@@ -58,11 +58,8 @@ import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
 import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
-import com.tasty.android.core.location.LocationManager
-import com.tasty.android.core.location.rememberLocationPermissionState
-import org.intellij.lang.annotations.JdkConstants
-import androidx.compose.runtime.remember
 import com.tasty.android.feature.vmfactory.FeedWriteViewModelFactory
+import org.intellij.lang.annotations.JdkConstants
 
 private val Gray100 = Color(0xFFF7F7F7)
 private val Gray200 = Color(0xFFE5E5E5)
@@ -77,14 +74,6 @@ fun FeedWriteScreen(
     val uiState by viewModel.uiState.collectAsState()
     val authorId = Firebase.auth.currentUser?.uid ?: ""
     val context = LocalContext.current
-    val locationManager = remember { LocationManager(context) }
-    val locationPermissionState = rememberLocationPermissionState(
-        locationManager = locationManager,
-        onPermissionGranted = {
-            // 권한 및 GPS가 준비되었을 때 식당 검색 화면으로 이동
-            navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
-        }
-    )
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(5)
@@ -142,7 +131,7 @@ fun FeedWriteScreen(
                 RestaurantSelectSection(
                     selectedRestaurant = uiState.selectedRestaurant,
                     onClick = {
-                        locationPermissionState.checkAndRequestLocation()
+                        navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
                     },
                     onClearClick = {
                         viewModel.clearRestaurant()
