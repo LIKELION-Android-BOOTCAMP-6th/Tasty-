@@ -201,6 +201,9 @@ fun TastyMapScreen(
         scope.launch {
             // 뒤로가기 클릭 시 축소
             if (viewModel.uiState.selectedRestaurant == null) {
+                scope.launch {
+                    listState.scrollToItem(0)
+                }
                 scaffoldState.bottomSheetState.partialExpand()
             }
             viewModel.clearSelection()
