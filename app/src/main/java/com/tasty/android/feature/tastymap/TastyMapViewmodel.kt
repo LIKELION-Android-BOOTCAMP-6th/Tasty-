@@ -10,10 +10,17 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationSettingsResponse
+import com.google.android.gms.location.Priority
+import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.tasks.Task
 import com.tasty.android.MyApplication
 import com.tasty.android.core.firebase.FeedStoreManager
 import com.tasty.android.core.firebase.MapStoreManager
@@ -27,6 +34,7 @@ enum class SortType { DISTANCE, RATING }
 
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val isInitializingLocation: Boolean = false,
     val isLocationLoading: Boolean = true,
     val sortType: SortType = SortType.DISTANCE,
     val restaurants: List<RestaurantData> = emptyList(),
@@ -64,14 +72,38 @@ class TastyMapViewmodel(
             }
         }
     }
+    // 디바이스 위치 서비스 체크
+    fun checkAndLoadLocation(
+        onResolvableException: (ResolvableApiException) -> Unit,
+        onReady: () -> Unit = {}
+    ) {
+        locationManager.checkLocationSettings(
+            onSuccess = {
+                // 위치 서비스가 이미 켜져 있음
+                onReady()
+            },
+            onFailure = { exception ->
+                if (exception is ResolvableApiException) {
+                    // 위치 서비스가 꺼져 있음 -> UI 레이어에 다이얼로그 요청 전달
+                    onResolvableException(exception)
+                } else {
+                    Log.e("TastyMap", "위치 설정을 사용할 수 없습니다.")
+                }
+            }
+        )
+    }
 
     // 초기 위치
     fun initializeLocation(onReady: (LatLng) -> Unit) {
+        // 로딩 시작
+        uiState = uiState.copy(isInitializingLocation = true)
+
         locationManager.getCurrentLocation { lat, lon ->
             val latLng = LatLng(lat, lon)
             uiState = uiState.copy(
                 userLocation = latLng,
-                isLocationLoading = false
+                isLocationLoading = false,
+                isInitializingLocation = false
             )
             onReady(latLng)
         }
@@ -136,7 +168,10 @@ class TastyMapViewmodel(
                             val info = infoMap[rest.id]
                             rest.copy(
                                 rating = info?.ratingAvg ?: rest.rating,
-                                feedCount = info?.feedCount ?: 0
+                                feedCount = info?.feedCount ?: 0,
+                                // 사용자의 현재 위치와 식당 사이의 거리를 계산 (미터 단위)
+                                distance = calculateDistance(location.latitude, location.longitude,
+                                    rest.latitude, rest.longitude)
                             )
                         }
                     },
@@ -179,7 +214,7 @@ class TastyMapViewmodel(
     }
 
     // id로 식당을 찾음
-    fun selectRestaurantById(restaurantId: String, onComplete: () -> Unit) {
+    fun selectRestaurantById(restaurantId: String, location: LatLng, onComplete: () -> Unit) {
         viewModelScope.launch {
             // 이미 리스트에 데이터가 있는지 확인
             val target = uiState.restaurants.find { it.id == restaurantId }
@@ -191,7 +226,7 @@ class TastyMapViewmodel(
                     placeId = restaurantId,
                     onSuccess = { newRestaurant ->
                         // Firestore 정보와 병합
-                        syncWithFirestoreAndSelect(newRestaurant)
+                        syncWithFirestoreAndSelect(newRestaurant, location)
                     },
                     onFailure = { /* 에러 처리 */ })
             }
@@ -200,7 +235,7 @@ class TastyMapViewmodel(
         }
     }
 
-    private fun syncWithFirestoreAndSelect(restaurant: RestaurantData) {
+    private fun syncWithFirestoreAndSelect(restaurant: RestaurantData, location: LatLng) {
         viewModelScope.launch {
             // Firestore에서 리뷰 개수 등 추가 정보 가져오기
             val firestoreResult = mapStoreManager.getRestaurantInfoFromIds(listOf(restaurant.id))
@@ -210,7 +245,9 @@ class TastyMapViewmodel(
                     val info = infoMap[restaurant.id]
                     restaurant.copy(
                         rating = info?.ratingAvg ?: restaurant.rating,
-                        feedCount = info?.feedCount ?: 0
+                        feedCount = info?.feedCount ?: 0,
+                        distance = calculateDistance(location.latitude, location.longitude,
+                            restaurant.latitude, restaurant.longitude)
                     )
                 },
                 onFailure = { restaurant }
@@ -232,12 +269,7 @@ class TastyMapViewmodel(
             SortType.DISTANCE -> {
                 // 유저 위치가 있을 때만 거리순 정렬, 없으면 그대로 유지
                 if (userLoc != null) {
-                    currentRestaurants.sortedBy { rest ->
-                        // 위도/경도 차이를 이용한 단순 거리 비교 (정교한 계산이 필요하면 calculateDistance 사용)
-                        val latDiff = rest.latitude - userLoc.latitude
-                        val lngDiff = rest.longitude - userLoc.longitude
-                        latDiff * latDiff + lngDiff * lngDiff
-                    }
+                    currentRestaurants.sortedBy { it.distance }
                 } else {
                     currentRestaurants
                 }

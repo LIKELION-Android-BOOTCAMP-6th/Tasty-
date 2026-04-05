@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -186,91 +187,116 @@ private fun TastyListFeedSelectCard(
     item: TastyListFeedSelectionItem,
     onClick: () -> Unit
 ) {
-    val borderColor = if (item.isSelected) PrimaryColor else PrimaryColor.copy(alpha = 0.5f)
+    val borderColor = if (item.isSelected) PrimaryColor else Color.LightGray
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(235.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(2.dp, borderColor, RoundedCornerShape(16.dp))
+            .height(240.dp)
             .background(Color.White)
             .clickable(onClick = onClick)
             .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.LocationOn,
-                contentDescription = "식당 위치",
-                tint = TextColor,
-                modifier = Modifier.size(16.dp)
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Text(
-                text = item.restaurantName,
-                color = TextColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            SelectionCircle(
-                selected = item.isSelected
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color.LightGray)
+                .fillMaxSize()
+                .padding(8.dp)
         ) {
-            if (item.thumbnailUrl != null) {
-                AsyncImage(
-                    model = item.thumbnailUrl,
-                    contentDescription = "피드 썸네일",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.LocationOn,
+                    contentDescription = "식당 위치",
+                    tint = TextColor,
+                    modifier = Modifier.size(20.dp)
                 )
-            } else {
+
+                Spacer(modifier = Modifier.width(4.dp))
+
                 Text(
-                    text = "이미지 없음",
+                    text = item.restaurantName,
                     color = TextColor,
-                    modifier = Modifier.align(Alignment.Center)
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.LightGray)
             ) {
-                Text(
-                    text = item.createdAt,
-                    color = Color.White
+                if (item.thumbnailUrl != null) {
+                    AsyncImage(
+                        model = item.thumbnailUrl,
+                        contentDescription = "피드 썸네일",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = "이미지 없음",
+                        color = TextColor,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = item.createdAt,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = item.oneLineReview,
+                color = TextColor,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (item.isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PrimaryColor.copy(alpha = 0.2f))
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bookmark,
+                    contentDescription = "선택됨",
+                    tint = TextColor,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Text(
-            text = item.oneLineReview,
-            color = TextColor,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 

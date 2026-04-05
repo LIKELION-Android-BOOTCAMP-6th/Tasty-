@@ -16,7 +16,8 @@ data class RestaurantData(
     val openingHours: List<String>?,
     val types: List<String>?,         // 식당 카테고리
     val priceLevel: Int? = 0,         // 가격대
-    val feedCount: Int = 0
+    val feedCount: Int = 0,
+    val distance: Int = 0
 )
 
 // RestaurantData.kt 에 추가

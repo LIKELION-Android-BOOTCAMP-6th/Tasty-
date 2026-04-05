@@ -169,7 +169,7 @@ fun TastyListCreateSetupScreen(
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = PrimaryColor,
-                unfocusedBorderColor = PrimaryColor.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.LightGray,
                 focusedTextColor = TextColor,
                 unfocusedTextColor = TextColor,
                 cursorColor = TextColor
