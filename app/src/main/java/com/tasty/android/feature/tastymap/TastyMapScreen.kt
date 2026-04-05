@@ -15,7 +15,12 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -250,10 +255,7 @@ fun TastyMapScreen(
     LaunchedEffect(uiState.selectedRestaurant) {
         uiState.selectedRestaurant?.let { restaurant ->
             val targetLatLng = LatLng(restaurant.latitude, restaurant.longitude)
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(targetLatLng, 18f),
-                500 // 0.5초 동안 부드럽게 이동
-            )
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(targetLatLng, 18f)
         }
     }
 
@@ -390,6 +392,16 @@ fun TastyMapScreen(
                     }
                 }
 
+                // 십자선 표시
+                AnimatedVisibility(
+                    visible = cameraPositionState.isMoving, // 카메라가 움직일 때만 노출
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    CrosshairPointer()
+                }
+
                 // 검색창, 검색 버튼, 내 위치 버튼
                 MapOverlayUI(
                     viewModel = viewModel,
@@ -453,37 +465,39 @@ fun RestaurantListSheet(
                             .padding(bottom = 4.dp), // 하단 여백을 8dp에서 4dp로 축소
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // 거리순 정렬 버튼
-                        FilterChip(
-                            selected = uiState.sortType == SortType.DISTANCE,
-                            onClick = { viewModel.setSortType(SortType.DISTANCE) },
-                            label = { Text("거리순", fontSize = 12.sp) }, // 폰트 사이즈 미세 조정 가능
-                            leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
-                                {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp) // 아이콘 크기 18dp에서 16dp로 축소
-                                    )
-                                }
-                            } else null
-                        )
+                        if(!uiState.isCommentVisible) {
+                            // 거리순 정렬 버튼
+                            FilterChip(
+                                selected = uiState.sortType == SortType.DISTANCE,
+                                onClick = { viewModel.setSortType(SortType.DISTANCE) },
+                                label = { Text("거리순", fontSize = 12.sp) }, // 폰트 사이즈 미세 조정 가능
+                                leadingIcon = if (uiState.sortType == SortType.DISTANCE) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp) // 아이콘 크기 18dp에서 16dp로 축소
+                                        )
+                                    }
+                                } else null
+                            )
 
-                        // 평점순 정렬 버튼
-                        FilterChip(
-                            selected = uiState.sortType == SortType.RATING,
-                            onClick = { viewModel.setSortType(SortType.RATING) },
-                            label = { Text("평점순", fontSize = 12.sp) },
-                            leadingIcon = if (uiState.sortType == SortType.RATING) {
-                                {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else null
-                        )
+                            // 평점순 정렬 버튼
+                            FilterChip(
+                                selected = uiState.sortType == SortType.RATING,
+                                onClick = { viewModel.setSortType(SortType.RATING) },
+                                label = { Text("평점순", fontSize = 12.sp) },
+                                leadingIcon = if (uiState.sortType == SortType.RATING) {
+                                    {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
                     }
                 }
                 items(currentList) { restaurant ->
@@ -970,6 +984,71 @@ fun RestaurantItem(
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            var isNaviOptionsExpanded by remember { mutableStateOf(false) }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // 길찾기 메인 버튼
+                Button(
+                    onClick = { isNaviOptionsExpanded = !isNaviOptionsExpanded },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color(0xFF3B7CFF)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF3B7CFF)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("길찾기 / 외부 지도에서 보기", style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold))
+                    }
+                }
+
+                // 버튼 클릭 시 나타나는 외부 지도 앱 선택 레이아웃
+                AnimatedVisibility(
+                    visible = isNaviOptionsExpanded,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val mapApps = listOf(
+                            "NAVER" to "네이버 지도",
+                            "KAKAO" to "카카오맵",
+                            "GOOGLE" to "구글 지도"
+                        )
+
+                        mapApps.forEach { (type, label) ->
+                            OutlinedButton(
+                                onClick = {
+                                    openExternalMap(context, restaurant, type)
+                                    isNaviOptionsExpanded = false
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(vertical = 12.dp),
+                                border = BorderStroke(1.dp, Color(0xFFEEEEEE))
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = TextStyle(fontSize = 12.sp, color = Color(0xFF555555), fontWeight = FontWeight.Medium)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 사용자 리뷰 피드 목록
             Spacer(modifier = Modifier.height(24.dp))
             Text("방문자 리뷰", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp))
@@ -1088,6 +1167,76 @@ fun InfoText(text: String) {
         fontSize = 13.sp,
         modifier = Modifier.padding(vertical = 1.dp)
     )
+}
+
+@Composable
+fun CrosshairPointer() {
+    Box(
+        modifier = Modifier.size(40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 2.dp.toPx()
+            val color = Color(0xFF3B7CFF) // 기존 테마와 맞춘 파란색
+            val lineLength = 15.dp.toPx()
+
+            // 가로선
+            drawLine(
+                color = color,
+                start = Offset(size.width / 2 - lineLength, size.height / 2),
+                end = Offset(size.width / 2 + lineLength, size.height / 2),
+                strokeWidth = strokeWidth
+            )
+            // 세로선
+            drawLine(
+                color = color,
+                start = Offset(size.width / 2, size.height / 2 - lineLength),
+                end = Offset(size.width / 2, size.height / 2 + lineLength),
+                strokeWidth = strokeWidth
+            )
+        }
+
+        // 중앙에 작은 점 하나 추가 (정밀도 향상)
+        Surface(
+            modifier = Modifier.size(4.dp),
+            shape = CircleShape,
+            color = Color(0xFF3B7CFF)
+        ) {}
+    }
+}
+
+fun openExternalMap(context: android.content.Context, restaurant: RestaurantData, type: String) {
+    val uri = when (type) {
+        "GOOGLE" -> {
+            // 구글 지도: 쿼리에 식당 이름과 좌표를 함께 전달
+            Uri.parse("geo:${restaurant.latitude},${restaurant.longitude}?q=${Uri.encode(restaurant.name)}")
+        }
+        "KAKAO" -> {
+            // 카카오맵: 스키마를 이용해 좌표와 이름을 전달
+            Uri.parse("kakaomap://look?p=${restaurant.latitude},${restaurant.longitude}")
+        }
+        "NAVER" -> {
+            // 네이버 지도: 앱 호출 스키마 (설치 안 되어 있으면 마켓으로 이동하게 예외처리 필요)
+            // dlat, dlng는 목적지 좌표, dname은 목적지 이름
+            Uri.parse("nmap://place?lat=${restaurant.latitude}&lng=${restaurant.longitude}&name=${Uri.encode(restaurant.name)}&appname=com.tasty.android")
+        }
+        else -> return
+    }
+
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+    try {
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // 앱이 없을 경우 각 스토어로 연결
+        val marketUrl = when (type) {
+            "KAKAO" -> "market://details?id=net.daum.android.map"
+            "NAVER" -> "market://details?id=com.nhn.android.nmap"
+            else -> null
+        }
+        marketUrl?.let {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+        }
+    }
 }
 
 fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
