@@ -15,7 +15,10 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -388,6 +391,16 @@ fun TastyMapScreen(
                             }
                         )
                     }
+                }
+
+                // 십자선 표시
+                AnimatedVisibility(
+                    visible = cameraPositionState.isMoving, // 카메라가 움직일 때만 노출
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    CrosshairPointer()
                 }
 
                 // 검색창, 검색 버튼, 내 위치 버튼
@@ -1088,6 +1101,42 @@ fun InfoText(text: String) {
         fontSize = 13.sp,
         modifier = Modifier.padding(vertical = 1.dp)
     )
+}
+
+@Composable
+fun CrosshairPointer() {
+    Box(
+        modifier = Modifier.size(40.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 2.dp.toPx()
+            val color = Color(0xFF3B7CFF) // 기존 테마와 맞춘 파란색
+            val lineLength = 15.dp.toPx()
+
+            // 가로선
+            drawLine(
+                color = color,
+                start = Offset(size.width / 2 - lineLength, size.height / 2),
+                end = Offset(size.width / 2 + lineLength, size.height / 2),
+                strokeWidth = strokeWidth
+            )
+            // 세로선
+            drawLine(
+                color = color,
+                start = Offset(size.width / 2, size.height / 2 - lineLength),
+                end = Offset(size.width / 2, size.height / 2 + lineLength),
+                strokeWidth = strokeWidth
+            )
+        }
+
+        // 중앙에 작은 점 하나 추가 (정밀도 향상)
+        Surface(
+            modifier = Modifier.size(4.dp),
+            shape = CircleShape,
+            color = Color(0xFF3B7CFF)
+        ) {}
+    }
 }
 
 fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
