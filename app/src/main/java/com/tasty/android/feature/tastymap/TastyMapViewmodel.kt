@@ -302,4 +302,8 @@ class TastyMapViewmodel(
     {
         uiState = uiState.copy(lastCameraLocation = location)
     }
+
+    fun setSearchRadius(radiusMeter: Double) {
+        uiState = uiState.copy(searchRadius = radiusMeter)
+    }
 }

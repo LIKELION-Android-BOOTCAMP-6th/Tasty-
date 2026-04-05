@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.*
@@ -69,7 +71,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun TastyMapScreen(
     navController: NavController,
@@ -118,6 +120,32 @@ fun TastyMapScreen(
         } else {
             // 사용자가 '취소'를 눌렀을 때 처리
             Log.d("test", "위치 서비스 활성화 거부됨")
+        }
+    }
+
+    val locationPermissionState = rememberPermissionState(
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    LaunchedEffect(locationPermissionState.status) {
+        if (locationPermissionState.status is com.google.accompanist.permissions.PermissionStatus.Granted) {
+            // 권한이 허용된 경우: 기존 GPS 활성화 체크 로직 실행
+            viewModel.checkAndLoadLocation(
+                onResolvableException = { exception ->
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onReady = {
+                    viewModel.initializeLocation { latLng ->
+                        if (initialRestaurantId == null) {
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+                        }
+                    }
+                }
+            )
+        } else {
+            // 권한이 없는 경우: 시스템 권한 요청 팝업 띄우기
+            locationPermissionState.launchPermissionRequest()
         }
     }
 
@@ -452,11 +480,49 @@ fun MapOverlayUI(
             }
         )
 
+        // 반경 선택 및 검색 버튼 영역
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 100.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedVisibility(visible = !uiState.isSearchFocused) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    val radiusOptions = listOf(
+                        "500m" to 500.0,
+                        "1km" to 1000.0,
+                        "5km" to 5000.0
+                    )
+
+                    radiusOptions.forEach { (label, value) ->
+                        FilterChip(
+                            selected = uiState.searchRadius == value,
+                            onClick = { viewModel.setSearchRadius(value) },
+                            label = { Text(label, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF3B7CFF),
+                                selectedLabelColor = Color.White
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = uiState.searchRadius == value,
+                                borderColor = Color(0xFF3B7CFF)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = !uiState.isSearchFocused,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 100.dp)
+                .padding(top = 150.dp)
         ) {
             Button(
                 onClick = {
