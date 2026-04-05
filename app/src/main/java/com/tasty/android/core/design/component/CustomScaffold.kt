@@ -22,17 +22,19 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Tune
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tasty.android.core.design.theme.TextColor
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import com.tasty.android.R
 
 // 스캐폴드 커스텀 설정 클래스 정의
 data class ScaffoldConfig(
-    val title: String = "Tasty",
+    val title: String? = null,
     val showTopBar: Boolean = true, // TopBar 표시 여부
     val showBottomBar: Boolean = true, // BottomBar 표시 여부
     val containsBackButton: Boolean = false, // 뒤로가기 버튼 여부
@@ -40,7 +42,8 @@ data class ScaffoldConfig(
     val topBarActions: List<AppBarAction> = emptyList(), // 상단 앱바 액션 리스트 등록
     val floatingActionButton: (@Composable () -> Unit)? = null, // null = No FAB,
     val containerColor: Color = PrimaryColor, // 컨테이너 컬러
-    val isCenterAligned: Boolean = false // 가운데 정렬 여부
+    val isCenterAligned: Boolean = false, // 가운데 정렬 여부
+    val showAppIcon: Boolean = false
 )
 
 
@@ -51,21 +54,13 @@ private fun getPredictiveConfig(route: String?, navController: NavHostController
     return when {
 
         route == TabScreen.FEED.route -> ScaffoldConfig(
-            title = "Tasty",
+            showAppIcon = true,
             showTopBar = true,
             showBottomBar = true,
-            isCenterAligned = true,
-            floatingActionButton = {
-                FeedFab(
-                    onWriteClick = { navController.navigate(Screen.FEED_CREATE_FEED.route) },
-                    onFilterClick = {
-                        // 필터 시트는 Screen에서 LaunchedEffect로 Override하여 처리
-                    }
-                )
-            }
+            isCenterAligned = true
         )
         route == TabScreen.TASTY.route -> ScaffoldConfig(
-            title = "Tasty",
+            showAppIcon = true,
             showTopBar = true,
             showBottomBar = true,
             isCenterAligned = true
@@ -235,6 +230,7 @@ fun CustomScaffold(navController: NavHostController) {
             if (activeConfig.showTopBar) {
                 CustomTopAppBar(
                     title = activeConfig.title,
+                    appIcon = if (activeConfig.showAppIcon) ImageVector.vectorResource(R.drawable.app_logo) else null,
                     containsBackButton = activeConfig.containsBackButton,
                     onBackClick = activeConfig.onBackClick,
                     actions = activeConfig.topBarActions,

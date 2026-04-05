@@ -1,13 +1,10 @@
 package com.tasty.android.core.design.component
 
-import android.accessibilityservice.GestureDescription
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +12,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -42,7 +38,7 @@ data class AppBarAction(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopAppBar(
-    title: String = "",  // 제목
+    title: String? = "",  // 제목
     appIcon: ImageVector? = null, // 앱 아이콘(선택)
     containsBackButton: Boolean = false, // 백 버튼 포함 여부 true/false| *기본 false
     onBackClick: () -> Unit = {}, // 백 버튼 클릭 시 이벤트 함수 주입
@@ -62,10 +58,11 @@ fun CustomTopAppBar(
                         Icon(
                             imageVector = icon,
                             contentDescription = "앱 로고 아이콘",
-                            modifier = Modifier.padding(end = 8.dp)
+                            modifier = Modifier.size(70.dp),
+                            tint = Color.Unspecified
                         )
                     }
-                    Text( // 제목
+                    if (!title.isNullOrBlank())Text( // 제목
                         text = title
                     )
                 }
@@ -134,7 +131,8 @@ fun CustomTopAppBar(
                             modifier = Modifier.padding(end = 8.dp)
                         )
                     }
-                    Text( // 제목
+                    if (!title.isNullOrBlank())
+                        Text( // 제목
                         text = title
                     )
                 }

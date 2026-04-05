@@ -80,7 +80,7 @@ fun TastyMapScreen(
     val uiState = viewModel.uiState
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.Hidden, // 초기 상태를 숨김으로
+            initialValue = if (initialRestaurantId != null) SheetValue.Expanded else SheetValue.Hidden,
             skipHiddenState = false
         )
     )
@@ -109,7 +109,7 @@ fun TastyMapScreen(
                     // 위치 로딩이 끝나고 ID가 있을 때 실행
                     viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
                         scope.launch {
-                            scaffoldState.bottomSheetState.partialExpand()
+                            scaffoldState.bottomSheetState.expand()
                         }
                     }
                 }
@@ -168,7 +168,7 @@ fun TastyMapScreen(
                 // 위치 로딩이 끝나고 ID가 있을 때 실행
                 viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
                     scope.launch {
-                        scaffoldState.bottomSheetState.partialExpand()
+                        scaffoldState.bottomSheetState.expand()
                     }
                 }
             }
@@ -277,7 +277,8 @@ fun TastyMapScreen(
                     viewModel = viewModel,
                     cameraPositionState = cameraPositionState,
                     uiState = uiState,
-                    scaffoldState = scaffoldState
+                    scaffoldState = scaffoldState,
+                    showSearchBar = initialRestaurantId == null // id가 있으면 상세모드이므로 검색창 숨김
                 )
             }
         }
@@ -386,7 +387,8 @@ fun MapOverlayUI(
     viewModel: TastyMapViewmodel,
     cameraPositionState: CameraPositionState,
     uiState: TastyMapUiState,
-    scaffoldState: BottomSheetScaffoldState
+    scaffoldState: BottomSheetScaffoldState,
+    showSearchBar: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
 
@@ -411,115 +413,120 @@ fun MapOverlayUI(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PlaceSearchScreen(
-            labelText = "장소 및 음식점 검색",
-            onFocusChange = {
-                viewModel.setSearchFocus(it)
-                scope.launch {
-                    scaffoldState.bottomSheetState.hide()
-                }
-            },
-            onPlaceSelectedLocation = { latLng ->
-                scope.launch {
-                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-                }
-            },
-            onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
+        if (showSearchBar) {
+            PlaceSearchScreen(
+                labelText = "장소 및 음식점 검색",
+                onFocusChange = {
+                    viewModel.setSearchFocus(it)
                     scope.launch {
-                        scaffoldState.bottomSheetState.show()
-                        scaffoldState.bottomSheetState.partialExpand()
+                        scaffoldState.bottomSheetState.hide()
                     }
-                })
-            }
-        )
+                },
+                onPlaceSelectedLocation = { latLng ->
+                    scope.launch {
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
+                    }
+                },
+                onPlaceSelectedRestaurant = { restaurantId ->
+                    viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
+                        scope.launch {
+                            scaffoldState.bottomSheetState.show()
+                            scaffoldState.bottomSheetState.partialExpand()
+                        }
+                    })
+                }
+            )
+        }
 
-        AnimatedVisibility(
-            visible = !uiState.isSearchFocused,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 100.dp)
-        ) {
-            Button(
+        if (showSearchBar) {
+            AnimatedVisibility(
+                visible = !uiState.isSearchFocused,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 100.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val location = cameraPositionState.position.target
+                        viewModel.searchAndSyncRestaurants(
+                            location,
+                            {
+                                scope.launch {
+                                    scaffoldState.bottomSheetState.show()
+                                    cameraPositionState.position =
+                                        CameraPosition.fromLatLngZoom(location, 16f)
+                                }
+                            }
+                        )
+                    },
+                    // 로딩 중에는 버튼 클릭 방지
+                    enabled = !uiState.isSearching,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF3B7CFF),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF3B7CFF).copy(alpha = 0.6f),
+                        disabledContentColor = Color.White.copy(alpha = 0.8f)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (uiState.isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("검색 중...", fontSize = 14.sp)
+                        } else {
+                            Text("주변 식당 검색", fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+
+            FloatingActionButton(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 50.dp, end = 16.dp),
                 onClick = {
-                    val location = cameraPositionState.position.target
-                    viewModel.searchAndSyncRestaurants(
-                        location,
-                        {
-                            scope.launch {
-                                scaffoldState.bottomSheetState.show()
-                                cameraPositionState.position =
-                                    CameraPosition.fromLatLngZoom(location, 16f)
+                    if (uiState.isInitializingLocation) return@FloatingActionButton // 로딩 중 클릭 방지
+                    // 위치 서비스 상태를 체크
+                    viewModel.checkAndLoadLocation(
+                        onResolvableException = { exception ->
+                            // 서비스가 꺼져 있다면 다이얼로그 출력
+                            val intentSenderRequest =
+                                IntentSenderRequest.Builder(exception.resolution).build()
+                            settingResultLauncher.launch(intentSenderRequest)
+                        },
+                        onReady = {
+                            // 서비스가 켜져 있다면 위치를 초기화하고 카메라를 이동
+                            viewModel.initializeLocation { latLng ->
+                                scope.launch {
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(latLng, 18f)
+                                    )
+                                }
                             }
                         }
                     )
                 },
-                // 로딩 중에는 버튼 클릭 방지
-                enabled = !uiState.isSearching,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3B7CFF),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF3B7CFF).copy(alpha = 0.6f),
-                    disabledContentColor = Color.White.copy(alpha = 0.8f)
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                containerColor = if (uiState.isInitializingLocation) Color.LightGray else Color.White,
+                contentColor = if (uiState.isInitializingLocation) Color.Gray else Color.Blue
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    if (uiState.isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("검색 중...", fontSize = 14.sp)
-                    } else {
-                        Text("주변 식당 검색", fontSize = 14.sp)
-                    }
+                if (uiState.isInitializingLocation) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.Blue
+                    )
+                } else {
+                    Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
                 }
-            }
-        }
-
-        FloatingActionButton(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 50.dp, end = 16.dp),
-            onClick = {
-                if (uiState.isInitializingLocation) return@FloatingActionButton // 로딩 중 클릭 방지
-                // 위치 서비스 상태를 체크
-                viewModel.checkAndLoadLocation(
-                    onResolvableException = { exception ->
-                        // 서비스가 꺼져 있다면 다이얼로그 출력
-                        val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
-                        settingResultLauncher.launch(intentSenderRequest)
-                    },
-                    onReady = {
-                        // 서비스가 켜져 있다면 위치를 초기화하고 카메라를 이동
-                        viewModel.initializeLocation { latLng ->
-                            scope.launch {
-                                cameraPositionState.animate(
-                                    CameraUpdateFactory.newLatLngZoom(latLng, 18f)
-                                )
-                            }
-                        }
-                    }
-                )
-            },
-            containerColor = if (uiState.isInitializingLocation) Color.LightGray else Color.White,
-            contentColor = if (uiState.isInitializingLocation) Color.Gray else Color.Blue
-        ) {
-            if (uiState.isInitializingLocation) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.Blue
-                )
-            } else {
-                Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
             }
         }
     }
@@ -539,7 +546,7 @@ fun RestaurantItem(
     // 영업시간 상세 목록의 펼침 상태를 관리하는 변수
     var isHoursExpanded by remember { mutableStateOf(false) }
 
-    val ratingText = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
+    val ratingText = if (restaurant.rating != null && restaurant.rating > 0) "%.1f".format(restaurant.rating) else "0.0"
     val displayRatingText = if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
 
     Column(
@@ -932,7 +939,7 @@ fun formatDistance(distanceInMeters: Int): String {
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
 
-    val text = rating.toString()
+    val text = "%.1f".format(rating)
 
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
@@ -1013,3 +1020,4 @@ fun formatKoreanPhoneNumber(number: String?): String {
         else -> digits
     }
 }
+

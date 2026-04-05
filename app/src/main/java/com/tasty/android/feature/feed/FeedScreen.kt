@@ -1,6 +1,12 @@
 package com.tasty.android.feature.feed
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,10 +54,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -59,13 +67,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import com.google.android.gms.common.api.ResolvableApiException
 import com.tasty.android.core.asset.RegionData
 import com.tasty.android.core.design.component.ScaffoldConfig
 import com.tasty.android.core.design.theme.PrimaryColor
@@ -73,7 +84,7 @@ import com.tasty.android.core.design.theme.TextColor
 import com.tasty.android.core.navigation.Screen
 import com.tasty.android.feature.vmfactory.FeedViewModelFactory
 import kotlinx.coroutines.flow.distinctUntilChanged
-import androidx.compose.runtime.SideEffect
+import kotlinx.coroutines.launch
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,32 +107,71 @@ fun FeedScreen(
 
     val currentFilter = uiState.filter
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // 위치 설정 팝업 결과 처리를 위한 런처
+    val settingResultLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // 사용자가 '확인'을 눌러 GPS를 켰을 때
+            tempFilter = tempFilter.copy(sortType = FeedSortType.DISTANCE)
+        }
+    }
+
+    // 위치 권한 요청을 위한 런처
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (granted) {
+            // 권한이 허용되면 위치 설정 체크
+            viewModel.checkLocationSettings(
+                onResolvableException = { exception ->
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onSuccess = {
+                    tempFilter = tempFilter.copy(sortType = FeedSortType.DISTANCE)
+                }
+            )
+        }
+    }
+
+    fun handleDistanceSortClick() {
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        val allGranted = permissions.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+
+        if (allGranted) {
+            viewModel.checkLocationSettings(
+                onResolvableException = { exception ->
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onSuccess = {
+                    tempFilter = tempFilter.copy(sortType = FeedSortType.DISTANCE)
+                }
+            )
+        } else {
+            locationPermissionLauncher.launch(permissions)
+        }
+    }
+
 
     SideEffect {
         onScaffoldConfigChange(
             ScaffoldConfig(
-                title = "Tasty",
+                showAppIcon = true,
                 showTopBar = true,
                 showBottomBar = true,
                 containsBackButton = false,
-                isCenterAligned = true,
-                floatingActionButton = {
-                    FloatingActionButton(
-                        onClick = {
-                            navController.navigate(Screen.FEED_CREATE_FEED.route)
-                        },
-                        containerColor = PrimaryColor,
-                        contentColor = TextColor,
-                        modifier = Modifier
-                            .navigationBarsPadding()
-                            .padding(bottom = 57.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "게시글 작성",
-                        )
-                    }
-                }
+                isCenterAligned = true
             )
         )
     }
@@ -220,12 +270,27 @@ fun FeedScreen(
             contentColor = TextColor,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 1.dp)
-                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = 16.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Tune,
                 contentDescription = "필터"
+            )
+        }
+
+        FloatingActionButton(
+            onClick = {
+                navController.navigate(Screen.FEED_CREATE_FEED.route)
+            },
+            containerColor = PrimaryColor,
+            contentColor = TextColor,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 84.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "게시글 작성",
             )
         }
 
@@ -265,7 +330,11 @@ fun FeedScreen(
                             tempFilter = FeedFilterUiState()
                         },
                         onSortSelected = { sortType ->
-                            tempFilter = tempFilter.copy(sortType = sortType)
+                            if (sortType == FeedSortType.DISTANCE) {
+                                handleDistanceSortClick()
+                            } else {
+                                tempFilter = tempFilter.copy(sortType = sortType)
+                            }
                         },
                         onRegionClick = {
                             showRegionSelection = true

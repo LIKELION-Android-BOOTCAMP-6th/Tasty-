@@ -133,28 +133,7 @@ fun MyPageScreen(
                         contentDescription = "더보기",
                         onActionClick = { showBottomSheet = true }
                     )
-                ),
-                floatingActionButton = {
-                    AnimatedVisibility(visible = uiState.shouldShowTastyListFab) {
-                        FloatingActionButton(
-                            onClick = {
-                                navController.navigate(Screen.MY_PAGE_SELECT_FEEDS.route)
-                            },
-                            containerColor = PrimaryColor,
-                            contentColor = TextColor
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Bookmark,
-                                    contentDescription = "테이스티 리스트 생성"
-                                )
-                            }
-                        }
-                    }
-                }
+                )
             )
         )
     }
@@ -225,6 +204,9 @@ fun MyPageScreen(
                     onTastyListLongClick = { tastyListId ->
                         selectedTastyListId = tastyListId
                         showTastyListOptions = true
+                    },
+                    onCreateClick = {
+                        navController.navigate(Screen.MY_PAGE_SELECT_FEEDS.route)
                     }
                 )
             }
@@ -682,7 +664,8 @@ private fun MyTastyListPage(
     tastyLists: List<MyTastyListItem>,
     isLoading: Boolean = false,
     onTastyListClick: (String) -> Unit,
-    onTastyListLongClick: (String) -> Unit
+    onTastyListLongClick: (String) -> Unit,
+    onCreateClick: () -> Unit
 ) {
     val gridState = rememberLazyGridState()
 
@@ -726,6 +709,20 @@ private fun MyTastyListPage(
             ) {
                 CircularProgressIndicator(color = PrimaryColor)
             }
+        }
+
+        FloatingActionButton(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 16.dp, end = 16.dp),
+            onClick = onCreateClick,
+            containerColor = PrimaryColor,
+            contentColor = TextColor
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bookmark,
+                contentDescription = "테이스티 리스트 생성"
+            )
         }
     }
 }
