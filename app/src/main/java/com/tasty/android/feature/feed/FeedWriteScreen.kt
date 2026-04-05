@@ -1,7 +1,11 @@
 package com.tasty.android.feature.feed
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -48,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -82,6 +87,61 @@ fun FeedWriteScreen(
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         uris.forEach {
             viewModel.addPhoto(it)
+        }
+    }
+
+    // 위치 설정 팝업 결과 처리를 위한 런처
+    val settingResultLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // 사용자가 '확인'을 눌러 GPS를 켰을 때
+            navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+        }
+    }
+
+    // 위치 권한 요청을 위한 런처
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (granted) {
+            // 권한이 허용되면 위치 설정 체크
+            viewModel.checkLocationSettings(
+                onResolvableException = { exception ->
+                    val intentSenderRequest =
+                        IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onSuccess = {
+                    navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                }
+            )
+        }
+    }
+
+    fun handleRestaurantClick() {
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        val allGranted = permissions.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+
+        if (allGranted) {
+            viewModel.checkLocationSettings(
+                onResolvableException = { exception ->
+                    val intentSenderRequest =
+                        IntentSenderRequest.Builder(exception.resolution).build()
+                    settingResultLauncher.launch(intentSenderRequest)
+                },
+                onSuccess = {
+                    navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                }
+            )
+        } else {
+            locationPermissionLauncher.launch(permissions)
         }
     }
 
@@ -131,7 +191,7 @@ fun FeedWriteScreen(
                 RestaurantSelectSection(
                     selectedRestaurant = uiState.selectedRestaurant,
                     onClick = {
-                        navController.navigate(Screen.FEED_SEARCH_RESTAURANT.route)
+                        handleRestaurantClick()
                     },
                     onClearClick = {
                         viewModel.clearRestaurant()

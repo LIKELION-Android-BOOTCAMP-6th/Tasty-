@@ -138,7 +138,7 @@ fun TastyMapScreen(
                         viewModel.uiState.userLocation!!
                     ) {
                         scope.launch {
-                            scaffoldState.bottomSheetState.partialExpand()
+                            scaffoldState.bottomSheetState.expand()
                         }
                     }
                 }
@@ -236,7 +236,7 @@ fun TastyMapScreen(
                     viewModel.uiState.userLocation!!
                 ) {
                     scope.launch {
-                        scaffoldState.bottomSheetState.partialExpand()
+                        scaffoldState.bottomSheetState.expand()
                     }
                 }
             }
@@ -392,7 +392,8 @@ fun TastyMapScreen(
                     viewModel = viewModel,
                     cameraPositionState = cameraPositionState,
                     uiState = uiState,
-                    scaffoldState = scaffoldState
+                    scaffoldState = scaffoldState,
+                    showSearchBar = initialRestaurantId == null // id가 있으면 상세모드이므로 검색창 숨김
                 )
             }
         }
@@ -506,7 +507,8 @@ fun MapOverlayUI(
     viewModel: TastyMapViewmodel,
     cameraPositionState: CameraPositionState,
     uiState: TastyMapUiState,
-    scaffoldState: BottomSheetScaffoldState
+    scaffoldState: BottomSheetScaffoldState,
+    showSearchBar: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
 
@@ -531,24 +533,13 @@ fun MapOverlayUI(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PlaceSearchScreen(
-            labelText = "장소 및 음식점 검색",
-            onFocusChange = {
-                viewModel.setSearchFocus(it)
-                scope.launch {
-                    scaffoldState.bottomSheetState.hide()
-                }
-            },
-            onPlaceSelectedLocation = { latLng ->
-                scope.launch {
-                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-                }
-            },
-            onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
+        if (showSearchBar) {
+            PlaceSearchScreen(
+                labelText = "장소 및 음식점 검색",
+                onFocusChange = {
+                    viewModel.setSearchFocus(it)
                     scope.launch {
-                        scaffoldState.bottomSheetState.show()
-                        scaffoldState.bottomSheetState.partialExpand()
+                        scaffoldState.bottomSheetState.hide()
                     }
                 })
             }
@@ -624,35 +615,72 @@ fun MapOverlayUI(
                         }
                     )
                 },
-                // 로딩 중에는 버튼 클릭 방지
-                enabled = !uiState.isSearching,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3B7CFF),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF3B7CFF).copy(alpha = 0.6f),
-                    disabledContentColor = Color.White.copy(alpha = 0.8f)
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                onPlaceSelectedLocation = { latLng ->
+                    scope.launch {
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
+                    }
+                },
+                onPlaceSelectedRestaurant = { restaurantId ->
+                    viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
+                        scope.launch {
+                            scaffoldState.bottomSheetState.show()
+                            scaffoldState.bottomSheetState.partialExpand()
+                        }
+                    })
+                }
+            )
+        }
+
+        if (showSearchBar) {
+            AnimatedVisibility(
+                visible = !uiState.isSearchFocused,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 100.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    if (uiState.isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                Button(
+                    onClick = {
+                        val location = cameraPositionState.position.target
+                        viewModel.searchAndSyncRestaurants(
+                            location,
+                            {
+                                scope.launch {
+                                    scaffoldState.bottomSheetState.show()
+                                    cameraPositionState.position =
+                                        CameraPosition.fromLatLngZoom(location, 16f)
+                                }
+                            }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("검색 중...", fontSize = 14.sp)
-                    } else {
-                        Text("주변 식당 검색", fontSize = 14.sp)
+                    },
+                    // 로딩 중에는 버튼 클릭 방지
+                    enabled = !uiState.isSearching,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF3B7CFF),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFF3B7CFF).copy(alpha = 0.6f),
+                        disabledContentColor = Color.White.copy(alpha = 0.8f)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (uiState.isSearching) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("검색 중...", fontSize = 14.sp)
+                        } else {
+                            Text("주변 식당 검색", fontSize = 14.sp)
+                        }
                     }
                 }
             }
-        }
 
         FloatingActionButton(
             modifier = Modifier
@@ -677,20 +705,20 @@ fun MapOverlayUI(
                                 )
                             }
                         }
-                    }
-                )
-            },
-            containerColor = if (uiState.isInitializingLocation) Color.LightGray else Color.White,
-            contentColor = if (uiState.isInitializingLocation) Color.Gray else Color.Blue
-        ) {
-            if (uiState.isInitializingLocation) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.Blue
-                )
-            } else {
-                Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
+                    )
+                },
+                containerColor = if (uiState.isInitializingLocation) Color.LightGray else Color.White,
+                contentColor = if (uiState.isInitializingLocation) Color.Gray else Color.Blue
+            ) {
+                if (uiState.isInitializingLocation) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.Blue
+                    )
+                } else {
+                    Icon(Icons.Default.MyLocation, contentDescription = "내 위치")
+                }
             }
         }
     }
@@ -1105,7 +1133,7 @@ fun formatDistance(distanceInMeters: Int): String {
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
 
-    val text = rating.toString()
+    val text = "%.1f".format(rating)
 
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
@@ -1186,3 +1214,4 @@ fun formatKoreanPhoneNumber(number: String?): String {
         else -> digits
     }
 }
+

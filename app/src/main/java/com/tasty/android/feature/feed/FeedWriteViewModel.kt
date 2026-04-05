@@ -12,6 +12,7 @@ import com.tasty.android.core.place.PlaceManager
 import com.tasty.android.core.place.RestaurantSearchItem
 import com.tasty.android.feature.feed.model.AddressInfo
 import com.tasty.android.feature.feed.model.Feed
+import com.google.android.gms.common.api.ResolvableApiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -312,5 +313,18 @@ class FeedWriteViewModel(
                 }
             }
         }
+    }
+    fun checkLocationSettings(
+        onResolvableException: (ResolvableApiException) -> Unit,
+        onSuccess: () -> Unit
+    ) {
+        locationManager.checkLocationSettings(
+            onSuccess = onSuccess,
+            onFailure = { exception ->
+                if (exception is ResolvableApiException) {
+                    onResolvableException(exception)
+                }
+            }
+        )
     }
 }

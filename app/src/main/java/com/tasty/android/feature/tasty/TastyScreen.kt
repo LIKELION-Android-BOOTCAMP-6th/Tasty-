@@ -72,7 +72,7 @@ fun TastyScreen(
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
             ScaffoldConfig(
-                title = "Tasty",
+                showAppIcon = true,
                 showTopBar = true,
                 showBottomBar = true,
                 containsBackButton = false,
@@ -86,9 +86,7 @@ fun TastyScreen(
 
     LaunchedEffect(uiState.selectedSortType) {
         val currentSort = uiState.selectedSortType
-        
-        // 1. 첫 로드 시에는 스크롤하지 않음
-        // 2. 정렬이 실제로 변경되었을 때만 상단으로 이동
+
         if (lastSortType != null && lastSortType != currentSort) {
             if (uiState.tastyList.isNotEmpty()) {
                 gridState.scrollToItem(0)

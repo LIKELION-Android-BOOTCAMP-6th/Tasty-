@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import android.util.Log
+import com.google.android.gms.common.api.ResolvableApiException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
@@ -476,5 +477,21 @@ class FeedViewModel(
                 _uiState.update { it.copy(tastyLists = uiModels) }
             }
         }
+    }
+
+    fun checkLocationSettings(
+        onResolvableException: (ResolvableApiException) -> Unit,
+        onSuccess: () -> Unit
+    ) {
+        locationManager.checkLocationSettings(
+            onSuccess = onSuccess,
+            onFailure = { exception ->
+                if (exception is ResolvableApiException) {
+                    onResolvableException(exception)
+                } else {
+                    Log.e("FeedViewModel", "위치 설정을 사용할 수 없습니다: ${exception.message}")
+                }
+            }
+        )
     }
 }
