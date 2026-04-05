@@ -19,6 +19,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -45,6 +46,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
@@ -85,19 +89,23 @@ fun TastyMapScreen(
     val uiState = viewModel.uiState
 
     val listState = rememberLazyListState()
+
+    // 드래그 핸들을 통한 강제 닫기인지 확인하는 플래그
+    var isForceClosing by remember { mutableStateOf(false) }
+
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
             initialValue = SheetValue.Hidden, // 초기 상태를 숨김으로
             skipHiddenState = false,
+            // 바텀시트 콘텐츠 목록 최상단에 있지 않을 때는 시트가 접히지 않도록 방어
             confirmValueChange = { newValue ->
-                // 리스트가 최상단에 있지 않을 때는 시트가 접히지 않도록 방어
-                if (newValue != SheetValue.Expanded) {
-                    val isAtTop = listState.firstVisibleItemIndex == 0 &&
-                            listState.firstVisibleItemScrollOffset == 0
-
-                    isAtTop
-                } else {
+                // 핸들을 잡고 있는 상태라면(isForceClosing) 어떤 상태 변화(접기/닫기)도 허용
+                if (isForceClosing) {
                     true
+                } else {
+                    // 핸들이 아닐 때는 리스트가 최상단일 때만 시트 변화 허용
+                    val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    newValue != SheetValue.Hidden || isAtTop
                 }
             }
         )
@@ -125,7 +133,10 @@ fun TastyMapScreen(
                 // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
                 if (initialRestaurantId != null && !uiState.isLocationLoading) {
                     // 위치 로딩이 끝나고 ID가 있을 때 실행
-                    viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
+                    viewModel.selectRestaurantById(
+                        initialRestaurantId,
+                        viewModel.uiState.userLocation!!
+                    ) {
                         scope.launch {
                             scaffoldState.bottomSheetState.partialExpand()
                         }
@@ -148,13 +159,15 @@ fun TastyMapScreen(
             // 권한이 허용된 경우: 기존 GPS 활성화 체크 로직 실행
             viewModel.checkAndLoadLocation(
                 onResolvableException = { exception ->
-                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    val intentSenderRequest =
+                        IntentSenderRequest.Builder(exception.resolution).build()
                     settingResultLauncher.launch(intentSenderRequest)
                 },
                 onReady = {
                     viewModel.initializeLocation { latLng ->
                         if (initialRestaurantId == null) {
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(latLng, 18f)
+                            cameraPositionState.position =
+                                CameraPosition.fromLatLngZoom(latLng, 18f)
                         }
                     }
                 }
@@ -218,7 +231,10 @@ fun TastyMapScreen(
             // 위치 초기화 후, 전달받은 id가 있는 경우 선택 로직 실행
             if (initialRestaurantId != null && !uiState.isLocationLoading) {
                 // 위치 로딩이 끝나고 ID가 있을 때 실행
-                viewModel.selectRestaurantById(initialRestaurantId, viewModel.uiState.userLocation!!) {
+                viewModel.selectRestaurantById(
+                    initialRestaurantId,
+                    viewModel.uiState.userLocation!!
+                ) {
                     scope.launch {
                         scaffoldState.bottomSheetState.partialExpand()
                     }
@@ -272,6 +288,42 @@ fun TastyMapScreen(
         BottomSheetScaffold(
             scaffoldState = scaffoldState,
             sheetPeekHeight = 100.dp,
+            sheetDragHandle = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    when (event.type) {
+                                        PointerEventType.Press -> {
+                                            scope.launch {
+                                                listState.scrollToItem(0)
+                                            }
+                                            isForceClosing = true
+                                        }
+                                        PointerEventType.Release -> {
+                                            isForceClosing = false
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 실제 시각적인 핸들 모양 (회색 바)
+                    Surface(
+                        modifier = Modifier
+                            .width(34.dp)
+                            .height(4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = CircleShape
+                    ) {}
+                }
+
+            },
             sheetContent = {
                 RestaurantListSheet(
                     uiState = uiState,
@@ -304,7 +356,7 @@ fun TastyMapScreen(
                     )
                 ) {
                     // 검색 반경 표시 (Circle)
-                    if(uiState.isSearchPerformed) {
+                    if (uiState.isSearchPerformed) {
                         Circle(
                             center = viewModel.uiState.lastCameraLocation,
                             radius = uiState.lastSearchRadius, // 미터(m) 단위
@@ -353,7 +405,7 @@ fun RestaurantListSheet(
     onItemClick: (RestaurantData) -> Unit,
     viewModel: TastyMapViewmodel,
     navController: NavController,
-    listState: LazyListState
+    listState: LazyListState,
 ) {
     // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
     val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
@@ -384,7 +436,10 @@ fun RestaurantListSheet(
                     .background(Color.White)
                     // 내부 스크롤이 시트 드래그보다 우선시 하게 설정
                     .nestedScroll(rememberNestedScrollInteropConnection()),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), // 상하 패딩을 16dp에서 8dp로 조정
+                contentPadding = PaddingValues(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                ), // 상하 패딩을 16dp에서 8dp로 조정
                 verticalArrangement = Arrangement.spacedBy(16.dp) // 항목 간 간격을 24dp에서 16dp로 축소
             ) {
                 // 바텀 시트 정렬 버튼
@@ -558,7 +613,10 @@ fun MapOverlayUI(
                                     else -> 10.0f
                                 }
                                 cameraPositionState.animate(
-                                    update = CameraUpdateFactory.newLatLngZoom(viewModel.uiState.lastCameraLocation, targetZoom),
+                                    update = CameraUpdateFactory.newLatLngZoom(
+                                        viewModel.uiState.lastCameraLocation,
+                                        targetZoom
+                                    ),
                                     durationMs = 500
                                 )
                                 viewModel.setSearchState()
@@ -606,7 +664,8 @@ fun MapOverlayUI(
                 viewModel.checkAndLoadLocation(
                     onResolvableException = { exception ->
                         // 서비스가 꺼져 있다면 다이얼로그 출력
-                        val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                        val intentSenderRequest =
+                            IntentSenderRequest.Builder(exception.resolution).build()
                         settingResultLauncher.launch(intentSenderRequest)
                     },
                     onReady = {
@@ -651,8 +710,10 @@ fun RestaurantItem(
     // 영업시간 상세 목록의 펼침 상태를 관리하는 변수
     var isHoursExpanded by remember { mutableStateOf(false) }
 
-    val ratingText = if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
-    val displayRatingText = if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
+    val ratingText =
+        if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
+    val displayRatingText =
+        if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
 
     Column(
         modifier = Modifier
