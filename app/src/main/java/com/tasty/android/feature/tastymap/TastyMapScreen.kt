@@ -255,10 +255,7 @@ fun TastyMapScreen(
     LaunchedEffect(uiState.selectedRestaurant) {
         uiState.selectedRestaurant?.let { restaurant ->
             val targetLatLng = LatLng(restaurant.latitude, restaurant.longitude)
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLngZoom(targetLatLng, 18f),
-                500 // 0.5초 동안 부드럽게 이동
-            )
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(targetLatLng, 18f)
         }
     }
 
