@@ -1,5 +1,6 @@
 package com.tasty.android.feature.auth
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -7,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,9 +24,26 @@ import com.tasty.android.core.navigation.TabScreen
 @Composable
 fun ProfileSetupScreen(
     navController: NavHostController,
-    viewModel: ProfileSetupViewModel = viewModel(factory = ProfileSetupViewModel .Factory),
+    viewModel: ProfileSetupViewModel = viewModel(factory = ProfileSetupViewModel.Factory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+    // 상태 관리: 입력된 닉네임
+    var nickname by remember { mutableStateOf("") }
+
+    // 색상 설정
+    val pointGreen = Color(0xFF8DEB8D)
+    val lightGreenText = Color(0xFF76D676)
+
+    // ViewModel 상태 구독
+    val uiState by viewModel.uiState.collectAsState()
+
+    val focusManager = LocalFocusManager.current
+
+    // 유효성 체크
+    val isNicknameValid = remember(nickname) {
+        nickname.length in 2..8 && nickname.all { it.isLetterOrDigit() }
+    }
+
     // 스캐폴드(상단 및 하단 메뉴) 적용
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -33,9 +53,6 @@ fun ProfileSetupScreen(
             )
         )
     }
-
-    // ViewModel 상태 구독
-    val uiState by viewModel.uiState.collectAsState()
 
     // 프로필 업데이트 성공 시 홈 화면으로 이동
     LaunchedEffect(uiState.isSuccess) {
@@ -49,20 +66,15 @@ fun ProfileSetupScreen(
         }
     }
 
-    // 상태 관리: 입력된 닉네임
-    var nickname by remember { mutableStateOf("") }
-
-    // 버튼 활성화 조건: 닉네임을 입력했을 경우
-    val isCompleteEnabled = nickname.isNotBlank()
-
-    // 색상 설정
-    val pointGreen = Color(0xFF8DEB8D)
-    val lightGreenText = Color(0xFF76D676)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 40.dp),
+            .padding(horizontal = 24.dp, vertical = 40.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus() // 배경 터치 시 포커스 해제
+                })
+            },
         horizontalAlignment = Alignment.Start
     ) {
         // 타이틀 영역
@@ -94,7 +106,7 @@ fun ProfileSetupScreen(
         // 입력 필드 영역
         OutlinedTextField(
             value = nickname,
-            onValueChange = { nickname = it },
+            onValueChange = { if (it.length <= 8) nickname = it.trim() },
             placeholder = {
                 Text(
                     text = "닉네임을 입력해주세요.",
@@ -134,13 +146,16 @@ fun ProfileSetupScreen(
 
         // 완료 버튼 영역
         Button(
-            onClick = { viewModel.onCompleteClick(nickname) },
+            onClick = {
+                focusManager.clearFocus()
+                viewModel.onCompleteClick(nickname)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = pointGreen),
-            enabled = isCompleteEnabled
+            enabled = nickname.isNotEmpty() && isNicknameValid
         ) {
             // 지연 프로그레스 UI표시
             if (uiState.isLoading) {

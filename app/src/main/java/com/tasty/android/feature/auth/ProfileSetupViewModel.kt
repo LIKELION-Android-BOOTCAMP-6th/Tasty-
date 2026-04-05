@@ -98,4 +98,13 @@ class ProfileSetupViewModel(
             }
         }
     }
+
+    fun clearErrorMessage()
+    {
+        _uiState.update {
+            it.copy(
+                errorMessage = null
+            )
+        }
+    }
 }
