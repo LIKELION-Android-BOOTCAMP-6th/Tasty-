@@ -290,7 +290,7 @@ fun TastyMapScreen(
                     if(uiState.isSearchPerformed) {
                         Circle(
                             center = viewModel.uiState.lastCameraLocation,
-                            radius = uiState.searchRadius, // 미터(m) 단위
+                            radius = uiState.lastSearchRadius, // 미터(m) 단위
                             fillColor = Color(0x224285F4), // 반투명한 파란색
                             strokeColor = Color(0xFF4285F4), // 진한 파란색 테두리
                             strokeWidth = 2f
@@ -493,9 +493,9 @@ fun MapOverlayUI(
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
                     val radiusOptions = listOf(
-                        "500m" to 500.0,
-                        "1km" to 1000.0,
-                        "5km" to 5000.0
+                        "정밀 검색(500m)" to 500.0,
+                        "표준 검색(1km)" to 1000.0,
+                        "광역 검색(5km)" to 5000.0
                     )
 
                     radiusOptions.forEach { (label, value) ->
@@ -532,8 +532,14 @@ fun MapOverlayUI(
                         {
                             scope.launch {
                                 scaffoldState.bottomSheetState.show()
+                                val targetZoom = when {
+                                    uiState.searchRadius <= 500.0 -> 15.5f
+                                    uiState.searchRadius <= 1000.0 -> 14.5f
+                                    uiState.searchRadius <= 5000.0 -> 12f
+                                    else -> 10.0f
+                                }
                                 cameraPositionState.animate(
-                                    update = CameraUpdateFactory.newLatLngZoom(viewModel.uiState.lastCameraLocation, 16f),
+                                    update = CameraUpdateFactory.newLatLngZoom(viewModel.uiState.lastCameraLocation, targetZoom),
                                     durationMs = 500
                                 )
                                 viewModel.setSearchState()

@@ -34,6 +34,7 @@ enum class SortType { DISTANCE, RATING }
 
 // UI에 필요한 모든 상태를 하나의 클래스로 관리
 data class TastyMapUiState(
+    val lastSearchRadius: Double = 0.0,
     val lastCameraLocation: LatLng = LatLng(0.0,0.0),
     val isSearchPerformed: Boolean = false, // 서치 수행 여부
     val searchRadius: Double = 500.0, // 500m
@@ -157,7 +158,8 @@ class TastyMapViewmodel(
                 // 2. 격자 검색 실행 (기존 콜백 방식 대신 직접 결과 수신)
                 // radius 파라미터를 searchRestaurantsByGrid의 totalRangeKm로 전달 (단위 변환 주의: m -> km)
                 val googleResults = placesManager.searchRestaurantsByGrid(
-                    center = location
+                    center = location,
+                    totalRangeMeters = uiState.searchRadius
                 )
 
                 // 3. Firestore 데이터 연동 (ID 리스트 추출)
@@ -188,7 +190,8 @@ class TastyMapViewmodel(
                 uiState = uiState.copy(
                     restaurants = mergedList,
                     selectedRestaurant = null,
-                    isSearching = false
+                    isSearching = false,
+                    lastSearchRadius = uiState.searchRadius
                 )
 
                 // 6. 정렬 및 마무리
