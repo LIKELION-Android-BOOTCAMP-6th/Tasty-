@@ -1,6 +1,7 @@
 package com.tasty.android.core.firebase
 
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
@@ -31,8 +32,10 @@ sealed class TastyUpdateEvent {
 class TastyStoreManager {
 
     private val firebaseDB = Firebase.firestore
+
     // 페이네이션 제한 한 번에 10개씩 load
     private val paginationLimit: Long = 10
+
     // 거리순의 경우 1회 데이터 상한선
     private val maxFetchLimit: Long = 200
 
@@ -45,19 +48,19 @@ class TastyStoreManager {
 
     /*** 마이페이지&&테이스티리스트 홈/테이스티리스트 CRUD(생성/조회/수정/삭제) ***/
     // 테이스티 리스트 아이디 생성
-    fun generateTastyListId():String = firebaseDB.collection("tastyLists").document().id
+    fun generateTastyListId(): String = firebaseDB.collection("tastyLists").document().id
 
     // 테이스티 리스트 저장/생성
-    suspend fun createTastyList(tastyList: TastyList) : Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun createTastyList(tastyList: TastyList): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             firebaseDB
                 .collection("tastyLists")
                 .document(tastyList.tastyListId)
                 .set(tastyList)
                 .await()
-            
+
             notifyTastyUpdated(TastyUpdateEvent.TastyListCreated(tastyList.authorId))
-            
+
             Result.success(Unit)
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
@@ -83,8 +86,12 @@ class TastyStoreManager {
                     .document(lastTastyListId).get().await()
                 query = query.startAfter(lastSnapshot)
             }
-            Result.success(query.get().await().toObjects(TastyList::class.java))
-        } catch (e: FirebaseFirestoreException) {
+            val snapshots = query.get().await()
+            val list = snapshots.documents.mapNotNull { doc ->
+                doc.toObject(TastyList::class.java)?.copy(tastyListId = doc.id)
+            }
+            Result.success(list)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -98,7 +105,7 @@ class TastyStoreManager {
             TastySortType.LATEST -> "createdAt"
             TastySortType.VIEW_COUNT -> "viewCount"
         }
-        
+
         val query = firebaseDB.collection("tastyLists")
             .orderBy(orderField, Query.Direction.DESCENDING)
             .limit(limit)
@@ -109,7 +116,9 @@ class TastyStoreManager {
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                val list = snapshot.toObjects(TastyList::class.java)
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(TastyList::class.java)?.copy(tastyListId = doc.id)
+                }
                 trySend(list)
             }
         }
@@ -118,35 +127,39 @@ class TastyStoreManager {
     }
 
     // 단일 테이스티 리스트 조회
-    suspend fun getTastyList(tastyListId: String) : Result<TastyList?> = withContext(Dispatchers.IO) {
-        try {
-            val snapshot = firebaseDB
-                .collection("tastyLists")
-                .document(tastyListId)
-            val tastyList = snapshot
-                .get()
-                .await()
-                .toObject(TastyList::class.java)
-            Result.success(tastyList)
-        } catch (e: FirebaseFirestoreException) {
-            Result.failure(e)
-        }
-    }
-    // 테이스티 피드 목록 조회
-    suspend fun getFeedsByIDs(feedIds:List<String>): Result<List<Feed>> = withContext(Dispatchers.IO) {
-        if (feedIds.isEmpty()) return@withContext Result.failure(Exception("포함된 피드들이 없습니다."))
-        try {
-            val feeds = feedIds.chunked(30).flatMap { chunk ->
-                firebaseDB.collection("feeds")
-                    .whereIn("feedId", chunk)
-                    .get().await()
-                    .toObjects(Feed::class.java)
+    suspend fun getTastyList(tastyListId: String): Result<TastyList?> =
+        withContext(Dispatchers.IO) {
+            if (tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
+            try {
+                val doc = firebaseDB
+                    .collection("tastyLists")
+                    .document(tastyListId)
+                    .get()
+                    .await()
+                val tastyList = doc.toObject(TastyList::class.java)?.copy(tastyListId = doc.id)
+                Result.success(tastyList)
+            } catch (e: Exception) {
+                Result.failure(e)
             }
-            Result.success(feeds)
-        } catch (e: FirebaseFirestoreException) {
-            Result.failure(e)
         }
-    }
+
+    // 테이스티 피드 목록 조회
+    suspend fun getFeedsByIDs(feedIds: List<String>): Result<List<Feed>> =
+        withContext(Dispatchers.IO) {
+            if (feedIds.isEmpty()) return@withContext Result.failure(Exception("포함된 피드들이 없습니다."))
+            try {
+                val feeds = feedIds.chunked(30).flatMap { chunk ->
+                    firebaseDB.collection("feeds")
+                        .whereIn("feedId", chunk)
+                        .get().await()
+                        .toObjects(Feed::class.java)
+                }
+                Result.success(feeds)
+            } catch (e: FirebaseFirestoreException) {
+                Result.failure(e)
+            }
+        }
+
     // 테이스티 리스트 수정
     suspend fun updateTastyList(
         tastyListId: String,
@@ -154,6 +167,7 @@ class TastyStoreManager {
         thumbnailImageUrl: String? = null,
         feedIds: List<String>? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
         try {
             val updates = mutableMapOf<String, Any>(
                 "updatedAt" to FieldValue.serverTimestamp()
@@ -165,19 +179,22 @@ class TastyStoreManager {
                 .document(tastyListId)
                 .update(updates)
                 .await()
-            
+
             // 실시간 이벤트 전파
             notifyTastyUpdated(TastyUpdateEvent.TastyListUpdated(tastyListId))
-            
+
             Result.success(Unit)
-        } catch (e: FirebaseFirestoreException) {
+        } catch (e: FirebaseException) {
             Result.failure(e)
         }
     }
 
 
+
+
     // 테이스티 리스트 삭제
     suspend fun deleteTastyList(tastyListId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        if (tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
         try {
             firebaseDB.collection("tastyLists")
                 .document(tastyListId)
@@ -196,6 +213,7 @@ class TastyStoreManager {
 
     // 조회수 증가
     suspend fun incrementTastyListViewCount(tastyListId: String): Result<Int> = withContext(Dispatchers.IO) {
+        if (tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
         try {
             val docRef = firebaseDB.collection("tastyLists").document(tastyListId)
             
@@ -216,6 +234,7 @@ class TastyStoreManager {
     }
     // 좋아요 추가
     suspend fun likeTastyList(tastyListLike: TastyListLike): Result<Unit> = withContext(Dispatchers.IO) {
+        if (tastyListLike.tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
         try {
             val batch = firebaseDB.batch()
             val likeRef = firebaseDB
@@ -246,6 +265,7 @@ class TastyStoreManager {
 
     // 좋아요 취소
     suspend fun unlikeTastyList(tastyListLike: TastyListLike): Result<Unit> = withContext(Dispatchers.IO) {
+        if (tastyListLike.tastyListId.isBlank()) return@withContext Result.failure(Exception("Invalid tastyListId"))
         try {
             val batch = firebaseDB.batch()
 
@@ -277,6 +297,7 @@ class TastyStoreManager {
 
     // 좋아요 여부 확인
     suspend fun isTastyListLiked(tastyListLike: TastyListLike): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (tastyListLike.tastyListId.isBlank()) return@withContext Result.success(false)
         try {
             val result = firebaseDB
                 .collection("tastyLists")
@@ -285,7 +306,7 @@ class TastyStoreManager {
                 .whereEqualTo("userId", tastyListLike.userId)
                 .get().await()
             Result.success(!result.isEmpty)
-        } catch (e: FirebaseFirestoreException) {
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -300,8 +321,11 @@ class TastyStoreManager {
                 .limit(limit)
             
             val snapshot = query.get().await()
-            Result.success(snapshot.toObjects(TastyList::class.java))
-        } catch (e: FirebaseFirestoreException) {
+            val list = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(TastyList::class.java)?.copy(tastyListId = doc.id)
+            }
+            Result.success(list)
+        } catch (e: Exception) {
             android.util.Log.e("TastyStoreManager", "Firestore query error: ${e.message}", e)
             Result.failure(e)
         }

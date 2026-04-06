@@ -1,5 +1,6 @@
 package com.tasty.android.feature.tasty
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tasty.android.core.firebase.AuthManager
@@ -92,14 +93,19 @@ class TastyViewModel(
                         async {
                             val isLiked = if (currentUserId != null) {
                                 tastyStoreManager.isTastyListLiked(
+
                                     TastyListLike(tastyListId = tasty.tastyListId, userId = currentUserId)
                                 ).getOrDefault(false)
+
                             } else false
                             
                             tasty.toUiModel(isLiked)
                         }
                     }.awaitAll()
+
+
                 }
+
 
                 _uiState.update {
                     it.copy(
