@@ -98,4 +98,5 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.2.0")
     // 이미지 압축 라이브러리
     implementation("id.zelory:compressor:3.0.1")
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 }

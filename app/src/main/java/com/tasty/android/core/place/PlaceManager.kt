@@ -192,9 +192,15 @@ class PlaceManager(private val context: Context) {
      */
     suspend fun searchRestaurantsByGrid(
         center: LatLng,          // 검색 중심 좌표
-        totalRangeKm: Double = 0.5, // 전체 검색 범위 (km)
-        gridStepMeter: Double = 150.0 // 격자 간격 (m)
+        totalRangeMeters: Double = 500.0, // 전체 검색 범위 (m)
     ): List<RestaurantData> = withContext(Dispatchers.IO) {
+
+        val gridStepMeter = when {
+            totalRangeMeters <= 500.0 -> 120.0  // 500m 이하: 정밀 검색
+            totalRangeMeters <= 1000.0 -> 180.0 // 1km 이하: 표준 검색
+            totalRangeMeters <= 5000.0 -> 400.0 // 5km 이하: 광역 검색
+            else -> 600.0                       // 그 이상
+        }
 
         // 중복 제거를 위한 ConcurrentHashMap (식당 ID 기준)
         val accumulatedMap = java.util.concurrent.ConcurrentHashMap<String, RestaurantData>()
@@ -205,7 +211,7 @@ class PlaceManager(private val context: Context) {
         val meterPerLon = 88800.0 * kotlin.math.cos(Math.toRadians(center.latitude)) // 경도 1도당 미터 거리
 
         // 격자 탐색을 위한 스텝 수 계산
-        val maxStep = (totalRangeKm * 1000 / gridStepMeter).toInt() / 2
+        val maxStep = (totalRangeMeters / gridStepMeter).toInt() / 2
         val placeFields = listOf(
             Field.ID, Field.NAME, Field.ADDRESS, Field.LAT_LNG,
             Field.BUSINESS_STATUS, Field.PHOTO_METADATAS, Field.OPENING_HOURS,

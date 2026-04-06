@@ -1,5 +1,7 @@
 package com.tasty.android.feature.auth
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -56,6 +60,29 @@ fun LoginScreen(
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
 
+    // 입력값 상태 관리
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    // 버튼 활성화 조건: 이메일과 비밀번호 모두 비어있지 않을 때 true
+    val isLoginButtonEnabled = email.isNotBlank() && password.isNotBlank()
+
+    //  색상 설정
+    val pointGreen = Color(0xFF8DEB8D)
+    val lightGreenText = Color(0xFF76D676)
+
+    val uiState by viewmodel.uiState.collectAsState()
+
+    var showErrorDialog by remember { mutableStateOf(false) }
+
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage != null) {
+            showErrorDialog = true
+        }
+    }
+
     // 스캐폴드(상단 및 하단 메뉴) 적용
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -65,15 +92,6 @@ fun LoginScreen(
             )
         )
     }
-    // ViewModel 상태 구독
-    val uiState by viewmodel.uiState.collectAsState()
-
-    // 입력값 상태 관리
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    // 버튼 활성화 조건: 이메일과 비밀번호 모두 비어있지 않을 때 true
-    val isLoginButtonEnabled = email.isNotBlank() && password.isNotBlank()
 
     // 로그인 성공 시 메인 화면으로 이동
     LaunchedEffect(uiState.isSuccess) {
@@ -84,14 +102,15 @@ fun LoginScreen(
         }
     }
 
-    //  색상 설정
-    val pointGreen = Color(0xFF8DEB8D)
-    val lightGreenText = Color(0xFF76D676)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus() // 배경 터치 시 포커스 해제
+                })
+            },
         horizontalAlignment = Alignment.Start
     ) {
         Spacer(modifier = Modifier.height(100.dp))
@@ -147,28 +166,14 @@ fun LoginScreen(
             singleLine = true
         )
 
-    // 에러 메시지
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .padding(top = 4.dp, end = 4.dp)
-        ) {
-            uiState.errorMessage?.let { error ->
-                Text(
-                    text = error,
-                    color = Color.Red,
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(40.dp))
 
         // 로그인 버튼
         Button(
-            onClick = { viewmodel.onLoginClicked(email, password) },
+            onClick = {
+                focusManager.clearFocus()
+                viewmodel.onLoginClicked(email, password)
+                      },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -191,6 +196,30 @@ fun LoginScreen(
                     color = Color.White
                 )
             }
+        }
+
+        // 오류 다이얼로그 출력
+        if (showErrorDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showErrorDialog = false },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            showErrorDialog = false
+                        }
+                    ) {
+                        Text("확인", color = pointGreen)
+                    }
+                },
+                title = {
+                    Text(text = "로그인 실패", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Text(text = uiState.errorMessage ?: "알 수 없는 오류가 발생했습니다.")
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

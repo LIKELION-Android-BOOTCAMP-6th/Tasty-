@@ -1,5 +1,6 @@
 package com.tasty.android.feature.auth
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -23,9 +26,34 @@ import com.tasty.android.core.navigation.Screen
 @Composable
 fun SignUpScreen(
     navController: NavHostController,
-    viewmodel: SignUpAccountViewmodel = viewModel(factory = SignUpAccountViewmodel .Factory),
+    viewmodel: SignUpAccountViewmodel = viewModel(factory = SignUpAccountViewmodel.Factory),
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit
 ) {
+    // 입력값 상태 관리
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    // 버튼 활성화 조건: 이메일과 비밀번호 모두 비어있지 않을 때 true
+    val isNextButtonEnabled = email.isNotBlank() && password.isNotBlank()
+
+    //  색상 설정
+    val pointGreen = Color(0xFF8DEB8D)
+    val lightGreenText = Color(0xFF76D676)
+
+    var showErrorDialog by remember { mutableStateOf(false) }
+
+    // ViewModel 상태 구독
+    val uiState by viewmodel.uiState.collectAsState()
+
+    val focusManager = LocalFocusManager.current
+
+    // 에러 메세지가 업데이트되면 다이얼로그 출력
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage != null) {
+            showErrorDialog = true
+        }
+    }
+
     // 스캐폴드(상단 및 하단 메뉴) 적용
     LaunchedEffect(Unit) {
         onScaffoldConfigChange(
@@ -35,9 +63,6 @@ fun SignUpScreen(
             )
         )
     }
-
-    // ViewModel 상태 구독
-    val uiState by viewmodel.uiState.collectAsState()
 
     // 회원가입 성공 시 프로필 기입 화면으로 이동
     LaunchedEffect(uiState.isSuccess) {
@@ -50,21 +75,15 @@ fun SignUpScreen(
         }
     }
 
-    // 입력값 상태 관리
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    // 버튼 활성화 조건: 이메일과 비밀번호 모두 비어있지 않을 때 true
-    val isNextButtonEnabled = email.isNotBlank() && password.isNotBlank()
-
-    //  색상 설정
-    val pointGreen = Color(0xFF8DEB8D)
-    val lightGreenText = Color(0xFF76D676)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus() // 배경 터치 시 포커스 해제
+                })
+            },
         horizontalAlignment = Alignment.Start
     ) {
         Spacer(modifier = Modifier.height(60.dp))
@@ -109,7 +128,7 @@ fun SignUpScreen(
             value = password,
             onValueChange = { password = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("비밀번호를 입력해주세요.", color = Color.LightGray) },
+            placeholder = { Text("비밀번호는 6자 이상 입력해 주세요.", color = Color.LightGray) },
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = pointGreen,
@@ -120,28 +139,14 @@ fun SignUpScreen(
             singleLine = true
         )
 
-        // 에러 메시지
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .padding(top = 4.dp, end = 4.dp)
-        ) {
-            uiState.errorMessage?.let { error ->
-                Text(
-                    text = error,
-                    color = Color.Red,
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(40.dp))
 
         // 다음 버튼
         Button(
-            onClick = { viewmodel.onNextClick(email, password) },
+            onClick = {
+                focusManager.clearFocus()
+                viewmodel.onNextClick(email, password)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -164,6 +169,28 @@ fun SignUpScreen(
                     color = Color.White
                 )
             }
+        }
+
+        // 예외 처리 다이얼로그
+        if (showErrorDialog) {
+            AlertDialog(
+                onDismissRequest = { showErrorDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showErrorDialog = false }
+                    ) {
+                        Text("확인", color = pointGreen)
+                    }
+                },
+                title = {
+                    Text(text = "알림", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Text(text = uiState.errorMessage ?: "오류가 발생했습니다. 다시 시도해주세요.")
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }
