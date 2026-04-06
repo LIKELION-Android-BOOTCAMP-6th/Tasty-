@@ -65,6 +65,8 @@ class SignUpAccountViewmodel(
                 val firestoreResult = userStoreManager.saveUser(newUser)
 
                 firestoreResult.onSuccess {
+                    // 저장 성공 시 캐시 업데이트
+                    userStoreManager.fetchAndCacheUser(uid)
                     // 최종 성공: 모든 과정 완료
                     _uiState.update { it.copy(isFirestoreSuccess = true, isLoading = false) }
                 }.onFailure { e ->

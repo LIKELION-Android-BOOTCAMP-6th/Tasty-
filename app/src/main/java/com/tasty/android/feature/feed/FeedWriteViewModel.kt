@@ -278,8 +278,12 @@ class FeedWriteViewModel(
                 return@launch
             }
 
-            val userProfile = userStoreManager.currentUserProfile.value
-                ?: userStoreManager.getUser(authorId).getOrNull() // 캐시 없으면 폴백
+            val cachedProfile = userStoreManager.currentUserProfile.value
+            val userProfile = if (cachedProfile?.userId == authorId) {
+                cachedProfile
+            } else {
+                userStoreManager.getUser(authorId).getOrNull()
+            }
 
             val feed = Feed(
                 feedId = feedId,

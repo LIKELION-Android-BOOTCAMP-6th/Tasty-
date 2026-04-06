@@ -33,6 +33,11 @@ class UserStoreManager {
         }
         result
     }
+    
+    // 유저 캐시 초기화
+    fun clearCache() {
+        _currentUserProfile.value = null
+    }
     /***
      * 유저 저장&조회&수정
      ***/

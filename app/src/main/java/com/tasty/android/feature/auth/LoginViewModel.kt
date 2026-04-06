@@ -56,17 +56,17 @@ class LoginViewModel(
                     val userId = authManager.getCurrentUser()?.uid // 현재 유저 ID 획득
 
                     if (userId != null) {
-                        // firestoreManager에서 유저 정보를 가져오는 함수 호출 (가정)
-                        val userData = userStoreManager.getUser(userId)
+                        // 로그인 성공 시 Firestore에서 유저 정보 로드 및 캐싱
+                        val userDataResult = userStoreManager.fetchAndCacheUser(userId)
 
-                        if (userData != null) {
+                        if (userDataResult.isSuccess) {
                             // 3. 데이터 로드까지 모두 성공 한 경우 상태 업데이트
                             _uiState.update {
                                 it.copy(isLoading = false, isSuccess = true, isDataLoaded = true)
                             }
                         } else {
                             _uiState.update {
-                                it.copy(isLoading = false, errorMessage = "유저 정보를 찾을 수 없습니다.")
+                                it.copy(isLoading = false, errorMessage = "유저 정보를 불러올 수 없습니다.")
                             }
                         }
                     }
