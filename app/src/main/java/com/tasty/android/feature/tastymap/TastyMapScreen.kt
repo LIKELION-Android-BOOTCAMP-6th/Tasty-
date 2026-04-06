@@ -370,22 +370,67 @@ fun TastyMapScreen(
                             strokeWidth = 2f
                         )
                     }
-                    uiState.restaurants.forEach { rest ->
-                        val isSelected = uiState.selectedRestaurant == rest
-                        // 평점 기반의 커스텀 마커 생성
-                        val ratingIcon = remember(rest.id, rest.rating, isSelected) {
-                            Log.d("Marker", "마커 생성 호출: ${rest.name}") // 호출 여부 확인용 로그
-                            createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
+                    val groupedRestaurants = remember(uiState.restaurants) {
+                        uiState.restaurants.groupBy { LatLng(it.latitude, it.longitude) }
+                    }
+
+
+//                    uiState.restaurants.forEachIndexed { index, rest ->
+//                        val isSelected = uiState.selectedRestaurant == rest
+//
+//                        // 동일 좌표 식당 수에 따라 미세한 오프셋 부여 (약 1~3m 내외)
+//                        val latOffset = (index * 0.00003)
+//                        val lngOffset = (index * 0.00003)
+//
+//                        // 평점 기반의 커스텀 마커 생성
+//                        val ratingIcon = remember(rest.id, rest.rating, isSelected) {
+//                            Log.d("Marker", "마커 생성 호출: ${rest.name}") // 호출 여부 확인용 로그
+//                            createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
+//                        }
+//
+//                        Marker(
+//                            state = MarkerState(position = LatLng(rest.latitude + latOffset, rest.longitude + lngOffset)),
+//                            icon = ratingIcon,
+//                            anchor = Offset(0.5f, 1.0f),
+//                            onClick = {
+//                                viewModel.selectRestaurant(rest, {
+//                                    scope.launch { scaffoldState.bottomSheetState.expand() }
+//                                })
+//                                true
+//                            }
+//                        )
+//                    }
+
+                    groupedRestaurants.forEach { (location, restaurantsInPos) ->
+                        val isSelected = uiState.selectedRestaurant in restaurantsInPos ||
+                                uiState.selectedGroup == restaurantsInPos
+                        val count = restaurantsInPos.size
+
+                        // 식당이 1개일 때는 기존처럼 평점 마커, 여러 개일 때는 그룹 마커 표시
+                        val markerIcon = remember(restaurantsInPos, isSelected) {
+                            if (count > 1) {
+                                createGroupMarker(count, isSelected)
+                            } else {
+                                val rest = restaurantsInPos.first()
+                                createSimpleRatingMarker(rest.rating ?: 0.0, isSelected)
+                            }
                         }
 
                         Marker(
-                            state = MarkerState(position = LatLng(rest.latitude, rest.longitude)),
-                            icon = ratingIcon,
+                            state = MarkerState(position = location),
+                            icon = markerIcon,
                             anchor = Offset(0.5f, 1.0f),
                             onClick = {
-                                viewModel.selectRestaurant(rest, {
-                                    scope.launch { scaffoldState.bottomSheetState.expand() }
-                                })
+                                if (count > 1) {
+                                    // 그룹 클릭 시 그룹 전체를 ViewModel에 전달
+                                    viewModel.selectGroup(restaurantsInPos) {
+                                        scope.launch { scaffoldState.bottomSheetState.expand() }
+                                    }
+                                } else {
+                                    viewModel.selectRestaurant(restaurantsInPos.first()) {
+                                        scope.launch { scaffoldState.bottomSheetState.expand() }
+                                    }
+                                }
                                 true
                             }
                         )
@@ -422,8 +467,12 @@ fun RestaurantListSheet(
     navController: NavController,
     listState: LazyListState,
 ) {
-    // 선택된 식당이 있으면 단일 항목만, 없으면 전체 리스트 노출
-    val displayList = uiState.selectedRestaurant?.let { listOf(it) } ?: uiState.restaurants
+    // 선택된 식당 -> 선택된 그룹 -> 전체 리스트 순
+    val displayList = when {
+        uiState.selectedRestaurant != null -> listOf(uiState.selectedRestaurant)
+        uiState.selectedGroup != null -> uiState.selectedGroup
+        else -> uiState.restaurants
+    }
 
     // 리스트가 변경될 때마다 최상단으로 스크롤 (순간적인 튀는 현상 방지)
     LaunchedEffect(displayList.size) {
@@ -1254,7 +1303,40 @@ fun formatDistance(distanceInMeters: Int): String {
     return if (distanceInMeters >= 1000) "%.1fkm".format(distanceInMeters / 1000.0) else "${distanceInMeters}m"
 }
 
-// Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
+fun createGroupMarker(count: Int, isSelected: Boolean): BitmapDescriptor {
+    val size = 120
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    // 배경 원
+    paint.color = if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.WHITE
+    canvas.drawCircle(size / 2f, size / 2f, size / 2.5f, paint)
+
+    // 테두리
+    paint.style = Paint.Style.STROKE
+    paint.color = android.graphics.Color.parseColor("#3B7CFF")
+    paint.strokeWidth = 5f
+    canvas.drawCircle(size / 2f, size / 2f, size / 2.5f, paint)
+
+    // 숫자 텍스트
+    paint.style = Paint.Style.FILL
+    paint.color = if (isSelected) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#3B7CFF")
+    paint.textSize = 40f
+    paint.textAlign = Paint.Align.CENTER
+    paint.isFakeBoldText = true
+
+    val text = if (count > 1) "+$count" else ""
+    if (text.isNotEmpty()) {
+        val textBounds = Rect()
+        paint.getTextBounds(text, 0, text.length, textBounds)
+        canvas.drawText(text, size / 2f, size / 2f + textBounds.height() / 2f, paint)
+    }
+
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+// 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
 
     val text = rating.toString()
