@@ -139,8 +139,7 @@ fun TastyMapScreen(
                 if (initialRestaurantId != null && !uiState.isLocationLoading) {
                     // 위치 로딩이 끝나고 ID가 있을 때 실행
                     viewModel.selectRestaurantById(
-                        initialRestaurantId,
-                        viewModel.uiState.userLocation!!
+                        initialRestaurantId
                     ) {
                         scope.launch {
                             scaffoldState.bottomSheetState.partialExpand()
@@ -240,8 +239,7 @@ fun TastyMapScreen(
             if (initialRestaurantId != null && !uiState.isLocationLoading) {
                 // 위치 로딩이 끝나고 ID가 있을 때 실행
                 viewModel.selectRestaurantById(
-                    initialRestaurantId,
-                    viewModel.uiState.userLocation!!
+                    initialRestaurantId
                 ) {
                     scope.launch {
                         scaffoldState.bottomSheetState.partialExpand()
@@ -611,7 +609,7 @@ fun MapOverlayUI(
                 }
             },
             onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId, viewModel.uiState.userLocation!!, {
+                viewModel.selectRestaurantById(restaurantId,  {
                     scope.launch {
                         scaffoldState.bottomSheetState.show()
                         scaffoldState.bottomSheetState.partialExpand()
