@@ -84,16 +84,19 @@ fun TastyScreen(
 
     var lastSortType by remember { mutableStateOf<TastySortType?>(null) }
 
-    LaunchedEffect(uiState.selectedSortType) {
+    LaunchedEffect(uiState.selectedSortType, uiState.tastyList) {
         val currentSort = uiState.selectedSortType
 
-        if (lastSortType != null && lastSortType != currentSort) {
-            if (uiState.tastyList.isNotEmpty()) {
-                gridState.scrollToItem(0)
-            }
+
+        if (lastSortType != null && lastSortType != currentSort && uiState.tastyList.isNotEmpty()) {
+            gridState.scrollToItem(0)
+            lastSortType = currentSort
         }
-        
-        lastSortType = currentSort
+
+        // 초기화
+        if (lastSortType == null) {
+            lastSortType = currentSort
+        }
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
