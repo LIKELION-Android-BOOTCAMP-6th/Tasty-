@@ -728,7 +728,7 @@ fun RestaurantItem(
     var isHoursExpanded by remember { mutableStateOf(false) }
 
     val ratingText =
-        if (restaurant.rating != null && restaurant.rating > 0) restaurant.rating.toString() else "0.0"
+        if (restaurant.rating != null && restaurant.rating > 0) "%.1f".format(restaurant.rating) else "0.0"
     val displayRatingText =
         if (restaurant.feedCount > 0) "$ratingText(${restaurant.feedCount})" else ratingText
 
@@ -1257,7 +1257,7 @@ fun formatDistance(distanceInMeters: Int): String {
 // Canvas를 이용해 평점이 적힌 말풍선 모양의 비트맵 마커를 생성
 fun createSimpleRatingMarker(rating: Double, isSelected: Boolean): BitmapDescriptor {
 
-    val text = rating.toString()
+    val text = "%.1f".format(rating)
 
     val mainColor =
         if (isSelected) android.graphics.Color.parseColor("#3B7CFF") else android.graphics.Color.parseColor(
