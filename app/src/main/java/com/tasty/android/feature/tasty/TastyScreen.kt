@@ -65,7 +65,7 @@ fun TastyScreen(
     onClickTastyItem: (String) -> Unit,
     onScaffoldConfigChange: (ScaffoldConfig) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TastyViewModel = viewModel()
+    viewModel: TastyViewModel = viewModel(factory = com.tasty.android.feature.vmfactory.TastyViewModelFactory)
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState  = rememberLazyGridState()

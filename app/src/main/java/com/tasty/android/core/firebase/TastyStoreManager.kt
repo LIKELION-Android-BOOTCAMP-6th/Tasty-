@@ -10,9 +10,12 @@ import com.tasty.android.feature.mypage.tastylist.model.TastyList
 import com.tasty.android.feature.mypage.tastylist.model.TastyListLike
 import com.tasty.android.feature.tasty.TastySortType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -61,7 +64,7 @@ class TastyStoreManager {
         }
     }
 
-    // 다수 테이스티 리스트 목록 조회
+    // 다수 테이스티 리스트 목록 조회(단발성)
     suspend fun getTastyLists(
         sortType: TastySortType,
         limit: Long = paginationLimit,
@@ -84,6 +87,34 @@ class TastyStoreManager {
         } catch (e: FirebaseFirestoreException) {
             Result.failure(e)
         }
+    }
+
+    // 테이스티 리스트 실시간 조회 (DB 상시 동기화용)
+    fun getTastyListsFlow(
+        sortType: TastySortType,
+        limit: Long = paginationLimit
+    ): Flow<List<TastyList>> = callbackFlow {
+        val orderField = when (sortType) {
+            TastySortType.LATEST -> "createdAt"
+            TastySortType.VIEW_COUNT -> "viewCount"
+        }
+        
+        val query = firebaseDB.collection("tastyLists")
+            .orderBy(orderField, Query.Direction.DESCENDING)
+            .limit(limit)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val list = snapshot.toObjects(TastyList::class.java)
+                trySend(list)
+            }
+        }
+
+        awaitClose { subscription.remove() }
     }
 
     // 단일 테이스티 리스트 조회

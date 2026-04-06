@@ -39,52 +39,29 @@ data class TastyUiState(
     val errorMessage: String? = null
 )
 
-class TastyViewModel : ViewModel() {
-
-    private val tastystoreManager = TastyStoreManager()
-    private val authManager = AuthManager()
+class TastyViewModel(
+    private val tastyStoreManager: TastyStoreManager,
+    private val authManager: AuthManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TastyUiState())
     val uiState: StateFlow<TastyUiState> = _uiState.asStateFlow()
 
+    private var observeJob: kotlinx.coroutines.Job? = null
+
     init {
-        loadTastyLists()
+        observeTastyLists()
         observeTastyUpdates()
     }
 
     private fun observeTastyUpdates() {
         viewModelScope.launch {
-            tastystoreManager.tastyUpdateEvents.collectLatest { event ->
+            tastyStoreManager.tastyUpdateEvents.collectLatest { event ->
                 when (event) {
-                    is TastyUpdateEvent.TastyListLiked -> updateLikeState(event.tastyListId, true)
-                    is TastyUpdateEvent.TastyListUnliked -> updateLikeState(event.tastyListId, false)
-                    is TastyUpdateEvent.ViewCountChanged -> updateViewCount(event.tastyListId, event.newCount)
-                    is TastyUpdateEvent.TastyListDeleted,
-                    is TastyUpdateEvent.TastyListCreated -> refresh()
+                    is TastyUpdateEvent.TastyListDeleted -> refresh()
                     else -> {}
                 }
             }
-        }
-    }
-
-    private fun updateLikeState(tastyListId: String, isLiked: Boolean) {
-        _uiState.update { currentState ->
-            val newList = currentState.tastyList.map { item ->
-                if (item.tastyId == tastyListId) {
-                    val newCount = if (isLiked) item.likeCount + 1 else (item.likeCount - 1).coerceAtLeast(0)
-                    item.copy(isLiked = isLiked, likeCount = newCount)
-                } else item
-            }
-            currentState.copy(tastyList = newList)
-        }
-    }
-
-    private fun updateViewCount(tastyListId: String, newCount: Int) {
-        _uiState.update { currentState ->
-            val newList = currentState.tastyList.map { item ->
-                if (item.tastyId == tastyListId) item.copy(viewCount = newCount) else item
-            }
-            currentState.copy(tastyList = newList)
         }
     }
 
@@ -94,52 +71,43 @@ class TastyViewModel : ViewModel() {
                 selectedSortType = sortType
             )
         }
-        loadTastyLists()
+        observeTastyLists()
     }
 
     fun refresh() {
-        loadTastyLists()
+        observeTastyLists()
     }
 
-    fun loadTastyLists() {
-        viewModelScope.launch {
+    private fun observeTastyLists() {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val currentUserId = authManager.getCurrentUser()?.uid
-            val result = tastystoreManager.getTastyLists(
-                sortType = _uiState.value.selectedSortType
-            )
+            val sortType = _uiState.value.selectedSortType
+            tastyStoreManager.getTastyListsFlow(sortType).collect { tastyLists ->
+                val currentUserId = authManager.getCurrentUser()?.uid
+                
+                val uiModels = withContext(Dispatchers.Default) {
+                    tastyLists.map { tasty ->
+                        async {
+                            val isLiked = if (currentUserId != null) {
+                                tastyStoreManager.isTastyListLiked(
+                                    TastyListLike(tastyListId = tasty.tastyListId, userId = currentUserId)
+                                ).getOrDefault(false)
+                            } else false
+                            
+                            tasty.toUiModel(isLiked)
+                        }
+                    }.awaitAll()
+                }
 
-            result
-                .onSuccess { tastyLists ->
-                    val uiModels = withContext(Dispatchers.Default) {
-                        tastyLists.map { tasty ->
-                            async {
-                                val isLiked = if (currentUserId != null) {
-                                    tastystoreManager.isTastyListLiked(
-                                        TastyListLike(tastyListId = tasty.tastyListId, userId = currentUserId)
-                                    ).getOrDefault(false)
-                                } else false
-                                
-                                tasty.toUiModel(isLiked)
-                            }
-                        }.awaitAll()
-                    }
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            tastyList = uiModels
-                        )
-                    }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        tastyList = uiModels
+                    )
                 }
-                .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = throwable.message ?: "테이스티 목록을 불러오지 못했습니다."
-                        )
-                    }
-                }
+            }
         }
     }
 }
