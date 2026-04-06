@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tasty.android.core.design.theme.TextColor
+import kotlinx.coroutines.delay
 
 @Composable
 fun TastyScreen(
@@ -89,6 +90,7 @@ fun TastyScreen(
 
 
         if (lastSortType != null && lastSortType != currentSort && uiState.tastyList.isNotEmpty()) {
+            delay(300)
             gridState.scrollToItem(0)
             lastSortType = currentSort
         }
