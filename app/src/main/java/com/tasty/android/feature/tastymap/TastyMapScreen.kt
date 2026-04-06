@@ -595,28 +595,34 @@ fun MapOverlayUI(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PlaceSearchScreen(
-            labelText = "장소 및 음식점 검색",
-            onFocusChange = {
-                viewModel.setSearchFocus(it)
-                scope.launch {
-                    scaffoldState.bottomSheetState.hide()
-                }
-            },
-            onPlaceSelectedLocation = { latLng ->
-                scope.launch {
-                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
-                }
-            },
-            onPlaceSelectedRestaurant = { restaurantId ->
-                viewModel.selectRestaurantById(restaurantId,  {
+        AnimatedVisibility(
+            visible = !uiState.isDetailMode,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            PlaceSearchScreen(
+                labelText = "장소 및 음식점 검색",
+                onFocusChange = {
+                    viewModel.setSearchFocus(it)
                     scope.launch {
-                        scaffoldState.bottomSheetState.show()
-                        scaffoldState.bottomSheetState.partialExpand()
+                        scaffoldState.bottomSheetState.hide()
                     }
-                })
-            }
-        )
+                },
+                onPlaceSelectedLocation = { latLng ->
+                    scope.launch {
+                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 18f))
+                    }
+                },
+                onPlaceSelectedRestaurant = { restaurantId ->
+                    viewModel.selectRestaurantById(restaurantId, {
+                        scope.launch {
+                            scaffoldState.bottomSheetState.show()
+                            scaffoldState.bottomSheetState.partialExpand()
+                        }
+                    })
+                }
+            )
+        }
 
         // 반경 선택 및 검색 버튼 영역
         Column(
@@ -625,7 +631,7 @@ fun MapOverlayUI(
                 .padding(top = 100.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AnimatedVisibility(visible = !uiState.isSearchFocused) {
+            AnimatedVisibility(visible = !uiState.isSearchFocused && !uiState.isDetailMode) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -657,7 +663,7 @@ fun MapOverlayUI(
         }
 
         AnimatedVisibility(
-            visible = !uiState.isSearchFocused,
+            visible = !uiState.isSearchFocused && !uiState.isDetailMode,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 150.dp)

@@ -45,7 +45,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -135,25 +137,41 @@ private fun TastyScreenContent(
             onSelectSort = onSelectSort
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            state = state,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-            contentPadding = PaddingValues(
-                top = 12.dp,
-                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
-            )
-        ) {
-            items(uiState.tastyList, key = { it.tastyId }) { item ->
-                TastyCard(
-                    item = item,
-                    onClick = { onClickTastyItem(item.tastyId) },
-                    isLiked = item.isLiked
+        if (!uiState.isLoading && uiState.tastyList.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "아직 테이스티 리스트가 없어요.\n제일 먼저 작성해보세요.",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 24.sp
+                    )
                 )
+            }
+        } else {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                state = state,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(
+                    top = 12.dp,
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp
+                )
+            ) {
+                items(uiState.tastyList, key = { it.tastyId }) { item ->
+                    TastyCard(
+                        item = item,
+                        onClick = { onClickTastyItem(item.tastyId) },
+                        isLiked = item.isLiked
+                    )
+                }
             }
         }
     }

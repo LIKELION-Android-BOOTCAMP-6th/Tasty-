@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -233,8 +234,8 @@ fun FeedScreen(
                     ) {
                         Text(
                             text = "조건에 맞는 피드가 없어요",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color.Gray
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = Color.Gray,
                             )
                         )
                     }

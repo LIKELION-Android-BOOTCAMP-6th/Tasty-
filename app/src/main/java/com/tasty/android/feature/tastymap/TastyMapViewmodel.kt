@@ -50,6 +50,7 @@ data class TastyMapUiState(
     val isSearchFocused: Boolean = false,
     val userLocation: LatLng? = null,
     val isSearching: Boolean = false,
+    val isDetailMode: Boolean = false, // 상세 페이지에서 유입된 모드인지 확인
 )
 
 class TastyMapViewmodel(
@@ -142,7 +143,8 @@ class TastyMapViewmodel(
         uiState = uiState.copy(
             selectedRestaurant = null,
             selectedGroup = null, // 그룹 선택도 해제
-            isCommentVisible = false
+            isCommentVisible = false,
+            isDetailMode = false // 선택 해제 시 상세 모드 종료
         )
     }
 
@@ -227,9 +229,12 @@ class TastyMapViewmodel(
         }
     }
 
-    // id로 식당을 찾음
+    // id로 식당을 찾음 (상세 페이지에서 진입 시 호출)
     fun selectRestaurantById(restaurantId: String, onComplete: () -> Unit) {
         viewModelScope.launch {
+            // 상세 모드 진입 설정
+            uiState = uiState.copy(isDetailMode = true)
+
             // 이미 리스트에 데이터가 있는지 확인
             val target = uiState.restaurants.find { it.id == restaurantId }
 
