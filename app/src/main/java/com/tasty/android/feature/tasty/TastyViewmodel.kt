@@ -59,7 +59,8 @@ class TastyViewModel : ViewModel() {
                     is TastyUpdateEvent.TastyListLiked -> updateLikeState(event.tastyListId, true)
                     is TastyUpdateEvent.TastyListUnliked -> updateLikeState(event.tastyListId, false)
                     is TastyUpdateEvent.ViewCountChanged -> updateViewCount(event.tastyListId, event.newCount)
-                    is TastyUpdateEvent.TastyListDeleted -> refresh()
+                    is TastyUpdateEvent.TastyListDeleted,
+                    is TastyUpdateEvent.TastyListCreated -> refresh()
                     else -> {}
                 }
             }

@@ -117,6 +117,9 @@ class FeedViewModel(
         viewModelScope.launch {
             feedStoreManager.feedUpdateEvents.collect { event ->
                 when (event) {
+                    is FeedUpdateEvent.FeedCreated -> {
+                        loadLatestFeeds(isRefresh = true)
+                    }
                     is FeedUpdateEvent.CommentCountChanged -> {
                         launch { updateFeedPostInState(event.feedId) { it.copy(commentCount = event.newCount) } }
                     }
